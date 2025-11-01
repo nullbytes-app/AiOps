@@ -43,15 +43,15 @@ development_status:
   1-4-configure-redis-queue-for-message-processing: done
   1-5-implement-celery-worker-setup: done
   1-6-create-kubernetes-deployment-manifests: done
-  1-7-set-up-cicd-pipeline-with-github-actions: review
-  1-8-create-local-development-and-deployment-documentation: backlog
+  1-7-set-up-cicd-pipeline-with-github-actions: done
+  1-8-create-local-development-and-deployment-documentation: done
   epic-1-retrospective: optional
 
-  epic-2: backlog
-  2-1-implement-fastapi-webhook-receiver-endpoint: backlog
-  2-2-implement-webhook-signature-validation: backlog
-  2-3-queue-enhancement-jobs-to-redis: backlog
-  2-4-create-celery-task-for-enhancement-processing: backlog
+  epic-2: contexted
+  2-1-implement-fastapi-webhook-receiver-endpoint: done
+  2-2-implement-webhook-signature-validation: done
+  2-3-queue-enhancement-jobs-to-redis: done
+  2-4-create-celery-task-for-enhancement-processing: done
   2-5-implement-ticket-history-search-context-gathering: backlog
   2-6-implement-documentation-and-knowledge-base-search: backlog
   2-7-implement-ip-address-cross-reference: backlog
