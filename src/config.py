@@ -66,6 +66,12 @@ class Settings(BaseSettings):
         ...,
         description="Redis URL for Celery results backend",
     )
+    celery_worker_concurrency: int = Field(
+        default=4,
+        description="Number of concurrent Celery workers per pod",
+        ge=1,
+        le=16,
+    )
 
     # Application Configuration
     environment: Literal["development", "staging", "production"] = Field(
@@ -97,10 +103,16 @@ def get_settings() -> Settings:
 
 # Global settings instance for convenience
 # Import this in other modules: from src.config import settings
-# For tests, import Settings class and instantiate with env vars
+# For tests, environment variables are set up by conftest.py
 try:
     settings = Settings()
-except Exception:
-    # Settings instantiation will fail during testing without .env
-    # Tests should create their own Settings instances with test env vars
-    settings = None  # type: ignore
+except Exception as e:
+    # Settings instantiation may fail during testing without .env
+    # Will be initialized by conftest.py with test environment variables
+    import sys
+    if "pytest" in sys.modules:
+        # Running under pytest - settings will be initialized by conftest
+        settings = None  # type: ignore
+    else:
+        # Running outside pytest - re-raise the exception
+        raise

@@ -19,9 +19,15 @@ def clean_env() -> Generator[None, None, None]:
     """
     Clean environment variables before and after tests.
 
+    Also temporarily renames the .env file to prevent Pydantic from loading
+    defaults from it, allowing tests to verify that Settings raises errors
+    when required environment variables are missing.
+
     Yields:
         None: Cleanup fixture
     """
+    from pathlib import Path
+
     # Store original env vars
     original_env = os.environ.copy()
 
@@ -30,11 +36,24 @@ def clean_env() -> Generator[None, None, None]:
         if key.startswith("AI_AGENTS_"):
             del os.environ[key]
 
-    yield
+    # Temporarily rename .env file so Pydantic can't load from it
+    env_file = Path(".env")
+    env_file_backup = Path(".env.test_backup")
+    env_exists = env_file.exists()
 
-    # Restore original environment
-    os.environ.clear()
-    os.environ.update(original_env)
+    if env_exists:
+        env_file.rename(env_file_backup)
+
+    try:
+        yield
+    finally:
+        # Restore original environment
+        os.environ.clear()
+        os.environ.update(original_env)
+
+        # Restore .env file
+        if env_exists and env_file_backup.exists():
+            env_file_backup.rename(env_file)
 
 
 @pytest.fixture
