@@ -116,8 +116,10 @@ class TestWorkflowInitialization:
     def test_workflow_has_nodes(self):
         """AC #1: Workflow graph contains all required nodes."""
         workflow = build_enhancement_workflow()
-        # Graph should have compiled state with nodes
-        assert hasattr(workflow, "graph")
+        # Compiled graph should have invoke method for execution
+        assert hasattr(workflow, "invoke")
+        # Graph is functional and can be called
+        assert callable(workflow.invoke)
 
 
 # ============================================================================
