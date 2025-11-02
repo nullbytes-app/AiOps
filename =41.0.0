@@ -1,0 +1,6 @@
+Resolved 3 packages in 187ms
+Prepared 1 package in 59ms
+Installed 3 packages in 11ms
+ + cffi==2.0.0
+ + cryptography==46.0.3
+ + pycparser==2.23

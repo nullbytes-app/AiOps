@@ -14,7 +14,7 @@ def pytest_configure(config):
     """Configure pytest before test collection."""
     # Set test environment variables BEFORE importing any modules
     # This is critical - many modules import settings at module load time
-    os.environ.setdefault("AI_AGENTS_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5433/ai_agents")
+    os.environ.setdefault("AI_AGENTS_DATABASE_URL", "postgresql+asyncpg://aiagents:password@localhost:5433/ai_agents")
     os.environ.setdefault("AI_AGENTS_REDIS_URL", "redis://localhost:6379/0")
     os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
     os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
@@ -24,6 +24,8 @@ def pytest_configure(config):
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_BASE_URL", "https://test.servicedesk.com")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_SITE_URL", "https://test.example.com")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_APP_NAME", "AI Agents Test Suite")
+    # Set encryption key for tenant config encryption/decryption tests
+    os.environ.setdefault("ENCRYPTION_KEY", "PPKoFvf2uT-VU0paVYc_rO5F-zVz5YUonDBagL2h0wU=")
 
     # Only set additional environment if not already in CI/Docker environment
     if not os.environ.get("CI"):
@@ -37,7 +39,7 @@ def setup_test_env():
     """Set up test environment and reload settings."""
     # Set required environment variables for integration tests
     # (but only if not already set by a test fixture)
-    os.environ.setdefault("AI_AGENTS_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5433/ai_agents")
+    os.environ.setdefault("AI_AGENTS_DATABASE_URL", "postgresql+asyncpg://aiagents:password@localhost:5433/ai_agents")
     os.environ.setdefault("AI_AGENTS_REDIS_URL", "redis://localhost:6379/0")
     os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
     os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
@@ -68,4 +70,7 @@ def env_vars(monkeypatch):
     return set_env
 
 
-
+# Import all test fixtures for pytest discovery
+pytest_plugins = [
+    "tests.fixtures.rls_fixtures",
+]

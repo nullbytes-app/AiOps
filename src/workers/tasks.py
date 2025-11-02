@@ -23,6 +23,7 @@ from src.workers.celery_app import celery_app
 from src.schemas.job import EnhancementJob
 from src.database.models import EnhancementHistory
 from src.database.session import async_session_maker
+from src.database.tenant_context import set_db_tenant_context
 
 # Prometheus metrics stubs (will be fully implemented in Story 4.1)
 # For now, we just define placeholders to satisfy Story 2.4 requirements
@@ -235,9 +236,13 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
             nonlocal enhancement_id, context_gathered, llm_output
 
             async with async_session_maker() as session:
+                # Set tenant context for RLS (Story 3.1)
+                # Must be called before any database queries on tenant-scoped tables
+                await set_db_tenant_context(session, job.tenant_id)
+
                 # Task 1.3: Load tenant configuration from database
                 from src.database.models import TenantConfig
-                
+
                 stmt = select(TenantConfig).where(TenantConfig.tenant_id == job.tenant_id)
                 result = await session.execute(stmt)
                 tenant_config = result.scalar_one_or_none()

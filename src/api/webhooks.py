@@ -16,8 +16,11 @@ from src.schemas.webhook import WebhookPayload, ResolvedTicketWebhook
 from src.services.webhook_validator import validate_webhook_signature, validate_signature
 from src.services.queue_service import QueueService, get_queue_service
 from src.services.ticket_storage_service import store_webhook_resolved_ticket
+from src.services.tenant_service import TenantService
 from src.database.session import get_async_session
+from src.api.dependencies import get_tenant_db, get_tenant_config_dep
 from src.config import get_settings
+from src.schemas.tenant import TenantConfigInternal
 from src.utils.exceptions import QueueServiceError
 from src.utils.logger import logger
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,24 +33,33 @@ router = APIRouter(prefix="/webhook", tags=["webhooks"])
     status_code=status.HTTP_202_ACCEPTED,
     summary="Receive ServiceDesk Plus webhook notification",
     description="Accepts webhook notifications from ServiceDesk Plus when tickets are created or updated. "
-    "Validates the payload and returns 202 Accepted immediately while queuing the ticket for enhancement processing. "
-    "This is the primary entry point for the ticket enhancement pipeline.",
+    "Validates the payload using tenant-specific webhook secret and returns 202 Accepted immediately while "
+    "queuing the ticket for enhancement processing. Uses tenant-specific configuration for ServiceDesk Plus credentials "
+    "and enhancement preferences. This is the primary entry point for the ticket enhancement pipeline.",
     dependencies=[Depends(validate_webhook_signature)],
 )
 async def receive_webhook(
-    payload: WebhookPayload, queue_service: QueueService = Depends(get_queue_service)
+    payload: WebhookPayload,
+    db: AsyncSession = Depends(get_tenant_db),
+    queue_service: QueueService = Depends(get_queue_service),
+    tenant_config: TenantConfigInternal = Depends(get_tenant_config_dep)
 ) -> dict[str, str]:
     """
     Receive and validate webhook notification from ServiceDesk Plus.
 
     Immediately acknowledges the webhook with 202 Accepted to prevent timeout,
-    while delegating actual processing to background workers. Request is logged
-    with correlation ID for distributed tracing. Job is queued to Redis for
-    asynchronous processing by Celery workers.
+    while delegating actual processing to background workers. Loads tenant-specific
+    configuration (ServiceDesk Plus credentials and enhancement preferences) and
+    queues job with tenant context. Request is logged with correlation ID for
+    distributed tracing. Job is queued to Redis for asynchronous processing by
+    Celery workers.
 
     Args:
         payload: WebhookPayload model containing ticket information
+        db: RLS-aware database session (injected via get_tenant_db dependency)
         queue_service: QueueService instance (injected via dependency)
+        tenant_config: Tenant configuration with ServiceDesk Plus credentials
+                      and enhancement preferences (injected via get_tenant_config_dep)
 
     Returns:
         dict: Response object with status, job_id, and message
@@ -58,6 +70,8 @@ async def receive_webhook(
     Raises:
         ValidationError: FastAPI automatically returns 422 if payload is invalid
         HTTPException(503): If Redis queue is unavailable
+        HTTPException(404): If tenant configuration not found
+        HTTPException(400): If tenant_id missing from request
 
     Example:
         Request body:
@@ -98,6 +112,8 @@ async def receive_webhook(
     # Queue job to Redis for asynchronous processing
     try:
         # Prepare job data for queue
+        # Reason: Include tenant-specific config (ServiceDesk Plus credentials, preferences)
+        # so Celery workers can process with correct tenant context and configuration
         job_data = {
             "job_id": job_id,
             "ticket_id": payload.ticket_id,
@@ -105,6 +121,10 @@ async def receive_webhook(
             "description": payload.description,
             "priority": payload.priority,
             "timestamp": payload.created_at,
+            # Tenant-specific configuration (from tenant_config dependency)
+            "servicedesk_url": tenant_config.servicedesk_url,
+            "servicedesk_api_key": tenant_config.api_key,  # Decrypted by dependency
+            "enhancement_preferences": tenant_config.enhancement_preferences,
         }
 
         # Push job to Redis queue
@@ -157,7 +177,7 @@ async def receive_webhook(
 async def store_resolved_ticket(
     request: Request,
     payload: ResolvedTicketWebhook,
-    session: AsyncSession = Depends(get_async_session),
+    session: AsyncSession = Depends(get_tenant_db),
     settings = Depends(get_settings),
 ) -> dict[str, str]:
     """

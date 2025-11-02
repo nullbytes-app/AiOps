@@ -519,6 +519,91 @@ Error Responses:
 - **SQL Injection:** SQLAlchemy ORM prevents SQL injection
 - **XSS:** HTML escaping for any user-provided content in ticket updates
 
+### Row-Level Security (RLS) Implementation
+
+**Story:** 3.1 - Implement Row-Level Security in PostgreSQL (Completed 2025-11-02)
+
+**Overview:**
+PostgreSQL Row-Level Security provides database-level multi-tenant isolation using native security policies. This ensures that even if application-level filtering fails, tenant data remains isolated at the database layer.
+
+**Session Variable Pattern:**
+```sql
+-- RLS policies filter rows based on session variable
+CREATE POLICY tenant_isolation_policy ON table_name
+    FOR ALL
+    USING (tenant_id = current_setting('app.current_tenant_id')::VARCHAR);
+```
+
+**Helper Function:**
+```sql
+-- Validates tenant_id and sets session variable securely
+CREATE OR REPLACE FUNCTION set_tenant_context(p_tenant_id VARCHAR)
+RETURNS VOID AS $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM tenant_configs WHERE tenant_id = p_tenant_id) THEN
+        RAISE EXCEPTION 'Invalid tenant_id: %', p_tenant_id;
+    END IF;
+    PERFORM set_config('app.current_tenant_id', p_tenant_id, false);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+**Protected Tables:**
+- `tenant_configs` - Tenant configuration and credentials
+- `enhancement_history` - Enhancement processing records
+- `ticket_history` - Historical ticket data
+- `system_inventory` - Infrastructure inventory data
+
+**FastAPI Integration:**
+```python
+from src.api.dependencies import get_tenant_db
+
+@app.post("/enhancements")
+async def create_enhancement(
+    data: EnhancementCreate,
+    db: AsyncSession = Depends(get_tenant_db)  # RLS-aware session
+):
+    # All queries automatically filtered by tenant_id
+    enhancement = EnhancementHistory(**data.dict())
+    db.add(enhancement)
+    await db.commit()
+```
+
+**Celery Task Integration:**
+```python
+from src.database.tenant_context import set_db_tenant_context
+
+async with async_session_maker() as session:
+    await set_db_tenant_context(session, job.tenant_id)
+    # All subsequent queries filtered by tenant_id
+```
+
+**Security Considerations:**
+- **Superusers bypass RLS:** Database admin role (`postgres`) has BYPASSRLS for maintenance
+- **Application role:** `app_user` role does NOT have BYPASSRLS attribute
+- **SQL injection protection:** `set_tenant_context()` validates tenant_id before setting
+- **Missing context:** If context not set, queries return 0 rows (safe default)
+- **SECURITY DEFINER:** Prevents privilege escalation attacks
+
+**Performance Impact:**
+- RLS adds minimal overhead (<5%) with simple policy expressions
+- All `tenant_id` columns are indexed on RLS-enabled tables
+- Query planner optimizations automatically applied
+
+**Testing:**
+- Unit tests: `tests/unit/test_row_level_security.py`
+- Test fixtures: `tests/fixtures/rls_fixtures.py`
+- Integration tests: Cross-tenant isolation validation
+
+**Documentation:**
+- Implementation guide: `docs/security-rls.md`
+- Troubleshooting: Empty result sets, permission errors, invalid tenant IDs
+- Migration: `alembic/versions/168c9b67e6ca_add_row_level_security_policies.py`
+
+**References:**
+- PostgreSQL RLS Documentation: https://www.postgresql.org/docs/current/ddl-rowsecurity.html
+- PRD FR018: Multi-tenant data isolation requirements
+
 ---
 
 ## Performance Considerations

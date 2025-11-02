@@ -79,3 +79,64 @@ def get_shared_redis() -> aioredis.Redis:
         )
         _clients_by_loop[key] = client
     return client
+
+
+async def set_tenant_config(
+    client: aioredis.Redis, tenant_id: str, config: dict, ttl: int = 300
+) -> None:
+    """
+    Cache tenant configuration in Redis with TTL.
+
+    Args:
+        client: Redis async client
+        tenant_id: Unique tenant identifier
+        config: Configuration dict (will be JSON serialized)
+        ttl: Time-to-live in seconds (default: 5 minutes)
+
+    Raises:
+        Exception: If Redis operation fails (caller should handle gracefully)
+    """
+    import json
+    cache_key = f"tenant:config:{tenant_id}"
+    await client.setex(cache_key, ttl, json.dumps(config))
+
+
+async def get_tenant_config(
+    client: aioredis.Redis, tenant_id: str
+) -> dict | None:
+    """
+    Retrieve cached tenant configuration from Redis.
+
+    Args:
+        client: Redis async client
+        tenant_id: Unique tenant identifier
+
+    Returns:
+        Configuration dict if found in cache, None if not found or expired
+
+    Raises:
+        Exception: If Redis operation fails (caller should handle gracefully)
+    """
+    import json
+    cache_key = f"tenant:config:{tenant_id}"
+    cached = await client.get(cache_key)
+    if cached:
+        return json.loads(cached)
+    return None
+
+
+async def invalidate_tenant_config(
+    client: aioredis.Redis, tenant_id: str
+) -> None:
+    """
+    Invalidate (delete) cached tenant configuration.
+
+    Args:
+        client: Redis async client
+        tenant_id: Unique tenant identifier
+
+    Raises:
+        Exception: If Redis operation fails (caller should handle gracefully)
+    """
+    cache_key = f"tenant:config:{tenant_id}"
+    await client.delete(cache_key)

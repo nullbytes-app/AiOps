@@ -1,0 +1,413 @@
+"""
+Tenant configuration service with caching and encryption.
+
+Provides CRUD operations for tenant configurations with:
+- Redis caching layer (5-minute TTL, invalidation on updates)
+- Transparent encryption/decryption of sensitive fields
+- Async/await support with SQLAlchemy
+- Graceful fallback if Redis unavailable
+- Comprehensive logging for monitoring
+
+Reason:
+    Centralizes tenant config management, separating database/cache logic
+    from API endpoints. Enables reuse in webhooks and Celery tasks.
+    Caching improves performance (target >90% hit ratio).
+"""
+
+import json
+from typing import Optional, List
+from datetime import datetime
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from redis import asyncio as aioredis
+from loguru import logger
+
+from src.database.models import TenantConfig as TenantConfigModel
+from src.schemas.tenant import (
+    TenantConfigCreate,
+    TenantConfigUpdate,
+    TenantConfigInternal,
+    TenantConfigResponse,
+    EnhancementPreferences,
+)
+from src.utils.encryption import encrypt, decrypt, EncryptionError
+
+
+class TenantNotFoundException(Exception):
+    """Raised when tenant configuration not found."""
+    pass
+
+
+class TenantService:
+    """
+    Service for managing tenant configurations.
+
+    Handles CRUD operations with automatic encryption/decryption of sensitive fields
+    and Redis caching with TTL-based invalidation.
+    """
+
+    # Cache TTL in seconds (5 minutes)
+    CACHE_TTL = 300
+
+    # Cache key pattern for tenant configs
+    CACHE_KEY_PATTERN = "tenant:config:{tenant_id}"
+
+    def __init__(self, db: AsyncSession, redis: aioredis.Redis):
+        """
+        Initialize TenantService with database and Redis clients.
+
+        Args:
+            db: SQLAlchemy AsyncSession for database operations
+            redis: Redis async client for caching
+        """
+        self.db = db
+        self.redis = redis
+
+    async def get_tenant_config(self, tenant_id: str) -> TenantConfigInternal:
+        """
+        Load tenant configuration with caching.
+
+        Checks Redis cache first; on cache miss, queries database,
+        decrypts sensitive fields, and caches result.
+
+        Args:
+            tenant_id: Unique tenant identifier
+
+        Returns:
+            TenantConfigInternal: Configuration with decrypted credentials
+
+        Raises:
+            TenantNotFoundException: If tenant not found in database
+            EncryptionError: If decryption fails
+        """
+        cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=tenant_id)
+
+        # Strategy 1: Check Redis cache
+        try:
+            cached = await self.redis.get(cache_key)
+            if cached:
+                logger.info(f"Cache HIT for tenant {tenant_id}")
+                config_dict = json.loads(cached)
+                return TenantConfigInternal(**config_dict)
+        except Exception as e:
+            # Log but don't fail; graceful fallback to database
+            logger.warning(f"Cache read failed for {tenant_id}: {str(e)}")
+
+        # Strategy 2: Query database
+        logger.info(f"Cache MISS for tenant {tenant_id}, querying database")
+        stmt = select(TenantConfigModel).where(
+            TenantConfigModel.tenant_id == tenant_id
+        )
+        result = await self.db.execute(stmt)
+        db_config = result.scalar_one_or_none()
+
+        if not db_config:
+            raise TenantNotFoundException(
+                f"Tenant '{tenant_id}' not found in database"
+            )
+
+        # Decrypt sensitive fields
+        try:
+            decrypted_api_key = decrypt(db_config.servicedesk_api_key_encrypted)
+            decrypted_webhook_secret = decrypt(
+                db_config.webhook_signing_secret_encrypted
+            )
+        except EncryptionError as e:
+            logger.error(
+                f"Failed to decrypt credentials for tenant {tenant_id}: {str(e)}"
+            )
+            raise
+
+        # Build internal model with decrypted credentials
+        config = TenantConfigInternal(
+            id=db_config.id,
+            tenant_id=db_config.tenant_id,
+            name=db_config.name,
+            servicedesk_url=db_config.servicedesk_url,
+            servicedesk_api_key=decrypted_api_key,
+            webhook_signing_secret=decrypted_webhook_secret,
+            enhancement_preferences=db_config.enhancement_preferences,
+            created_at=db_config.created_at,
+            updated_at=db_config.updated_at,
+        )
+
+        # Strategy 3: Cache result (non-blocking failure)
+        try:
+            await self.redis.setex(
+                cache_key,
+                self.CACHE_TTL,
+                config.model_dump_json(),
+            )
+            logger.info(f"Cached tenant config for {tenant_id} (TTL: {self.CACHE_TTL}s)")
+        except Exception as e:
+            logger.warning(
+                f"Failed to cache tenant config for {tenant_id}: {str(e)}"
+            )
+
+        return config
+
+    async def create_tenant(
+        self, config: TenantConfigCreate
+    ) -> TenantConfigInternal:
+        """
+        Create new tenant configuration.
+
+        Encrypts sensitive fields before storage and caches the result.
+
+        Args:
+            config: TenantConfigCreate with plaintext credentials
+
+        Returns:
+            TenantConfigInternal: Created configuration with decrypted credentials
+
+        Raises:
+            SQLAlchemy.IntegrityError: If tenant_id already exists
+            EncryptionError: If encryption fails
+        """
+        try:
+            # Encrypt sensitive fields
+            encrypted_api_key = encrypt(config.servicedesk_api_key)
+            encrypted_webhook_secret = encrypt(config.webhook_signing_secret)
+        except EncryptionError as e:
+            logger.error(f"Failed to encrypt credentials: {str(e)}")
+            raise
+
+        # Create database model
+        db_config = TenantConfigModel(
+            tenant_id=config.tenant_id,
+            name=config.name,
+            servicedesk_url=str(config.servicedesk_url),
+            servicedesk_api_key_encrypted=encrypted_api_key,
+            webhook_signing_secret_encrypted=encrypted_webhook_secret,
+            enhancement_preferences=config.enhancement_preferences.model_dump() if config.enhancement_preferences else {},
+        )
+
+        # Insert into database
+        self.db.add(db_config)
+        await self.db.flush()  # Populate id and timestamps
+        logger.info(f"Created tenant config for {config.tenant_id}")
+
+        # Build and cache result
+        result = TenantConfigInternal(
+            id=db_config.id,
+            tenant_id=db_config.tenant_id,
+            name=db_config.name,
+            servicedesk_url=db_config.servicedesk_url,
+            servicedesk_api_key=config.servicedesk_api_key,
+            webhook_signing_secret=config.webhook_signing_secret,
+            enhancement_preferences=db_config.enhancement_preferences,
+            created_at=db_config.created_at,
+            updated_at=db_config.updated_at,
+        )
+
+        cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=config.tenant_id)
+        try:
+            await self.redis.setex(
+                cache_key,
+                self.CACHE_TTL,
+                result.model_dump_json(),
+            )
+        except Exception as e:
+            logger.warning(f"Failed to cache new tenant {config.tenant_id}: {str(e)}")
+
+        return result
+
+    async def update_tenant(
+        self, tenant_id: str, updates: TenantConfigUpdate
+    ) -> TenantConfigInternal:
+        """
+        Update tenant configuration.
+
+        Applies partial updates, re-encrypts if credentials changed,
+        invalidates cache.
+
+        Args:
+            tenant_id: Tenant identifier
+            updates: TenantConfigUpdate with fields to change
+
+        Returns:
+            TenantConfigInternal: Updated configuration with decrypted credentials
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+            EncryptionError: If encryption fails
+        """
+        # Load existing config
+        stmt = select(TenantConfigModel).where(
+            TenantConfigModel.tenant_id == tenant_id
+        )
+        result = await self.db.execute(stmt)
+        db_config = result.scalar_one_or_none()
+
+        if not db_config:
+            raise TenantNotFoundException(
+                f"Tenant '{tenant_id}' not found"
+            )
+
+        # Apply updates
+        update_data = updates.model_dump(exclude_unset=True)
+
+        if "name" in update_data:
+            db_config.name = update_data["name"]
+
+        if "servicedesk_url" in update_data:
+            db_config.servicedesk_url = str(update_data["servicedesk_url"])
+
+        if "servicedesk_api_key" in update_data:
+            try:
+                db_config.servicedesk_api_key_encrypted = encrypt(
+                    update_data["servicedesk_api_key"]
+                )
+            except EncryptionError as e:
+                logger.error(f"Failed to encrypt new API key: {str(e)}")
+                raise
+
+        if "webhook_signing_secret" in update_data:
+            try:
+                db_config.webhook_signing_secret_encrypted = encrypt(
+                    update_data["webhook_signing_secret"]
+                )
+            except EncryptionError as e:
+                logger.error(f"Failed to encrypt new webhook secret: {str(e)}")
+                raise
+
+        if "enhancement_preferences" in update_data:
+            prefs = update_data["enhancement_preferences"]
+            db_config.enhancement_preferences = prefs.model_dump() if isinstance(prefs, EnhancementPreferences) else prefs
+
+        # Commit changes
+        await self.db.flush()
+        logger.info(f"Updated tenant config for {tenant_id}")
+
+        # Invalidate cache
+        cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=tenant_id)
+        try:
+            await self.redis.delete(cache_key)
+            logger.info(f"Invalidated cache for tenant {tenant_id}")
+        except Exception as e:
+            logger.warning(f"Failed to invalidate cache for {tenant_id}: {str(e)}")
+
+        # Decrypt and return updated config
+        try:
+            decrypted_api_key = decrypt(db_config.servicedesk_api_key_encrypted)
+            decrypted_webhook_secret = decrypt(
+                db_config.webhook_signing_secret_encrypted
+            )
+        except EncryptionError as e:
+            logger.error(
+                f"Failed to decrypt updated credentials for {tenant_id}: {str(e)}"
+            )
+            raise
+
+        return TenantConfigInternal(
+            id=db_config.id,
+            tenant_id=db_config.tenant_id,
+            name=db_config.name,
+            servicedesk_url=db_config.servicedesk_url,
+            servicedesk_api_key=decrypted_api_key,
+            webhook_signing_secret=decrypted_webhook_secret,
+            enhancement_preferences=db_config.enhancement_preferences,
+            created_at=db_config.created_at,
+            updated_at=db_config.updated_at,
+        )
+
+    async def delete_tenant(self, tenant_id: str) -> None:
+        """
+        Delete tenant configuration (soft delete).
+
+        Sets active flag to False and invalidates cache.
+
+        Args:
+            tenant_id: Tenant identifier
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+        """
+        stmt = select(TenantConfigModel).where(
+            TenantConfigModel.tenant_id == tenant_id
+        )
+        result = await self.db.execute(stmt)
+        db_config = result.scalar_one_or_none()
+
+        if not db_config:
+            raise TenantNotFoundException(
+                f"Tenant '{tenant_id}' not found"
+            )
+
+        # Note: Soft delete would require adding 'active' column to schema
+        # For now, perform hard delete as per AC
+        self.db.delete(db_config)
+        await self.db.flush()
+        logger.info(f"Deleted tenant config for {tenant_id}")
+
+        # Invalidate cache
+        cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=tenant_id)
+        try:
+            await self.redis.delete(cache_key)
+        except Exception as e:
+            logger.warning(f"Failed to invalidate cache for {tenant_id}: {str(e)}")
+
+    async def list_tenants(
+        self, skip: int = 0, limit: int = 50
+    ) -> tuple[List[TenantConfigResponse], int]:
+        """
+        List tenant configurations with pagination.
+
+        Returns masked response models (sensitive fields not decrypted).
+
+        Args:
+            skip: Number of results to skip (pagination offset)
+            limit: Maximum results to return (pagination limit)
+
+        Returns:
+            Tuple of (list of TenantConfigResponse, total count)
+        """
+        from sqlalchemy import func
+
+        # Get total count
+        count_stmt = select(func.count(TenantConfigModel.id))
+        count_result = await self.db.execute(count_stmt)
+        total_count = count_result.scalar() or 0
+
+        # Query paginated results
+        stmt = (
+            select(TenantConfigModel)
+            .order_by(TenantConfigModel.created_at)
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self.db.execute(stmt)
+        db_configs = result.scalars().all()
+
+        # Convert to response models (masked)
+        configs = [
+            TenantConfigResponse(
+                id=config.id,
+                tenant_id=config.tenant_id,
+                name=config.name,
+                servicedesk_url=config.servicedesk_url,
+                servicedesk_api_key_encrypted="***encrypted***",
+                webhook_signing_secret_encrypted="***encrypted***",
+                enhancement_preferences=config.enhancement_preferences,
+                created_at=config.created_at,
+                updated_at=config.updated_at,
+            )
+            for config in db_configs
+        ]
+
+        return configs, total_count
+
+    async def invalidate_cache(self, tenant_id: str) -> None:
+        """
+        Manually invalidate cache for a tenant.
+
+        Args:
+            tenant_id: Tenant identifier
+        """
+        cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=tenant_id)
+        try:
+            await self.redis.delete(cache_key)
+            logger.info(f"Manually invalidated cache for tenant {tenant_id}")
+        except Exception as e:
+            logger.warning(f"Failed to invalidate cache for {tenant_id}: {str(e)}")

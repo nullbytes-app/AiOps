@@ -90,6 +90,15 @@ class Settings(BaseSettings):
         description="Shared secret for HMAC-SHA256 webhook signature validation",
         min_length=32,
     )
+    admin_api_key: str = Field(
+        ...,
+        description="API key for admin endpoints (X-Admin-Key header)",
+        min_length=32,
+    )
+    encryption_key: str = Field(
+        ...,
+        description="Encryption key for sensitive fields (Fernet symmetric key)",
+    )
 
     # OpenRouter/LLM Configuration
     openrouter_api_key: str = Field(

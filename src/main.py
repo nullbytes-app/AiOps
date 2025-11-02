@@ -8,6 +8,7 @@ routers, middleware, and startup/shutdown event handlers in future stories.
 from fastapi import FastAPI, HTTPException, status
 
 from src.api import health, webhooks
+from src.api.admin import tenants as admin_tenants
 from src.config import settings
 from src.cache.redis_client import check_redis_connection
 from src.database.connection import check_database_connection
@@ -24,6 +25,7 @@ app = FastAPI(
 # Register routers
 app.include_router(webhooks.router)
 app.include_router(health.router)
+app.include_router(admin_tenants.router)  # Admin tenant management endpoints
 
 
 @app.get("/")
