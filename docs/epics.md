@@ -294,6 +294,50 @@ So that technicians can see how similar problems were resolved.
 
 ---
 
+**Story 2.5A: Populate Ticket History from ServiceDesk Plus**
+
+As a platform operator,
+I want to bulk import historical tickets from ServiceDesk Plus during tenant onboarding,
+So that the enhancement agent has context data available from day one.
+
+**Acceptance Criteria:**
+1. Python script created: `scripts/import_tickets.py --tenant-id=X --days=90`
+2. Script fetches closed/resolved tickets from ServiceDesk Plus API
+3. Uses pagination (100 tickets per page) for large datasets
+4. Stores required fields: tenant_id, ticket_id, description, resolution, resolved_date, tags, source='bulk_import', ingested_at
+5. Progress tracking: Logs "Imported 1000/5000 tickets (20%)" every 100 tickets
+6. Error handling: Skip invalid tickets, log errors, continue processing
+7. Idempotent: UNIQUE constraint on (tenant_id, ticket_id) prevents duplicates
+8. Performance: Processes ~100 tickets/minute (target: 10,000 tickets in <2 hours)
+9. Accepts parameters: --start-date, --end-date, --days (default: 90)
+10. Exit codes: 0 on success, non-zero on failure (for automation)
+
+**Prerequisites:** Story 1.3 (ticket_history table with source, ingested_at columns)
+
+---
+
+**Story 2.5B: Store Resolved Tickets Automatically**
+
+As an enhancement agent,
+I want resolved tickets automatically stored in ticket_history with provenance tracking,
+So that future enhancements can reference recent resolutions and operators can monitor data health.
+
+**Acceptance Criteria:**
+1. FastAPI endpoint: `POST /webhook/servicedesk/resolved`
+2. Accepts webhook payload when ticket status → "Resolved" or "Closed"
+3. Pydantic schema validates: ticket_id, description, resolution, resolved_date, tenant_id
+4. Webhook signature validation (reuse Story 2.2 validation logic)
+5. Inserts with provenance: source='webhook_resolved', ingested_at=NOW()
+6. Returns 202 Accepted immediately (async storage via Celery)
+7. UPSERT logic: ON CONFLICT (tenant_id, ticket_id) DO UPDATE SET resolution, source, ingested_at
+8. Error logging includes: tenant_id, ticket_id, source, error message
+9. Prometheus metric: `ticket_history_stored_total{tenant_id, source, status}`
+10. Performance: <500ms p95 latency for webhook response
+
+**Prerequisites:** Story 2.2 (webhook validation), Story 2.4 (Celery patterns)
+
+---
+
 **Story 2.6: Implement Documentation and Knowledge Base Search**
 
 As an enhancement agent,
@@ -351,21 +395,181 @@ So that searches run concurrently and results are combined efficiently.
 
 ---
 
-**Story 2.9: Integrate OpenAI GPT-4 for Context Synthesis**
+**Story 2.9: Implement LLM Synthesis with OpenRouter Agent Configuration**
 
 As an enhancement agent,
 I want to use LLM to analyze gathered context and generate actionable insights,
 So that technicians receive synthesized recommendations, not just raw data.
 
 **Acceptance Criteria:**
-1. OpenAI API client configured with API key from environment
-2. Prompt template created: ticket description + gathered context → structured enhancement
-3. LLM output formatted with sections: Similar Tickets, Documentation, System Info, Recommendations
-4. Output limited to 500 words maximum (per FR013)
-5. API timeout set to 30 seconds with retry logic
-6. Costs tracked per API call (token usage logged)
-7. Unit tests with mocked OpenAI responses
-8. Error handling for API failures (fallback to basic context without LLM synthesis)
+1. OpenRouter API client configured with API key from environment
+2. System prompt defined: Agent role, behavior guidelines, output format, constraints
+3. Prompt template created: ticket description + gathered context → structured enhancement
+4. LLM output formatted with sections: Similar Tickets, Documentation, System Info, Recommendations
+5. Output limited to 500 words maximum (per FR013)
+6. API timeout set to 30 seconds with retry logic
+7. Costs tracked per API call (token usage logged)
+8. Unit tests with mocked OpenRouter responses
+9. Error handling for API failures (fallback to basic context without LLM synthesis)
+
+**Implementation Details:**
+
+### Agent Configuration & System Prompt
+
+**Context:** LangGraph (Story 2.8) is a **workflow orchestrator** (manages state, nodes, edges), not an **agent framework** (system prompts, tools). Agent configuration belongs in the **synthesis node** where the LLM is invoked.
+
+**System Prompt:**
+```python
+ENHANCEMENT_SYSTEM_PROMPT = """
+You are an AI assistant helping MSP technicians resolve IT incidents faster.
+
+Your role:
+- Analyze gathered context (similar tickets, documentation, system info)
+- Synthesize actionable insights
+- Provide clear next steps
+
+Guidelines:
+- Maximum 500 words (concise!)
+- Structure output with clear sections
+- Cite sources (e.g., "Similar ticket TKT-123 resolved by...")
+- Professional, helpful tone
+- Focus on ACTIONABLE information, not theory
+
+Output Format:
+## Similar Tickets
+[If found, summarize relevant past resolutions]
+
+## Relevant Documentation
+[If found, key points from knowledge base]
+
+## System Information
+[If found, relevant server/IP details]
+
+## Recommended Next Steps
+[Actionable troubleshooting steps based on context]
+"""
+```
+
+**Prompt Template:**
+```python
+ENHANCEMENT_TEMPLATE = """
+Ticket ID: {ticket_id}
+Description: {description}
+Priority: {priority}
+
+Context Gathered:
+
+### Similar Tickets Found:
+{similar_tickets_summary}
+
+### Knowledge Base Articles:
+{kb_articles_summary}
+
+### System Information:
+{ip_info_summary}
+
+### Monitoring Data:
+{monitoring_data_summary}
+
+Based on this context, provide your analysis and recommendations.
+"""
+```
+
+**OpenRouter Client:**
+```python
+from openai import AsyncOpenAI
+from src.config import settings
+
+client = AsyncOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=settings.openrouter_api_key,
+    default_headers={
+        "HTTP-Referer": settings.openrouter_site_url,
+        "X-Title": settings.openrouter_app_name
+    }
+)
+```
+
+**Synthesis Function:**
+```python
+async def synthesize_enhancement(context: WorkflowState) -> str:
+    """Use LLM to synthesize gathered context into enhancement."""
+
+    # Format context summaries
+    prompt = ENHANCEMENT_TEMPLATE.format(
+        ticket_id=context["ticket_id"],
+        description=context["description"],
+        priority=context["priority"],
+        similar_tickets_summary=format_tickets(context["similar_tickets"]),
+        kb_articles_summary=format_docs(context["kb_articles"]),
+        ip_info_summary=format_ip(context["ip_info"]),
+        monitoring_data_summary=format_monitoring(context["monitoring_data"])
+    )
+
+    try:
+        response = await client.chat.completions.create(
+            model="openai/gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": ENHANCEMENT_SYSTEM_PROMPT},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=1000,
+            temperature=0.3
+        )
+
+        enhancement = response.choices[0].message.content
+
+        # Enforce 500-word limit
+        if len(enhancement.split()) > 500:
+            logger.warning(f"Enhancement exceeded 500 words, truncating")
+            enhancement = truncate_to_words(enhancement, 500)
+
+        return enhancement
+
+    except Exception as e:
+        logger.error(f"LLM synthesis failed: {e}")
+        raise SynthesisError(f"Failed to generate enhancement: {str(e)}")
+```
+
+**Context Formatting Helpers:**
+```python
+def format_tickets(tickets: Optional[List[Dict]]) -> str:
+    if not tickets:
+        return "No similar tickets found."
+    lines = []
+    for ticket in tickets[:5]:
+        lines.append(
+            f"- Ticket {ticket['ticket_id']}: {ticket['description'][:100]}... "
+            f"(Resolved: {ticket['resolved_date']})"
+        )
+    return "\n".join(lines)
+
+def format_docs(docs: Optional[List[Dict]]) -> str:
+    if not docs:
+        return "No relevant documentation found."
+    lines = []
+    for doc in docs[:3]:
+        lines.append(f"- {doc['title']}: {doc['summary'][:200]}...")
+    return "\n".join(lines)
+
+def format_ip(ip_info: Optional[Dict]) -> str:
+    if not ip_info:
+        return "No system information found."
+    return f"System: {ip_info.get('hostname', 'Unknown')} ({ip_info.get('ip', 'N/A')})\n" \
+           f"Role: {ip_info.get('role', 'Unknown')}\n" \
+           f"Client: {ip_info.get('client', 'Unknown')}"
+
+def format_monitoring(monitoring: Optional[Dict]) -> str:
+    if not monitoring:
+        return "No monitoring data available."
+    return f"Status: {monitoring.get('status', 'Unknown')}\n" \
+           f"Recent Alerts: {len(monitoring.get('alerts', []))}"
+```
+
+**Integration with Story 2.8:**
+- Story 2.8 LangGraph workflow produces: `WorkflowState` (with gathered context)
+- Story 2.9 `synthesize_enhancement(context: WorkflowState)` consumes it
+- Returns: enhancement string → Story 2.10 posts to ServiceDesk Plus
 
 **Prerequisites:** Story 2.8 (context gathered and aggregated)
 
@@ -867,6 +1071,338 @@ So that we build the right features based on real-world feedback.
 7. Retrospective findings shared with stakeholders
 
 **Prerequisites:** Stories 5.1-5.6 (production system operational and validated)
+
+---
+
+## Epic 6: Admin UI & Configuration Management _(Added 2025-11-02 for MVP v1.5)_
+
+**Goal:** Provide web-based admin interface for system visibility and configuration management
+
+**Value:** Enable operations teams to manage tenant configurations, monitor system health, and view enhancement history without requiring kubectl access or manual YAML editing
+
+**Estimated Complexity:** 6-8 stories, 2-3 weeks
+
+**Target Milestone:** MVP v1.5 (after MVP v1.0 production validation)
+
+**Technologies:** Streamlit 1.30+, Pandas, Plotly, SQLAlchemy (shared with FastAPI)
+
+**Prerequisites:** Epic 1-5 complete (MVP v1.0 validated in production)
+
+---
+
+**Story 6.1: Set Up Streamlit Application Foundation**
+
+As an operations engineer,
+I want a basic Streamlit admin application deployed,
+So that I can access a web-based interface for system management.
+
+**Acceptance Criteria:**
+1. Streamlit app created at src/admin/app.py with basic structure
+2. Shared database connection established (reusing SQLAlchemy models from src/database/)
+3. Multi-page navigation configured (Dashboard, Tenants, History pages)
+4. Basic authentication implemented (Streamlit auth or Kubernetes Ingress basic auth)
+5. Kubernetes deployment manifest created for Streamlit service (port 8501)
+6. Streamlit service accessible via http://admin.ai-agents.local in local dev
+7. README documentation updated with admin UI access instructions
+
+**Prerequisites:** Epic 1 complete (database models and infrastructure in place)
+
+---
+
+**Story 6.2: Implement System Status Dashboard Page**
+
+As an operations manager,
+I want to see real-time system status and key metrics,
+So that I can quickly assess system health at a glance.
+
+**Acceptance Criteria:**
+1. Dashboard page displays system status indicator (Healthy/Degraded/Down)
+2. Key metrics displayed with st.metric: Queue depth, Success rate (24h), P95 latency, Active workers
+3. Recent failures shown in expandable section (last 10 failed enhancements with error messages)
+4. Redis connection status displayed
+5. PostgreSQL connection status displayed
+6. Auto-refresh implemented (configurable interval, default 30s)
+7. Visual indicators use color coding (green=healthy, yellow=warning, red=critical)
+8. Load time < 2 seconds for dashboard
+
+**Prerequisites:** Story 6.1 (Streamlit foundation), Story 4.1 (Prometheus metrics available)
+
+---
+
+**Story 6.3: Create Tenant Management Interface**
+
+As an operations engineer,
+I want to view, add, edit, and delete tenant configurations,
+So that I can onboard new clients without editing YAML files.
+
+**Acceptance Criteria:**
+1. Tenants page displays table of all tenants (name, tool_type, ServiceDesk URL, status, created_at)
+2. Search/filter functionality for tenant list
+3. "Add New Tenant" form with fields: name, tool_type (dropdown), servicedesk_url, api_key, webhook_secret (auto-generated), enhancement_preferences (checkboxes)
+4. Form validation: required fields, URL format, duplicate tenant_id check
+5. "Test Connection" button validates credentials against ServiceDesk Plus API before saving
+6. Edit tenant form pre-populated with existing values (sensitive fields masked)
+7. Delete tenant with confirmation dialog (soft delete, marks inactive)
+8. Success/error messages displayed after each operation
+9. Webhook URL displayed after tenant creation (for copying to ServiceDesk Plus config)
+
+**Prerequisites:** Story 6.1 (Streamlit foundation), Story 3.2 (tenant_configs table)
+
+---
+
+**Story 6.4: Implement Enhancement History Viewer**
+
+As an operations analyst,
+I want to search and view enhancement history,
+So that I can audit processing results and debug failures.
+
+**Acceptance Criteria:**
+1. History page displays enhancement_history table with pagination (50 rows per page)
+2. Filters available: tenant_id (dropdown), status (pending/completed/failed), date range picker
+3. Search box for ticket_id or description keyword search
+4. Table columns: ticket_id, tenant, status, processing_time_ms, created_at, completed_at
+5. Expandable row details show: context_gathered (formatted JSON), llm_output, error_message
+6. Export to CSV button for filtered results
+7. Performance: query returns < 5 seconds for 10K rows
+8. Color-coded status badges (green=completed, red=failed, blue=pending)
+
+**Prerequisites:** Story 6.1 (Streamlit foundation), Story 2.4 (enhancement_history table populated)
+
+---
+
+**Story 6.5: Add System Operations Controls**
+
+As an operations engineer,
+I want manual controls for system operations,
+So that I can pause processing, clear queues, and perform maintenance tasks.
+
+**Acceptance Criteria:**
+1. Operations page with warning banner ("Caution: Manual operations can affect system behavior")
+2. "Pause Processing" button stops Celery workers from picking up new jobs (sets Redis flag)
+3. "Resume Processing" button clears pause flag
+4. "Clear Queue" button with confirmation dialog removes all pending jobs from Redis
+5. "Sync Tenant Configs" button reloads tenant configurations from database to Redis cache
+6. "View Worker Health" section displays active workers with uptime and task counts
+7. Operation logs displayed (last 20 operations with timestamp, user, action)
+8. All operations require confirmation dialog with typed confirmation ("YES")
+9. Audit log entry created for each operation
+
+**Prerequisites:** Story 6.1 (Streamlit foundation), Story 1.5 (Celery workers operational)
+
+---
+
+**Story 6.6: Integrate Real-Time Metrics Display**
+
+As an operations manager,
+I want live charts showing system performance trends,
+So that I can identify patterns and anomalies over time.
+
+**Acceptance Criteria:**
+1. Dashboard page includes time-series charts for: Queue depth, Success rate, Latency (P50/P95/P99)
+2. Charts display last 24 hours by default with time range selector (1h, 6h, 24h, 7d)
+3. Data fetched from Prometheus via HTTP API
+4. Charts use Plotly for interactivity (hover tooltips, zoom, pan)
+5. Chart refresh interval configurable (default 60s)
+6. Loading spinner displayed while fetching data
+7. Error handling for Prometheus unavailability (show cached data + warning)
+8. Chart performance: renders < 2 seconds for 1000 data points
+
+**Prerequisites:** Story 6.2 (Dashboard page), Story 4.2 (Prometheus deployed)
+
+---
+
+**Story 6.7: Add Worker Health and Resource Monitoring**
+
+As an operations engineer,
+I want to view worker health and resource utilization,
+So that I can identify performance bottlenecks and scale appropriately.
+
+**Acceptance Criteria:**
+1. Workers page displays list of active Celery workers (hostname, uptime, active tasks, completed tasks)
+2. Resource utilization metrics per worker: CPU%, Memory%, Task throughput (tasks/min)
+3. Worker status indicator (active/idle/unresponsive)
+4. "Restart Worker" button for individual worker (sends TERM signal via K8s API)
+5. Worker logs viewer (last 100 lines, filterable by log level)
+6. Alert threshold indicators (CPU >80% = yellow, >95% = red)
+7. Historical worker performance chart (last 7 days average throughput)
+8. Data refreshed every 30 seconds
+
+**Prerequisites:** Story 6.1 (Streamlit foundation), Story 4.1 (worker metrics instrumented)
+
+---
+
+**Story 6.8: Create Admin UI Documentation and Deployment Guide**
+
+As a developer or operations engineer,
+I want comprehensive documentation for the admin UI,
+So that I can deploy, configure, and use it effectively.
+
+**Acceptance Criteria:**
+1. docs/admin-ui-guide.md created with sections: Overview, Access, Features, Configuration
+2. Local development setup documented (Streamlit dev server, database connection)
+3. Kubernetes deployment instructions (manifests, ingress, authentication)
+4. Screenshots/wireframes for each page (Dashboard, Tenants, History, Operations)
+5. Troubleshooting section (common issues, logs locations, health checks)
+6. Security considerations documented (authentication, authorization, secrets management)
+7. Future enhancements section (OAuth, role-based access, audit logs UI)
+8. README.md updated with link to admin UI guide
+
+**Prerequisites:** Stories 6.1-6.7 (all admin UI features implemented)
+
+---
+
+## Epic 7: Plugin Architecture & Multi-Tool Support _(Added 2025-11-02 for MVP v2.0)_
+
+**Goal:** Refactor to plugin-based architecture supporting multiple ticketing tools
+
+**Value:** Enable market expansion by supporting Jira Service Management, Zendesk, and other ITSM tools without rewriting core enhancement logic
+
+**Estimated Complexity:** 5-7 stories, 3-4 weeks
+
+**Target Milestone:** MVP v2.0 (after MVP v1.5 validation)
+
+**Technologies:** Python ABC, Plugin registry pattern
+
+**Prerequisites:** Epic 1-6 complete (MVP v1.5 validated with Streamlit UI)
+
+---
+
+**Story 7.1: Design and Implement Plugin Base Interface**
+
+As a platform engineer,
+I want a standardized plugin interface for ticketing tools,
+So that new tools can be integrated without modifying core enhancement logic.
+
+**Acceptance Criteria:**
+1. Abstract base class TicketingToolPlugin created at src/plugins/base.py
+2. Four abstract methods defined: validate_webhook(), get_ticket(), update_ticket(), extract_metadata()
+3. Type hints and docstrings for all methods (Google style)
+4. TicketMetadata dataclass defined (tenant_id, ticket_id, description, priority, created_at)
+5. Plugin interface documented with usage examples in docs/plugin-architecture.md
+6. Unit tests for base class structure and method signatures
+7. Mypy validation passes (all types correctly defined)
+
+**Prerequisites:** Epic 6 complete (MVP v1.5 validated)
+
+---
+
+**Story 7.2: Implement Plugin Manager and Registry**
+
+As a platform engineer,
+I want a plugin manager that loads and routes requests to appropriate plugins,
+So that the system can dynamically support multiple ticketing tools.
+
+**Acceptance Criteria:**
+1. PluginManager class created at src/plugins/registry.py
+2. Plugin registration method: register_plugin(tool_type: str, plugin: TicketingToolPlugin)
+3. Plugin retrieval method: get_plugin(tool_type: str) -> TicketingToolPlugin
+4. Plugin discovery on startup (auto-load from src/plugins/*/ directories)
+5. Error handling for missing plugins (raise PluginNotFoundError with clear message)
+6. Plugin validation on registration (ensures implements all required methods)
+7. Unit tests with mock plugins for registration and retrieval
+8. Integration test: register 2 plugins, retrieve by tool_type
+
+**Prerequisites:** Story 7.1 (plugin base interface defined)
+
+---
+
+**Story 7.3: Migrate ServiceDesk Plus to Plugin Architecture**
+
+As a platform engineer,
+I want existing ServiceDesk Plus integration extracted into a plugin,
+So that it follows the same pattern as future tool integrations.
+
+**Acceptance Criteria:**
+1. ServiceDesk Plus plugin created at src/plugins/servicedesk_plus/plugin.py
+2. Plugin implements all four required methods from TicketingToolPlugin
+3. Existing code from src/services/webhook_validator.py and src/enhancement/ticket_updater.py migrated to plugin
+4. Plugin registered in PluginManager on application startup
+5. Webhook endpoint updated to use plugin manager: plugin = manager.get_plugin(tenant.tool_type)
+6. All existing ServiceDesk Plus unit tests pass without modification (API compatibility maintained)
+7. Integration test: Send webhook through plugin → enhacement → ticket update (end-to-end)
+8. No breaking changes to existing tenant configurations (tool_type defaults to 'servicedesk_plus')
+
+**Prerequisites:** Story 7.2 (plugin manager ready), Epic 2 complete (ServiceDesk Plus integration working)
+
+---
+
+**Story 7.4: Implement Jira Service Management Plugin**
+
+As a platform engineer,
+I want a Jira Service Management plugin,
+So that MSPs using Jira can benefit from ticket enhancement.
+
+**Acceptance Criteria:**
+1. Jira plugin created at src/plugins/jira/plugin.py implementing TicketingToolPlugin
+2. Jira webhook signature validation implemented (HMAC-SHA256 with Jira secret)
+3. Jira API client implemented for: Get issue (GET /rest/api/3/issue/{issueKey}), Update issue (PUT /rest/api/3/issue/{issueKey})
+4. Metadata extraction from Jira webhook payload (project, issue key, summary, description, priority)
+5. Enhancement comment posted to Jira issue using API
+6. Jira-specific configuration fields added to tenant_configs: jira_url, jira_api_token, jira_project_key
+7. Unit tests for Jira webhook validation, API calls, metadata extraction
+8. Integration test with Jira Cloud test instance (using test account)
+9. Documentation: docs/jira-plugin-setup.md with onboarding instructions
+
+**Prerequisites:** Story 7.3 (ServiceDesk Plus migrated, plugin pattern proven)
+
+---
+
+**Story 7.5: Update Database Schema for Multi-Tool Support**
+
+As a platform engineer,
+I want the database schema to support multiple ticketing tools per tenant,
+So that tool-specific configurations are properly stored and retrieved.
+
+**Acceptance Criteria:**
+1. Alembic migration created: add tool_type column to tenant_configs (VARCHAR(50), default 'servicedesk_plus')
+2. Index created on tool_type column for fast plugin lookup
+3. Tool-specific config fields added to enhancement_preferences JSONB: jira_project_key, jira_issue_type, zendesk_subdomain
+4. Migration tested: upgrade applies cleanly, downgrade rolls back correctly
+5. Existing tenant records updated with tool_type='servicedesk_plus'
+6. Data validation: tenant_configs.tool_type must match registered plugin (constraint or application logic)
+7. Unit tests for new schema fields and constraints
+8. Documentation updated: docs/database-schema.md reflects multi-tool support
+
+**Prerequisites:** Story 7.2 (plugin manager supports multiple tool types)
+
+---
+
+**Story 7.6: Create Plugin Testing Framework and Mock Plugins**
+
+As a developer,
+I want a testing framework for plugins,
+So that I can test enhancement workflows without real ticketing tool dependencies.
+
+**Acceptance Criteria:**
+1. MockTicketingToolPlugin created at tests/mocks/mock_plugin.py
+2. Mock plugin implements all four methods with configurable responses (success, failure, timeout)
+3. Plugin test fixtures created in tests/conftest.py (mock_servicedesk_plugin, mock_jira_plugin)
+4. Test utilities for: asserting plugin method calls, capturing plugin responses, simulating tool failures
+5. Integration test: Full enhancement workflow with mock plugin (webhook → enhancement → ticket update)
+6. Documentation: tests/README-plugins.md with testing guidelines
+7. CI pipeline updated to run plugin tests in isolation
+
+**Prerequisites:** Story 7.2 (plugin manager), Story 7.3 (at least one real plugin to test against)
+
+---
+
+**Story 7.7: Document Plugin Architecture and Extension Guide**
+
+As a future developer or contributor,
+I want comprehensive plugin architecture documentation,
+So that I can create new ticketing tool plugins independently.
+
+**Acceptance Criteria:**
+1. docs/plugin-architecture.md updated with: Architecture overview, Plugin interface spec, Plugin manager usage
+2. Plugin development guide created: docs/plugin-development-guide.md with step-by-step instructions
+3. Example plugin template provided: src/plugins/_template/ with TODO comments
+4. Testing requirements documented (unit tests, integration tests, mock strategies)
+5. Plugin submission guidelines (code review checklist, documentation requirements)
+6. Troubleshooting section (common plugin errors, debugging tips)
+7. Future plugin roadmap documented (Zendesk, Freshservice, custom tool plugins)
+8. README.md updated with plugin architecture overview and links
+
+**Prerequisites:** Stories 7.1-7.6 (plugin architecture fully implemented)
 
 ---
 

@@ -39,7 +39,7 @@ This architecture defines a **multi-tenant AI-powered ticket enhancement platfor
 | **Message Broker** | Redis | 7.x | Epic 1, 2 | Already used for caching, managed AWS ElastiCache available, stable with Celery 4+ | Stack Overflow accepted answer |
 | **Task Queue** | Celery | 5.x | Epic 1, 2 | Async task processing, retry logic, horizontal scaling, proven at scale | PRD Requirement |
 | **AI Orchestration** | LangGraph | 1.0+ | Epic 2 | Concurrent workflow execution, state management, production-ready v1.0 released Sept 2025 | LangChain Blog |
-| **LLM Provider** | OpenAI GPT-4o-mini | Latest API | Epic 2 | Cost-effective ($0.15/1M input, $0.60/1M output), good quality for summarization tasks | OpenAI Pricing 2025 |
+| **LLM Provider** | OpenRouter API Gateway | Latest API | Epic 2 | Multi-model flexibility, per-tenant configuration, cost optimization via competitive pricing | OpenRouter + OpenAI |
 | **HTTP Client** | HTTPX | Latest | Epic 2 | Sync + async support, HTTP/2, type hints, modern replacement for requests | Speakeasy comparison |
 | **Logging Library** | Loguru | Latest | Epic 4 | Beginner-friendly, auto-configured, JSON output, rotation, colorized dev output | Better Stack 2024 |
 | **Container Runtime** | Docker | Latest stable | Epic 1, 5 | Industry standard, Kubernetes compatible, Docker Compose for local dev | Standard |
@@ -49,6 +49,7 @@ This architecture defines a **multi-tenant AI-powered ticket enhancement platfor
 | **Web Server** | Gunicorn + Uvicorn | Latest | Epic 5 | Gunicorn process management + Uvicorn ASGI workers = production FastAPI standard | Medium 2024 |
 | **Metrics** | Prometheus | Latest | Epic 4 | Industry standard, Kubernetes native, Grafana integration, pull-based model | PRD Requirement |
 | **Dashboards** | Grafana | Latest | Epic 4 | Rich visualization, alerting, Prometheus datasource, MSP-friendly dashboards | PRD Requirement |
+| **Admin UI Framework** | Streamlit | Latest (1.30+) | Epic 6 | Python-native, rapid prototyping, built-in components, beginner-friendly, 5-10x faster than React | Streamlit Docs + Sprint Change Proposal 2025-11-02 |
 | **Code Quality** | Black + Ruff | Latest | Epic 1 | Black auto-formatting + Ruff fast linting (replaces Flake8), modern Python standards | Community standard 2025 |
 | **Type Checking** | Mypy | Latest | Epic 1 | Static type checking, catches errors early, improves IDE support | Best practice |
 | **Testing** | Pytest + pytest-asyncio | Latest | Epic 2, 3, 4 | Async test support, fixtures, parametrization, FastAPI integration | PRD + Industry standard |
@@ -77,8 +78,14 @@ This architecture defines a **multi-tenant AI-powered ticket enhancement platfor
 
 **AI/ML Stack:**
 - **LangGraph 1.0+**: AI workflow orchestration
-- **OpenAI Python SDK**: GPT-4o-mini API client
+- **OpenRouter API**: Multi-model LLM gateway (OpenAI SDK compatible)
+- **OpenAI Python SDK**: API client (works with OpenRouter)
 - **HTTPX**: Async HTTP client for external API calls
+
+**Admin UI (Epic 6):**
+- **Streamlit 1.30+**: Web-based admin dashboard framework
+- **Pandas**: Data manipulation for history viewing
+- **Plotly**: Interactive charts and visualizations
 
 **Observability:**
 - **Loguru**: Application logging
@@ -127,6 +134,17 @@ ai-agents/
 │   ├── __init__.py
 │   ├── main.py                       # FastAPI application entry
 │   ├── config.py                     # Settings (Pydantic BaseSettings)
+│   ├── admin/                        # Admin UI (Epic 6)
+│   │   ├── __init__.py
+│   │   ├── app.py                    # Streamlit main app
+│   │   ├── pages/
+│   │   │   ├── 1_Dashboard.py        # System status dashboard
+│   │   │   ├── 2_Tenants.py          # Tenant management
+│   │   │   └── 3_History.py          # Enhancement history viewer
+│   │   └── utils/
+│   │       ├── __init__.py
+│   │       ├── database.py           # DB connection for Streamlit
+│   │       └── metrics.py            # Metrics fetching helpers
 │   ├── database/
 │   │   ├── __init__.py
 │   │   ├── session.py                # Async SQLAlchemy session
@@ -163,7 +181,21 @@ ai-agents/
 │   │   │   ├── ip_lookup.py          # IP address inventory search
 │   │   │   └── monitoring.py         # Monitoring data retrieval
 │   │   ├── llm_client.py             # OpenAI API wrapper
-│   │   └── ticket_updater.py         # ServiceDesk Plus API client
+│   │   └── ticket_updater.py         # ServiceDesk Plus API client (Epic 7: move to plugins)
+│   ├── plugins/                       # Plugin Architecture (Epic 7)
+│   │   ├── __init__.py
+│   │   ├── base.py                    # TicketingToolPlugin abstract base class
+│   │   ├── registry.py                # Plugin manager and registry
+│   │   ├── servicedesk_plus/
+│   │   │   ├── __init__.py
+│   │   │   ├── plugin.py              # ServiceDesk Plus plugin implementation
+│   │   │   ├── api_client.py          # ServiceDesk Plus API wrapper
+│   │   │   └── webhook_validator.py   # ServiceDesk Plus signature validation
+│   │   └── jira/
+│   │       ├── __init__.py
+│   │       ├── plugin.py              # Jira Service Management plugin
+│   │       ├── api_client.py          # Jira API wrapper
+│   │       └── webhook_validator.py   # Jira webhook validation
 │   ├── monitoring/
 │   │   ├── __init__.py
 │   │   └── metrics.py                # Prometheus metrics definitions
@@ -214,6 +246,8 @@ ai-agents/
 | **Epic 3: Multi-Tenancy & Security** | src/services/webhook_validator.py, src/services/tenant_service.py | RLS policies on all tables | None | K8s Secrets, Namespaces |
 | **Epic 4: Monitoring & Operations** | src/monitoring/metrics.py, src/utils/logger.py | None | None | Prometheus, Grafana, K8s HPA |
 | **Epic 5: Production Deployment** | All components | All tables | ServiceDesk Plus, OpenAI, Managed Redis/PostgreSQL | Production K8s cluster (EKS/GKE/AKS) |
+| **Epic 6: Admin UI** _(Added 2025-11-02)_ | src/admin/ (Streamlit app, pages, utils) | tenant_configs, enhancement_history (read-only) | None | K8s service for Streamlit, port 8501 |
+| **Epic 7: Plugin Architecture** _(Added 2025-11-02)_ | src/plugins/ (base, registry, tool implementations) | tenant_configs (add tool_type column) | Multiple ticketing tools (Jira, ServiceDesk Plus) | Plugin-specific dependencies |
 
 ---
 
@@ -227,13 +261,15 @@ ai-agents/
 - **Authentication:** API key per tenant (stored in K8s Secrets)
 - **Retry Policy:** 3 attempts with exponential backoff (2s, 4s, 8s)
 
-**OpenAI API (LLM):**
-- **Protocol:** HTTPS REST API via HTTPX
-- **Model:** gpt-4o-mini (cost-effective, good quality)
+**OpenRouter API (LLM Gateway):**
+- **Protocol:** HTTPS REST API via OpenAI Python SDK
+- **Base URL:** https://openrouter.ai/api/v1
+- **Default Model:** openai/gpt-4o-mini (cost-effective, good quality)
+- **Model Flexibility:** Supports 200+ models (OpenAI, Anthropic, Google, Meta, etc.)
 - **Timeout:** 30 seconds per request
 - **Retry Policy:** 2 attempts with 5s delay
-- **Rate Limiting:** Handled by OpenAI (tier-based limits)
-- **Cost Tracking:** Token usage logged per enhancement
+- **Rate Limiting:** Handled by underlying model providers
+- **Cost Tracking:** Token usage logged per enhancement (5.5% OpenRouter fee included)
 
 **Knowledge Base / Documentation (Optional):**
 - **Protocol:** HTTP/HTTPS via HTTPX
@@ -811,9 +847,11 @@ class Settings(BaseSettings):
     redis_url: str
     redis_max_connections: int = 10
 
-    # OpenAI
-    openai_api_key: str
-    openai_model: str = "gpt-4o-mini"
+    # OpenRouter (LLM Gateway)
+    openrouter_api_key: str
+    openrouter_default_model: str = "openai/gpt-4o-mini"
+    openrouter_site_url: str = ""  # Optional: for analytics
+    openrouter_app_name: str = "AI Agents"  # Optional: for tracking
 
     # Celery
     celery_broker_url: str
@@ -830,7 +868,10 @@ settings = Settings()
 ```
 AI_AGENTS_DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/ai_agents
 AI_AGENTS_REDIS_URL=redis://localhost:6379/0
-AI_AGENTS_OPENAI_API_KEY=sk-...
+AI_AGENTS_OPENROUTER_API_KEY=sk-...
+AI_AGENTS_OPENROUTER_DEFAULT_MODEL=openai/gpt-4o-mini
+AI_AGENTS_OPENROUTER_SITE_URL=https://your-site.com  # Optional
+AI_AGENTS_OPENROUTER_APP_NAME=AI Agents  # Optional
 AI_AGENTS_CELERY_BROKER_URL=redis://localhost:6379/1
 AI_AGENTS_ENVIRONMENT=development
 ```
@@ -878,21 +919,70 @@ AI_AGENTS_ENVIRONMENT=development
 
 ---
 
-### ADR-003: GPT-4o-mini Instead of GPT-4o for Cost Optimization
+### ADR-003: OpenRouter API Gateway with GPT-4o-mini as Default
 
-**Decision:** Use OpenAI GPT-4o-mini as default LLM model
+**Decision:** Use OpenRouter API Gateway with OpenAI GPT-4o-mini as default model
+
+**Context:**
+- Need multi-model flexibility for different client requirements and use cases
+- Want to optimize costs while maintaining quality for ticket enhancement
+- Require per-tenant model configuration capability without code changes
+- Must support future expansion to other LLM providers (Anthropic, Google, Meta)
 
 **Rationale:**
-- Cost: $0.15/1M input tokens vs $2.50/1M (GPT-4o) = 94% cost savings
-- Quality: Sufficient for summarization and context synthesis tasks
-- Scale: At 10,000 enhancements/day, saves ~$20,000/month vs GPT-4o
-- Upgrade path: Easy to switch to GPT-4o for specific tenants if needed
+- **Multi-model flexibility:** Supports 200+ models (OpenAI, Anthropic Claude, Google Gemini, Meta Llama, etc.) through single API
+- **Per-tenant configuration:** Different models per client without code changes (stored in tenant_configs.enhancement_preferences)
+- **Cost optimization:** OpenRouter 5.5% fee offset by competitive pricing and model flexibility
+  - Example: GPT-4o-mini at $0.15/1M input vs direct OpenAI = $18K/month savings potential at scale
+  - Can use cheaper models (Llama, Mistral) for high-volume low-priority tenants
+- **API compatibility:** OpenAI SDK compatible (minimal code changes, use base_url parameter)
+- **Automatic fallbacks:** Built-in model fallback on rate limits or failures
+- **Analytics:** Usage tracking and cost monitoring dashboard included
+- **Future-proof:** Easy to experiment with new models (Claude 3.5, Gemini 2.0) without infrastructure changes
 
-**Tradeoffs:**
-- Slightly lower quality outputs (acceptable for MVP)
-- Smaller context window (still adequate for ticket enhancement)
+**Alternatives Considered:**
+- **Direct OpenAI API:** ❌ Single vendor lock-in, no flexibility, higher per-token costs at scale
+- **LangChain LLM abstraction:** ❌ Adds complexity, requires code changes per model, less performant
+- **Self-hosted LLM (Ollama, vLLM):** ❌ Infrastructure overhead, operational complexity, GPU costs
+- **Multiple direct integrations:** ❌ Maintaining 5+ API clients (OpenAI, Anthropic, Google, etc.) is unsustainable
 
-**Source:** OpenAI Pricing API documentation (2025)
+**Implementation:**
+```python
+from openai import AsyncOpenAI
+
+client = AsyncOpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=settings.openrouter_api_key,
+    default_headers={
+        "HTTP-Referer": settings.openrouter_site_url,
+        "X-Title": settings.openrouter_app_name
+    }
+)
+
+# Per-tenant model override (from tenant_configs.enhancement_preferences)
+model = tenant_config.get("llm_model", "openai/gpt-4o-mini")
+response = await client.chat.completions.create(model=model, ...)
+```
+
+**Consequences:**
+- ✅ Easy to A/B test different models per tenant (quality vs cost tradeoff)
+- ✅ Cost savings on high-volume clients (use cheaper models for routine tickets)
+- ✅ Graceful degradation (fallback to alternative models on rate limits)
+- ✅ Competitive advantage (offer premium clients access to Claude, Gemini, etc.)
+- ⚠️ 5.5% fee on API costs (acceptable trade-off for flexibility and reduced engineering time)
+- ⚠️ Additional external dependency (OpenRouter uptime) - mitigated by fallback strategies
+
+**Cost Analysis:**
+- **Scenario 1 (MVP):** 1,000 enhancements/day, GPT-4o-mini, 2K tokens avg
+  - Monthly cost: ~$90 + 5.5% fee = $95/month
+  - vs Direct OpenAI: ~$90/month (marginal difference, gain flexibility)
+
+- **Scenario 2 (Scale):** 10,000 enhancements/day, mixed models (60% GPT-4o-mini, 30% Llama-3, 10% Claude)
+  - Monthly cost: ~$1,200 + 5.5% = $1,266/month
+  - vs Direct OpenAI only: ~$2,700/month
+  - **Savings: $1,434/month = 53% cost reduction**
+
+**Source:** OpenRouter documentation (2025), OpenAI Pricing API (2025), Cost comparison analysis
 
 **Status:** Accepted
 
@@ -991,6 +1081,260 @@ AI_AGENTS_ENVIRONMENT=development
 **Upgrade Path:** Migrate to 3.13 in 6-12 months after library ecosystem catches up
 
 **Source:** Python.org official version status page
+
+**Status:** Accepted
+
+---
+
+### ADR-009: Streamlit for Admin UI (instead of React/Vue)
+
+**Decision:** Use Streamlit 1.30+ for the admin/operations UI (Epic 6)
+
+**Context:**
+- Mid-sprint realization during Epic 2 implementation: system has 18+ configuration points needing UI visibility
+- Manual configuration via Kubernetes ConfigMaps/YAML is error-prone and requires kubectl access
+- Operations team needs visibility into system status, enhancement history, and tenant configurations
+- User skill level: beginner (per config.yaml)
+
+**Rationale:**
+- **Python-native:** No context switching (entire stack in Python)
+- **Rapid development:** 5-10x faster than React (Streamlit's own benchmarks)
+- **Built-in components:** Data tables, forms, charts, metrics out-of-the-box
+- **Beginner-friendly:** Declarative syntax, no frontend knowledge required
+- **Perfect fit for ops tools:** Internal dashboards, data apps, admin panels (Streamlit's primary use case)
+- **Production-ready:** Used by Uber, Snowflake, Twitter for internal tools
+
+**Alternatives Considered:**
+- **React + FastAPI:** ❌ Requires JavaScript expertise, 10x development time, overkill for internal admin tool
+- **Gradio:** ❌ ML-focused, less suitable for CRUD operations and data tables
+- **HTMX + Jinja2:** ❌ Requires HTML/CSS, template complexity, less component ecosystem
+- **Django Admin:** ❌ Requires Django ORM, incompatible with FastAPI + SQLAlchemy stack
+
+**Implementation Notes:**
+- Separate Streamlit app (src/admin/app.py) independent of FastAPI
+- Shared database access via SQLAlchemy (read-only for history, read-write for tenant configs)
+- Kubernetes deployment: separate service on port 8501
+- Authentication: Kubernetes Ingress + basic auth (MVP), OAuth in future
+
+**Trade-offs:**
+- ✅ 2-3 weeks development vs 6-8 weeks for React
+- ✅ Single language (Python) reduces cognitive load
+- ✅ Excellent for data-heavy interfaces (history viewer, metrics)
+- ⚠️ Not ideal for complex interactive workflows (fine for CRUD ops tool)
+- ⚠️ Stateless nature requires careful session management (manageable with st.session_state)
+
+**Source:** Streamlit Documentation, Sprint Change Proposal 2025-11-02, Web research comparison
+
+**Status:** Accepted (2025-11-02)
+
+---
+
+### ADR-010: Plugin Architecture for Multi-Tool Support
+
+**Decision:** Implement Abstract Base Class (ABC) plugin architecture for ticketing tool integrations (Epic 7)
+
+**Context:**
+- Current system hardcoded to ServiceDesk Plus only
+- MSPs often use different ticketing tools (Jira Service Management, Zendesk, Freshservice)
+- Market expansion requires supporting multiple tools without rewriting core enhancement logic
+- Realiz ation during Epic 2: webhook validation, ticket retrieval, ticket updates are tool-specific
+
+**Pattern:**
+```python
+from abc import ABC, abstractmethod
+
+class TicketingToolPlugin(ABC):
+    @abstractmethod
+    def validate_webhook(self, request: Request) -> bool:
+        """Validate incoming webhook signature"""
+        pass
+
+    @abstractmethod
+    def get_ticket(self, ticket_id: str) -> Ticket:
+        """Retrieve ticket details from tool"""
+        pass
+
+    @abstractmethod
+    def update_ticket(self, ticket_id: str, content: str) -> bool:
+        """Post enhancement to ticket"""
+        pass
+
+    @abstractmethod
+    def extract_metadata(self, payload: dict) -> TicketMetadata:
+        """Extract tenant_id, description, priority from webhook"""
+        pass
+```
+
+**Plugin Manager:**
+- Registry pattern: plugins register on startup
+- Dynamic routing: tenant_configs.tool_type determines which plugin to use
+- Tenant A → ServiceDesk Plus Plugin
+- Tenant B → Jira Plugin
+- Isolation: plugins loaded independently, failures don't cascade
+
+**Rationale:**
+- **Extensibility:** Add new tools without modifying core enhancement workflow
+- **Separation of concerns:** Tool-specific logic isolated in plugins
+- **Testability:** Mock plugins for unit tests
+- **Vendor flexibility:** Not locked into single ticketing tool
+- **Market expansion:** Support more MSPs with different tool preferences
+
+**Alternatives Considered:**
+- **Monolithic conditionals (if tool == "jira"):** ❌ Code becomes unmaintainable, violates Open/Closed Principle
+- **Microservices per tool:** ❌ Over-engineered for MVP, operational complexity
+- **Adapter pattern without ABC:** ❌ Less type safety, harder to enforce interface
+
+**Implementation Phases:**
+1. **MVP v2.0 (Epic 7.1-7.3):** Extract ServiceDesk Plus to plugin, create base class, implement plugin manager
+2. **MVP v2.0 (Epic 7.4-7.5):** Add Jira Service Management plugin as second implementation
+3. **Future:** Zendesk, Freshservice, custom tool plugins
+
+**Database Changes:**
+```sql
+ALTER TABLE tenant_configs ADD COLUMN tool_type VARCHAR(50) NOT NULL DEFAULT 'servicedesk_plus';
+CREATE INDEX idx_tenant_configs_tool_type ON tenant_configs(tool_type);
+```
+
+**Trade-offs:**
+- ✅ Future-proof architecture for market expansion
+- ✅ Clean separation enables parallel plugin development
+- ✅ Easier testing (mock plugins vs real API calls)
+- ⚠️ Adds abstraction layer (acceptable complexity)
+- ⚠️ Requires careful interface design (4 methods cover 95% of use cases)
+
+**Source:** Gang of Four Design Patterns, Python ABC documentation, Stack Overflow plugin architecture patterns, Sprint Change Proposal 2025-11-02
+
+**Status:** Accepted (2025-11-02)
+
+---
+
+### ADR-020: Ticket History Synchronization Strategy
+
+**Decision:** Implement hybrid synchronization strategy with three data ingestion paths for populating and maintaining the ticket_history table
+
+**Context:**
+- Story 2.5 defines ticket_history search functionality but doesn't specify how data gets populated
+- Need initial historical data for context gathering from day one (cold start problem)
+- Require ongoing updates as tickets resolve (keep data fresh)
+- Must handle cases where ticket_history is empty (new tenants, minimal data)
+- Data provenance tracking needed for monitoring data health and debugging
+
+**Approach - Three Ingestion Paths:**
+
+**1. Initial Bulk Import (Story 2.5A - Tenant Onboarding)**
+- **Trigger:** Manual script execution during tenant onboarding
+- **Script:** `scripts/import_tickets.py --tenant-id=X --days=90`
+- **Source:** ServiceDesk Plus API (closed/resolved tickets endpoint)
+- **Volume:** Last 90 days of historical tickets (typically 1,000-10,000 tickets per tenant)
+- **Data fields:** tenant_id, ticket_id, description, resolution, resolved_date, tags, **source='bulk_import'**, **ingested_at=NOW()**
+- **Frequency:** Once per tenant (or periodic re-sync for data correction)
+- **Performance:** ~100 tickets/minute, 10,000 tickets in <2 hours
+
+**2. Webhook-Triggered Storage (Story 2.5B - Real-time Updates)**
+- **Trigger:** ServiceDesk Plus webhook when ticket status → "Resolved" or "Closed"
+- **Endpoint:** `POST /webhook/servicedesk/resolved`
+- **Processing:** FastAPI endpoint → Celery task → PostgreSQL insert
+- **Data fields:** tenant_id, ticket_id, description, resolution, resolved_date, **source='webhook_resolved'**, **ingested_at=NOW()**
+- **Frequency:** Real-time (as tickets resolve)
+- **Idempotency:** UPSERT with `ON CONFLICT (tenant_id, ticket_id) DO UPDATE`
+
+**3. Fallback: API Search with Caching (Story 2.5 Enhancement)**
+- **Trigger:** Enhancement request when ticket_history has <50 tickets (new tenant, insufficient data)
+- **Behavior:** Search ServiceDesk Plus API directly → Cache results in ticket_history
+- **Data fields:** tenant_id, ticket_id, description, resolution, resolved_date, **source='api_fallback'**, **ingested_at=NOW()**
+- **Frequency:** On-demand (during enhancement workflow)
+- **Purpose:** Provides immediate value while bulk import pending or for low-volume tenants
+
+**Data Flow Diagram:**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Tenant Onboarding (One-time)                                    │
+│   └─> Bulk Import Script (Story 2.5A) ──> ticket_history       │
+│                                            source='bulk_import'  │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Ongoing Operations                                               │
+│   Ticket Resolved ──> Webhook (Story 2.5B) ──> ticket_history  │
+│                                                 source='webhook' │
+└─────────────────────────────────────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────────┐
+│ Enhancement Request (Story 2.5)                                  │
+│   IF ticket_history.count(tenant_id) ≥ 50:                      │
+│      └─> Search PostgreSQL (fast, local)                        │
+│   ELSE:                                                          │
+│      └─> Search ServiceDesk Plus API ──> Cache to ticket_history│
+│                                           source='api_fallback'  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Data Provenance Tracking:**
+- **source column** (VARCHAR(50)): Tracks ingestion method
+  - `bulk_import`: Initial historical data import (Story 2.5A)
+  - `webhook_resolved`: Real-time webhook updates (Story 2.5B)
+  - `api_fallback`: On-demand API search caching (Story 2.5)
+  - `manual`: Manual data entry (future admin tools)
+- **ingested_at column** (TIMESTAMP): Timestamp for audit and data freshness monitoring
+- **Purpose:** Enable data quality monitoring, debug sync issues, identify stale data
+
+**Database Schema Enhancement:**
+```sql
+ALTER TABLE ticket_history ADD COLUMN source VARCHAR(50) NOT NULL DEFAULT 'unknown';
+ALTER TABLE ticket_history ADD COLUMN ingested_at TIMESTAMP DEFAULT NOW();
+
+CREATE INDEX idx_ticket_history_source ON ticket_history(source);
+CREATE INDEX idx_ticket_history_ingested_at ON ticket_history(ingested_at);
+```
+
+**Monitoring & Health Checks:**
+```sql
+-- Health check: Recent webhook activity (should be >0 if tickets resolving)
+SELECT COUNT(*) FROM ticket_history
+WHERE source='webhook_resolved' AND ingested_at > NOW() - INTERVAL '24 hours';
+
+-- Data distribution by source
+SELECT source, COUNT(*), MAX(ingested_at) as last_ingestion
+FROM ticket_history
+GROUP BY source;
+```
+
+**Grafana Panel (Story 4.2A):**
+- **Panel Name:** "Ticket Ingestion by Source"
+- **Query:** `SELECT source, COUNT(*) FROM ticket_history GROUP BY source`
+- **Visualization:** Pie chart or stacked bar chart
+- **Purpose:** Operators can see data health at a glance
+  - Expect: Large bulk_import (one-time), steady webhook_resolved (ongoing), minimal api_fallback (rare)
+
+**Rationale:**
+- ✅ **No cold start problem:** Bulk import ensures context available from day one
+- ✅ **Data stays fresh:** Webhooks update in real-time without manual intervention
+- ✅ **Graceful fallback:** API search works for new tenants with minimal data
+- ✅ **Operational visibility:** Source tracking enables data quality monitoring and debugging
+- ✅ **Audit trail:** ingested_at timestamp for compliance and data lineage
+- ✅ **User enhancement:** Data provenance addresses Ravi's feedback: "I think it would be a good option to have information to know how this information got into the database"
+
+**Consequences:**
+- ✅ Immediate value for new tenants (no waiting for data accumulation)
+- ✅ Reduced operational burden (automatic updates via webhooks)
+- ✅ Clear debugging path (can trace data origin via source column)
+- ⚠️ Bulk import adds one-time onboarding step (~2 hours for 10K tickets)
+- ⚠️ Requires ServiceDesk Plus API read access (already planned in PRD)
+- ⚠️ Webhook integration requires ServiceDesk Plus configuration (one-time setup per tenant)
+
+**Alternatives Considered:**
+- **Webhook-only (no bulk import):** ❌ Cold start problem, no historical context for months
+- **Bulk import-only (no webhooks):** ❌ Data becomes stale, requires periodic re-sync
+- **API-only (no caching):** ❌ High latency, ServiceDesk Plus API rate limits, unnecessary load
+
+**Ripple Effects:**
+- Story 1.3: Update ticket_history schema with source, ingested_at columns (Alembic migration)
+- Story 2.5: Set source='api_fallback' when caching API search results
+- Story 2.5A: Set source='bulk_import' when inserting historical tickets (NEW STORY)
+- Story 2.5B: Set source='webhook_resolved' when storing resolved tickets (NEW STORY)
+- Story 4.2A: Add Grafana panel for ingestion source visualization
 
 **Status:** Accepted
 

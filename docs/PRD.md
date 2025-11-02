@@ -66,6 +66,24 @@ AI agents can transform this workflow by automatically gathering and synthesizin
 - FR024: System shall log all enhancement operations with tenant ID, ticket ID, timestamp, and outcome
 - FR025: System shall alert on critical failures (agent down, queue backup, repeated errors)
 
+**Admin UI & Configuration Management** _(Added 2025-11-02)_
+- FR026: System shall provide web-based admin UI for configuration management and system visibility
+- FR027: Admin UI shall display real-time system status dashboard with key metrics (queue depth, success rate, active workers)
+- FR028: Admin UI shall provide tenant management interface for CRUD operations on tenant configurations
+- FR029: Admin UI shall allow operators to view and filter enhancement history by tenant, status, and date range
+- FR030: Admin UI shall expose controls for system operations (pause/resume processing, clear queues, sync tenant configs)
+- FR031: Admin UI shall display worker health and resource utilization metrics
+- FR032: Admin UI shall provide form-based configuration editing with validation for tenant settings
+- FR033: Admin UI shall include search functionality for ticket enhancement history
+
+**Plugin Architecture & Multi-Tool Support** _(Added 2025-11-02)_
+- FR034: System shall implement plugin architecture to support multiple ticketing tools beyond ServiceDesk Plus
+- FR035: Each ticketing tool plugin shall implement standardized interface (webhook validation, ticket retrieval, ticket update, metadata extraction)
+- FR036: Plugin manager shall dynamically load and route requests to appropriate tool plugin based on tenant configuration
+- FR037: System shall support multiple tool plugins installed simultaneously for different tenants
+- FR038: Plugin architecture shall allow addition of new ticketing tools without modifying core enhancement logic
+- FR039: System shall validate plugin compatibility and provide error reporting for misconfigured plugins
+
 ### Non-Functional Requirements
 
 - **NFR001: Performance** - System shall complete ticket enhancement within 120 seconds from webhook receipt to ticket update, with p95 latency under 60 seconds under normal load
@@ -133,6 +151,35 @@ AI agents can transform this workflow by automatically gathering and synthesizin
 7. Client B technician sees only Client B context
 8. Audit logs record both operations with correct tenant IDs
 
+**Journey 4: Operations Team Uses Admin UI** _(Added 2025-11-02)_
+
+1. Operations manager opens admin UI dashboard at start of workday
+2. Dashboard displays:
+   - System status: "Healthy" (all workers running)
+   - Queue depth: 12 jobs pending
+   - Success rate (24h): 98.5%
+   - Recent failures: 2 (knowledge base timeout)
+3. Manager clicks "Enhancement History" tab
+4. Filters by status="failed" and last 24 hours
+5. Reviews 2 failed enhancements:
+   - Both show "Knowledge base connection timeout"
+   - Pattern identified: knowledge base server issue
+6. Manager navigates to "Tenants" tab
+7. Views list of 5 configured tenants with status indicators
+8. Clicks "Add New Tenant" button
+9. Fills form:
+   - Tenant Name: "Acme Corp"
+   - Tool: "ServiceDesk Plus" (dropdown)
+   - ServiceDesk URL: "https://acme.servicedeskplus.com"
+   - API Key: (paste from secure storage)
+   - Webhook Secret: (auto-generated)
+   - Enhancement Preferences: (toggle checkboxes)
+10. Clicks "Save and Test Connection"
+11. System validates credentials, shows success message
+12. New tenant appears in list with status="Active"
+13. Manager copies generated webhook URL for Acme Corp configuration
+14. Returns to dashboard, sees queue processing normally
+
 ---
 
 ## UX Design Principles
@@ -159,28 +206,45 @@ AI agents can transform this workflow by automatically gathering and synthesizin
 - Goal: Establish project foundation with containerized deployment pipeline and core infrastructure components
 - Estimated stories: 6-8 stories
 - Deliverables: Docker setup, Kubernetes configuration, Redis queue, PostgreSQL database, CI/CD pipeline
+- Status: Complete (MVP v1.0)
 
 **Epic 2: Core Enhancement Agent**
 - Goal: Build the end-to-end enhancement workflow from webhook receipt to ticket update
 - Estimated stories: 8-12 stories
 - Deliverables: FastAPI webhook receiver, LangGraph workflow, context gathering (ticket history, docs, IP search), LLM integration, ServiceDesk Plus API integration
+- Status: In Progress (MVP v1.0)
 
 **Epic 3: Multi-Tenancy & Security**
 - Goal: Implement tenant isolation, security controls, and configuration management for production readiness
 - Estimated stories: 6-8 stories
 - Deliverables: Row-level security, tenant configuration system, webhook signature validation, secrets management, input validation
+- Status: Planned (MVP v1.0)
 
 **Epic 4: Monitoring & Operations**
 - Goal: Deploy comprehensive observability stack for agent performance tracking and operational control
 - Estimated stories: 5-7 stories
 - Deliverables: Prometheus metrics, Grafana dashboards, alerting rules, audit logging, distributed tracing
+- Status: Planned (MVP v1.0)
 
-**Epic 5: Production Deployment & Validation** _(Optional for MVP)_
+**Epic 5: Production Deployment & Validation** _(Optional for MVP v1.0)_
 - Goal: Deploy to production environment and validate with real client tickets
 - Estimated stories: 3-5 stories
 - Deliverables: Production infrastructure, client onboarding, validation testing, runbooks, documentation
+- Status: Planned (MVP v1.0)
 
-**Total: 28-40 stories across 5 epics**
+**Epic 6: Admin UI & Configuration Management** _(Added 2025-11-02 for MVP v1.5)_
+- Goal: Provide web-based admin interface for system visibility and configuration management
+- Estimated stories: 6-8 stories
+- Deliverables: Streamlit dashboard, tenant management UI, enhancement history viewer, system operations controls, real-time metrics display
+- Status: Planned (MVP v1.5 - after v1.0 validation)
+
+**Epic 7: Plugin Architecture & Multi-Tool Support** _(Added 2025-11-02 for MVP v2.0)_
+- Goal: Refactor to plugin-based architecture supporting multiple ticketing tools
+- Estimated stories: 5-7 stories
+- Deliverables: Plugin interface definition, ServiceDesk Plus plugin migration, plugin manager, Jira Service Management plugin, plugin registry and validation
+- Status: Planned (MVP v2.0 - after v1.5 validation)
+
+**Total: 39-55 stories across 7 epics**
 
 > **Note:** Detailed epic breakdown with full story specifications is available in [epics.md](./epics.md)
 
@@ -209,8 +273,9 @@ AI agents can transform this workflow by automatically gathering and synthesizin
 - Universal integration layer supporting all ITSM tools (beyond ServiceDesk Plus)
 - Autonomous SRE team with self-organizing agents
 
-**Platform Limitations for MVP**
-- Support for ticketing systems other than ServiceDesk Plus (future expansion)
+**Platform Limitations for MVP v1.0**
+- Admin UI for configuration management (deferred to MVP v1.5)
+- Support for ticketing systems other than ServiceDesk Plus (deferred to MVP v2.0)
 - Integration with monitoring tools beyond basic API access (deep integration deferred)
 - Mobile applications for management or monitoring
 - Real-time chat/collaboration features
