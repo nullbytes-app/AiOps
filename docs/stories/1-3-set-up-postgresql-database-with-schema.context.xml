@@ -1,0 +1,314 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>3</storyId>
+    <title>Set Up PostgreSQL Database with Schema</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-3-set-up-postgresql-database-with-schema.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a developer</asA>
+    <iWant>a PostgreSQL database with initial schema for tenant configuration and enhancement history</iWant>
+    <soThat>I can store multi-tenant data with proper isolation</soThat>
+    <tasks>
+      <task id="1" acs="1,2">
+        <title>Initialize PostgreSQL database and configure Alembic</title>
+        <subtasks>
+          <subtask>Verify PostgreSQL 17 container running from Story 1.2 docker-compose.yml</subtask>
+          <subtask>Install Alembic dependency in pyproject.toml: alembic>=1.12.1</subtask>
+          <subtask>Initialize Alembic in project: alembic init alembic</subtask>
+          <subtask>Configure alembic.ini with database URL from environment variable</subtask>
+          <subtask>Update alembic/env.py to use async SQLAlchemy engine</subtask>
+          <subtask>Import Base metadata from src/database/models.py into env.py</subtask>
+          <subtask>Test Alembic connection: alembic current should succeed</subtask>
+          <subtask>Create .env variable: AI_AGENTS_DATABASE_URL with PostgreSQL connection string</subtask>
+        </subtasks>
+      </task>
+      <task id="2" acs="3">
+        <title>Create database models for tenant_configs table</title>
+        <subtasks>
+          <subtask>Create src/database/models.py with SQLAlchemy Base</subtask>
+          <subtask>Define TenantConfig model with schema from tech-spec-epic-1.md</subtask>
+          <subtask>Add UUID import from sqlalchemy.dialects.postgresql</subtask>
+          <subtask>Add type hints for all columns</subtask>
+        </subtasks>
+      </task>
+      <task id="3" acs="3">
+        <title>Create database model for enhancement_history table</title>
+        <subtasks>
+          <subtask>Define EnhancementHistory model in src/database/models.py</subtask>
+          <subtask>Add composite index on (tenant_id, ticket_id) for efficient lookups</subtask>
+          <subtask>Add type hints for all columns</subtask>
+        </subtasks>
+      </task>
+      <task id="4" acs="3,8">
+        <title>Generate and apply initial Alembic migration</title>
+        <subtasks>
+          <subtask>Generate migration: alembic revision --autogenerate -m "Initial schema"</subtask>
+          <subtask>Review generated migration file in alembic/versions/</subtask>
+          <subtask>Apply migration: alembic upgrade head</subtask>
+          <subtask>Verify tables created in PostgreSQL</subtask>
+          <subtask>Test rollback and re-apply migration</subtask>
+        </subtasks>
+      </task>
+      <task id="5" acs="4">
+        <title>Implement row-level security policies</title>
+        <subtasks>
+          <subtask>Create Alembic migration for RLS policies</subtask>
+          <subtask>Enable RLS on enhancement_history table</subtask>
+          <subtask>Create tenant_isolation_policy enforcing tenant_id filtering</subtask>
+          <subtask>Create app_user and admin database roles</subtask>
+          <subtask>Document RLS usage in README.md</subtask>
+        </subtasks>
+      </task>
+      <task id="6" acs="5">
+        <title>Configure database connection pooling</title>
+        <subtasks>
+          <subtask>Create src/database/session.py with async SQLAlchemy engine</subtask>
+          <subtask>Configure pool_size=20 and pool_pre_ping=True</subtask>
+          <subtask>Create async_session_maker with AsyncSession</subtask>
+          <subtask>Implement get_async_session() dependency for FastAPI</subtask>
+        </subtasks>
+      </task>
+      <task id="7" acs="6">
+        <title>Update health check endpoint to validate database connection</title>
+        <subtasks>
+          <subtask>Update src/api/health.py to import database session</subtask>
+          <subtask>Implement check_database_connection() async function</subtask>
+          <subtask>Execute SELECT 1 query to verify connection</subtask>
+          <subtask>Update /health/ready endpoint</subtask>
+        </subtasks>
+      </task>
+      <task id="8" acs="7">
+        <title>Create sample data insertion and query tests</title>
+        <subtasks>
+          <subtask>Create tests/integration/test_database.py</subtask>
+          <subtask>Write test_insert_tenant_config()</subtask>
+          <subtask>Write test_query_tenant_config()</subtask>
+          <subtask>Write test_insert_enhancement_history()</subtask>
+          <subtask>Write test_rls_enforcement()</subtask>
+          <subtask>Use pytest-asyncio for async test support</subtask>
+        </subtasks>
+      </task>
+      <task id="9" acs="1,8">
+        <title>Update README.md with database setup instructions</title>
+        <subtasks>
+          <subtask>Add Database Setup section to README.md</subtask>
+          <subtask>Document migration commands and rollback procedure</subtask>
+          <subtask>Add troubleshooting section</subtask>
+          <subtask>Document AI_AGENTS_DATABASE_URL format</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">PostgreSQL database initialized in Docker container</criterion>
+    <criterion id="2">Database migration tool configured (Alembic or similar)</criterion>
+    <criterion id="3">Initial schema created with tables: tenant_configs, enhancement_history</criterion>
+    <criterion id="4">Row-level security (RLS) policies defined for tenant isolation</criterion>
+    <criterion id="5">Database connection pooling configured in application</criterion>
+    <criterion id="6">Database health check endpoint returns 200 OK</criterion>
+    <criterion id="7">Sample data can be inserted and queried successfully</criterion>
+    <criterion id="8">Migration can be rolled back and re-applied</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation &amp; Infrastructure Setup</title>
+        <section>Data Models and Contracts</section>
+        <snippet>Defines TenantConfig model with UUID primary key, tenant_id unique index, encrypted API keys, and JSON enhancement_preferences. EnhancementHistory model includes status tracking (pending/completed/failed), context_gathered JSON, processing_time_ms, and composite index on (tenant_id, ticket_id).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation &amp; Infrastructure Setup</title>
+        <section>APIs and Interfaces - Database Session Management</section>
+        <snippet>SQLAlchemy async engine configured with pool_size=20, pool_pre_ping=True for stale connection detection. AsyncSession with expire_on_commit=False for FastAPI integration via get_async_session() dependency.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation &amp; Infrastructure Setup</title>
+        <section>Non-Functional Requirements - Database Connection Pooling</section>
+        <snippet>Min pool size: 5 connections, max pool size: 20 connections per service. Connection timeout: 30 seconds. Pool pre-ping enabled for stale connection detection. With 2 API pods + 4 worker pods = 120 total connections requiring PostgreSQL max_connections = 200 in production.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Data Architecture - Database Schema</section>
+        <snippet>PostgreSQL 17 with row-level security for multi-tenant isolation. tenant_configs table stores encrypted ServiceDesk credentials and JSON preferences. enhancement_history table with RLS policy enforcing tenant_id = current_setting('app.current_tenant_id'). UUID primary keys, TIMESTAMP WITH TIME ZONE for all temporal data.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Technology Stack Details - Database Layer</section>
+        <snippet>PostgreSQL 17 as primary database with row-level security. SQLAlchemy 2.0+ async ORM, Alembic for migrations, psycopg3 as async PostgreSQL driver. Supports full-text search via GIN indexes and JSON/JSONB for flexible schema fields.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>AI Agents Product Requirements Document</title>
+        <section>Functional Requirements - Multi-Tenancy</section>
+        <snippet>FR018: System shall isolate client data using row-level security in PostgreSQL. FR019: System shall load tenant-specific configuration from ConfigMaps. FR021: System shall track enhancement history per tenant for auditing and analytics.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>ADR-007: PostgreSQL 17 for Latest Features</section>
+        <snippet>PostgreSQL 17 chosen for mature row-level security, JSON support for flexible schema fields, full-text search capabilities, and long-term support until 2029. Official Docker image available.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>module</kind>
+        <symbol>Settings</symbol>
+        <lines>15-86</lines>
+        <reason>Pydantic Settings class already configured with database_url and database_pool_size fields. Story should use settings.database_url for SQLAlchemy engine configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/connection.py</path>
+        <kind>module</kind>
+        <symbol>get_engine, check_database_connection</symbol>
+        <lines>16-53</lines>
+        <reason>Existing async engine initialization and health check function. Story should enhance with session management and pool_pre_ping configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/health.py</path>
+        <kind>router</kind>
+        <symbol>health_check, readiness_check</symbol>
+        <lines>17-116</lines>
+        <reason>Health endpoints already call check_database_connection(). Story should ensure database validation works correctly after implementing full schema and migrations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/main.py</path>
+        <kind>application</kind>
+        <symbol>app, health</symbol>
+        <lines>1-105</lines>
+        <reason>Main FastAPI app with duplicate /health endpoint (note from Story 1.2 review: consolidation needed). Health endpoint validates database connectivity via check_database_connection().</reason>
+      </artifact>
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>config</kind>
+        <symbol>postgres service</symbol>
+        <lines>4-21</lines>
+        <reason>PostgreSQL 17-alpine container already configured on port 5433:5432 with environment variables, volume mount, and health check. Database credentials defined via env vars.</reason>
+      </artifact>
+      <artifact>
+        <path>.env.example</path>
+        <kind>config</kind>
+        <symbol>Database configuration</symbol>
+        <lines>16-24</lines>
+        <reason>AI_AGENTS_DATABASE_URL already defined with asyncpg driver connection string format. Database pool size configurable via AI_AGENTS_DATABASE_POOL_SIZE.</reason>
+      </artifact>
+      <artifact>
+        <path>pyproject.toml</path>
+        <kind>config</kind>
+        <symbol>dependencies</symbol>
+        <lines>10-22</lines>
+        <reason>SQLAlchemy[asyncio]>=2.0.23, alembic>=1.12.1, and asyncpg>=0.29.0 already listed as dependencies. Story adds database models and migrations using these libraries.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="sqlalchemy" version=">=2.0.23" extras="asyncio">Async ORM for database operations</package>
+        <package name="alembic" version=">=1.12.1">Database migrations with async support</package>
+        <package name="asyncpg" version=">=0.29.0">Async PostgreSQL driver for SQLAlchemy</package>
+        <package name="pydantic" version=">=2.5.0">Data validation and settings management</package>
+        <package name="pydantic-settings" version=">=2.1.0">Environment variable configuration</package>
+        <package name="pytest" version=">=7.4.3" dev="true">Testing framework</package>
+        <package name="pytest-asyncio" version=">=0.21.1" dev="true">Async test support</package>
+      </python>
+      <docker>
+        <image name="postgres" version="17-alpine">PostgreSQL database server</image>
+      </docker>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All database operations must use async/await pattern - synchronous SQLAlchemy queries will block event loop</constraint>
+    <constraint>Database connection string must use asyncpg driver (postgresql+asyncpg://...) not psycopg2</constraint>
+    <constraint>Connection pool sizing: max 20 connections per service (with 2 API + 4 worker pods = 120 total, requiring PostgreSQL max_connections=200 in production)</constraint>
+    <constraint>All database models must use UUID primary keys (not auto-incrementing integers) for global uniqueness</constraint>
+    <constraint>All timestamps must use TIMESTAMP WITH TIME ZONE and UTC timezone for consistency</constraint>
+    <constraint>Alembic migrations must include both upgrade() and downgrade() functions for rollback support</constraint>
+    <constraint>Row-level security session variable must be set before queries: app.current_tenant_id</constraint>
+    <constraint>Migration order critical: developers must apply migrations in sequence using 'alembic upgrade head' to avoid schema drift</constraint>
+    <constraint>Database health check function check_database_connection() in src/database/connection.py must work after schema changes</constraint>
+    <constraint>Environment variables use AI_AGENTS_ prefix per project convention (e.g., AI_AGENTS_DATABASE_URL)</constraint>
+    <constraint>PostgreSQL container runs on port 5433 (host) → 5432 (container) to avoid local PostgreSQL conflicts</constraint>
+    <constraint>Integration tests must run in Docker environment with real PostgreSQL instance (not mocked)</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>get_async_session</name>
+      <kind>function</kind>
+      <signature>async def get_async_session() -> AsyncGenerator[AsyncSession, None]</signature>
+      <path>src/database/session.py</path>
+      <description>FastAPI dependency for database session management. Yields async SQLAlchemy session with automatic cleanup.</description>
+    </interface>
+    <interface>
+      <name>create_async_engine</name>
+      <kind>function</kind>
+      <signature>create_async_engine(url: str, pool_size: int, pool_pre_ping: bool, echo: bool) -> AsyncEngine</signature>
+      <path>src/database/session.py</path>
+      <description>SQLAlchemy async engine factory with connection pooling configuration.</description>
+    </interface>
+    <interface>
+      <name>TenantConfig</name>
+      <kind>model</kind>
+      <signature>class TenantConfig(Base): id: UUID, tenant_id: str, name: str, servicedesk_url: str, servicedesk_api_key_encrypted: Text, webhook_signing_secret_encrypted: Text, enhancement_preferences: JSON, created_at: DateTime, updated_at: DateTime</signature>
+      <path>src/database/models.py</path>
+      <description>SQLAlchemy ORM model for tenant configuration table with encrypted credentials and JSON preferences.</description>
+    </interface>
+    <interface>
+      <name>EnhancementHistory</name>
+      <kind>model</kind>
+      <signature>class EnhancementHistory(Base): id: UUID, tenant_id: str, ticket_id: str, status: str, context_gathered: JSON, llm_output: Text, error_message: Text, processing_time_ms: int, created_at: DateTime, completed_at: DateTime</signature>
+      <path>src/database/models.py</path>
+      <description>SQLAlchemy ORM model for enhancement audit trail with status tracking and performance metrics.</description>
+    </interface>
+    <interface>
+      <name>check_database_connection</name>
+      <kind>function</kind>
+      <signature>async def check_database_connection() -> bool</signature>
+      <path>src/database/connection.py</path>
+      <description>Health check function that executes SELECT 1 query to verify database connectivity. Used by health endpoints.</description>
+    </interface>
+    <interface>
+      <name>alembic upgrade</name>
+      <kind>cli</kind>
+      <signature>alembic upgrade head</signature>
+      <path>alembic/</path>
+      <description>Apply all pending database migrations to bring schema to latest version.</description>
+    </interface>
+    <interface>
+      <name>alembic downgrade</name>
+      <kind>cli</kind>
+      <signature>alembic downgrade -1</signature>
+      <path>alembic/</path>
+      <description>Rollback the most recent database migration for testing or error recovery.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Use pytest framework with pytest-asyncio for async test support. Tests in tests/ directory mirroring src/ structure. Minimum 80% code coverage target per project standards. Integration tests run in Docker environment with real PostgreSQL instance. Test database connection, model instantiation, CRUD operations, RLS policy enforcement, and migration rollback scenarios. Use fixtures for database session setup and teardown.</standards>
+    <locations>
+      <location>tests/integration/test_database.py</location>
+      <location>tests/unit/test_models.py</location>
+      <location>alembic/versions/*.py (migration files include test scenarios)</location>
+    </locations>
+    <ideas>
+      <idea ac="1,2">Test Alembic initialization and configuration: verify alembic.ini loads database URL from environment, test alembic current command succeeds, verify migration directory structure created</idea>
+      <idea ac="3">Test TenantConfig model instantiation: create instance with all required fields, verify UUID generation, test unique constraint on tenant_id, verify JSON field accepts dict</idea>
+      <idea ac="3">Test EnhancementHistory model instantiation: create instance with all fields, verify composite index on (tenant_id, ticket_id), test status enum validation</idea>
+      <idea ac="4">Test RLS policy enforcement: set app.current_tenant_id session variable, insert data for multiple tenants, verify queries only return current tenant's data, test cross-tenant query returns empty</idea>
+      <idea ac="5">Test database connection pool: verify pool_size=20 configuration, test pool_pre_ping detects stale connections, verify multiple concurrent sessions work correctly</idea>
+      <idea ac="6">Test health check endpoint: call check_database_connection(), verify returns True when database up, verify returns False when database down (stop container scenario)</idea>
+      <idea ac="7">Test CRUD operations: insert TenantConfig and query by tenant_id, insert EnhancementHistory and query by ticket_id, verify timestamps auto-generate, test update operations</idea>
+      <idea ac="8">Test migration rollback: apply migration with sample data, verify tables exist and data persists, rollback migration, verify tables dropped and data gone, reapply migration and verify schema recreated</idea>
+    </ideas>
+  </tests>
+</story-context>

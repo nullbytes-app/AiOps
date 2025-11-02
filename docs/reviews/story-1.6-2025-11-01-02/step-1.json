@@ -1,0 +1,18 @@
+{
+  "story_key": "1-6-create-kubernetes-deployment-manifests",
+  "story_path": "docs/stories/1-6-create-kubernetes-deployment-manifests.md",
+  "epic_num": 1,
+  "story_num": 6,
+  "story_status_in_file": "review",
+  "sprint_status_value": "review",
+  "allow_status_values": [
+    "backlog",
+    "drafted",
+    "ready-for-dev",
+    "in-progress",
+    "review",
+    "done"
+  ],
+  "resolved": true,
+  "notes": "First story with status 'review' found in sprint-status.yaml and verified in story file."
+}

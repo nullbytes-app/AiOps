@@ -1,0 +1,19 @@
+{
+  "step": 3,
+  "title": "Detect tech stack and establish best-practice reference set",
+  "stack": {
+    "language": "Python 3.12",
+    "framework": "FastAPI",
+    "queue": "Celery + Redis",
+    "database": "PostgreSQL 17",
+    "orchestration": "Kubernetes 1.28+",
+    "manifests_dir": "k8s/",
+    "compose": true
+  },
+  "references": [
+    "docs/architecture.md: Project Structure - k8s/ Directory",
+    "docs/tech-spec-epic-1.md: Resource requirements per service",
+    "src/api/health.py: /api/v1/health and /api/v1/ready endpoints"
+  ],
+  "best_practices_summary": "Use runAsNonRoot for all containers where possible; define resource requests/limits; use readiness/liveness probes; store non-sensitive config in ConfigMap and secrets in Kubernetes Secrets; separate stateful services via StatefulSets; apply HPA for workers; avoid committing actual secrets.yaml."
+}

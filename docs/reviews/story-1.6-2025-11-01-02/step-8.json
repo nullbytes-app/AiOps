@@ -1,0 +1,7 @@
+{
+  "story_key": "1-6-create-kubernetes-deployment-manifests",
+  "previous_status": "review",
+  "target_status": "in-progress",
+  "outcome": "CHANGES REQUESTED",
+  "sprint_status_updated": true
+}

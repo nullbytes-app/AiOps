@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: ai-agents
+  labels:
+    app: ai-agents
+data:
+  # Non-sensitive configuration values
+  # These values are visible in kubectl describe, use Secrets for sensitive data
+  environment: "development"
+  log_level: "INFO"
+  # Future: Feature flags and other non-sensitive settings
+  # feature_flag_example: "true"

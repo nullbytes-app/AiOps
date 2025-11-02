@@ -59,3 +59,7 @@ build/
 # Temporary files
 *.tmp
 .cache/
+
+# Kubernetes secrets (NEVER commit - only .example template)
+k8s/secrets.yaml
+!k8s/secrets.yaml.example

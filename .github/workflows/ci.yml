@@ -1,0 +1,227 @@
+name: AI Agents CI/CD Pipeline
+
+# Workflow triggers: Run on push to main branch and all pull requests to main
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Workflow permissions: Minimum required for secure operation
+permissions:
+  contents: read        # Required to checkout code
+  packages: write       # Required to push Docker images to registry
+
+# Environment variables for consistency across jobs
+env:
+  REGISTRY: ghcr.io
+  API_IMAGE_NAME: ai-agents-api
+  WORKER_IMAGE_NAME: ai-agents-worker
+
+jobs:
+  # Job 1: Code quality checks and unit tests
+  # Runs on every PR and main branch commit
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15  # Prevent hung jobs
+
+    steps:
+      # Step 1: Checkout repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      # Step 2: Set up Python 3.12 environment
+      # Reason: Python 3.12 is the project's target version (as per tech spec and previous stories)
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Step 3: Cache pip dependencies
+      # Reason: Caching dependencies saves ~30s per run by avoiding re-download
+      # Key is based on pyproject.toml hash to invalidate cache when deps change
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Step 4: Install dependencies from pyproject.toml
+      # Install editable mode with [dev] extras to get all dev tools (black, ruff, mypy, pytest, etc.)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Step 5: Verify dependency installation
+      # List all installed packages to confirm all required tools are present
+      - name: Verify dependency installation
+        run: pip list | grep -E "black|ruff|mypy|pytest"
+
+      # Step 6: Code formatting check with Black
+      # Reason: Enforces consistent Python code formatting (PEP8-compliant)
+      # Black is configured in pyproject.toml with line-length=100
+      # Run in check mode (--check) to fail if formatting issues found
+      # Tip: Run `black src/ tests/` locally to auto-format code before pushing
+      - name: Check code formatting (Black)
+        run: black --check src/ tests/
+        continue-on-error: false
+
+      # Step 7: Linting with Ruff
+      # Reason: Fast linter that checks for code quality issues, security patterns, unused imports
+      # Ruff is configured in pyproject.toml with select rules: E, F, I, N, W
+      # Common Ruff fixes:
+      #   - Remove unused imports: `ruff check --fix src/` (--fix flag auto-fixes some issues)
+      #   - Undefined variables: Add missing import or define variable
+      #   - Line too long: Either refactor or adjust pyproject.toml line-length setting
+      - name: Lint code (Ruff)
+        run: ruff check src/ tests/
+        continue-on-error: false
+
+      # Step 8: Type checking with Mypy
+      # Reason: Static type checking catches type errors before runtime
+      # Mypy is configured in pyproject.toml with disallow_untyped_defs=true (strict mode)
+      # --ignore-missing-imports allows use of untyped third-party libraries
+      # Type checking benefits:
+      #   - Catches typos in variable/method names
+      #   - Prevents passing wrong argument types
+      #   - Documents expected types in function signatures
+      - name: Type check (Mypy)
+        run: mypy src/ --ignore-missing-imports
+        continue-on-error: false
+
+      # Step 9: Run unit tests with coverage
+      # Reason: Validates code functionality and generates coverage report
+      # Coverage must be >= 80% (per tech spec requirement)
+      # pytest configuration in pyproject.toml specifies:
+      #   - testpaths: tests/
+      #   - addopts: --verbose, -ra (show all test details)
+      # Coverage report generated in both terminal and XML format (for CI service integration)
+      - name: Run unit tests with coverage
+        run: |
+          pytest tests/ \
+            --cov=src \
+            --cov-report=term \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-fail-under=80
+        continue-on-error: false
+
+      # Step 10: Upload coverage report as artifact
+      # Reason: Allows review of coverage report in GitHub Actions UI
+      # XML report can be integrated with external coverage services
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v3
+        if: always()  # Upload even if tests fail
+        with:
+          name: coverage-report
+          path: coverage.xml
+          retention-days: 30
+
+      # Step 11: Upload HTML coverage report for visualization
+      - name: Upload HTML coverage report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: coverage-html
+          path: htmlcov/
+          retention-days: 30
+
+  # Job 2: Docker image build and push
+  # Depends on lint-and-test job passing (sequential execution)
+  # Only pushes images on main branch (not on PRs)
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: lint-and-test  # Only run after lint-and-test succeeds
+    timeout-minutes: 15
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Docker Buildx
+      # Reason: Buildx is modern Docker build engine with layer caching support
+      # Layer caching saves ~60s per build by reusing unchanged layers
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Log in to GitHub Container Registry (ghcr.io)
+      # Reason: Authentication required for pushing private images
+      # Uses secrets.GITHUB_TOKEN (automatically provided by GitHub Actions)
+      # Security best practice: Never hardcode credentials in workflow
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Step 4: Extract repository name for image tagging
+      # Converts github.repository (owner/repo) to lowercase for Docker compliance
+      - name: Extract repository name
+        id: repo
+        run: echo "name=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      # Step 5: Build API Docker image
+      # Reason: Validates Dockerfile syntax and builds working container
+      # Image tagged with:
+      #   - 'test' tag for PR verification
+      #   - Commit SHA for traceability (full 40-char SHA)
+      - name: Build API Docker image
+        run: |
+          docker build \
+            -f docker/backend.dockerfile \
+            -t ai-agents-api:test \
+            -t ai-agents-api:${{ github.sha }} \
+            .
+
+      # Step 6: Build Worker Docker image
+      # Reason: Validates Worker Dockerfile and ensures both services build
+      # Celery worker image required for task processing
+      - name: Build Worker Docker image
+        run: |
+          docker build \
+            -f docker/celeryworker.dockerfile \
+            -t ai-agents-worker:test \
+            -t ai-agents-worker:${{ github.sha }} \
+            .
+
+      # Step 7: Verify images built successfully
+      # Reason: Confirms both images are present and have correct naming
+      - name: Verify Docker images built
+        run: docker images | grep -E "ai-agents-api|ai-agents-worker"
+
+      # Step 8: Tag and push API image to registry (main branch only)
+      # Reason: Docker push should only happen on main branch to prevent PR commits from creating images
+      # if condition ensures this job only pushes on main, not on PRs
+      # Images tagged with:
+      #   - 'latest' for stable production image
+      #   - Commit SHA for specific version reference
+      - name: Push API image to registry
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag ai-agents-api:test ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.API_IMAGE_NAME }}:latest
+          docker tag ai-agents-api:test ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.API_IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.API_IMAGE_NAME }}:${{ github.sha }}
+
+      # Step 9: Tag and push Worker image to registry (main branch only)
+      - name: Push Worker image to registry
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker tag ai-agents-worker:test ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.WORKER_IMAGE_NAME }}:latest
+          docker tag ai-agents-worker:test ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.WORKER_IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.WORKER_IMAGE_NAME }}:latest
+          docker push ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.WORKER_IMAGE_NAME }}:${{ github.sha }}
+
+      # Step 10: Verify images in registry (informational only)
+      - name: Confirm images pushed
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "API image pushed: ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.API_IMAGE_NAME }}:latest"
+          echo "Worker image pushed: ${{ env.REGISTRY }}/${{ steps.repo.outputs.name }}/${{ env.WORKER_IMAGE_NAME }}:latest"

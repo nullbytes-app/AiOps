@@ -69,6 +69,7 @@ def valid_env_vars() -> dict[str, str]:
         "AI_AGENTS_REDIS_URL": "redis://localhost:6379/0",
         "AI_AGENTS_CELERY_BROKER_URL": "redis://localhost:6379/1",
         "AI_AGENTS_CELERY_RESULT_BACKEND": "redis://localhost:6379/1",
+        "AI_AGENTS_WEBHOOK_SECRET": "test-webhook-secret-minimum-32-chars-required-here",
     }
 
 
@@ -167,6 +168,7 @@ def test_env_prefix_correctly_prepends_to_variable_names(
     os.environ["AI_AGENTS_REDIS_URL"] = "redis://localhost:6379/0"
     os.environ["AI_AGENTS_CELERY_BROKER_URL"] = "redis://localhost:6379/1"
     os.environ["AI_AGENTS_CELERY_RESULT_BACKEND"] = "redis://localhost:6379/1"
+    os.environ["AI_AGENTS_WEBHOOK_SECRET"] = "test-webhook-secret-minimum-32-chars-required-here"
 
     # Create Settings instance
     settings = Settings()
@@ -180,6 +182,7 @@ def test_env_prefix_correctly_prepends_to_variable_names(
     os.environ["AI_AGENTS_REDIS_URL"] = "redis://localhost:6379/0"
     os.environ["AI_AGENTS_CELERY_BROKER_URL"] = "redis://localhost:6379/1"
     os.environ["AI_AGENTS_CELERY_RESULT_BACKEND"] = "redis://localhost:6379/1"
+    os.environ["AI_AGENTS_WEBHOOK_SECRET"] = "test-webhook-secret-minimum-32-chars-required-here"
 
     # Should raise validation error because DATABASE_URL (without prefix) is ignored
     with pytest.raises(ValidationError):

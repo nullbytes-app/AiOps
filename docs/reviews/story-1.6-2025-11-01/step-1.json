@@ -1,0 +1,10 @@
+{
+  "step": 1,
+  "title": "Find story ready for review",
+  "story_key": "1-6-create-kubernetes-deployment-manifests",
+  "story_path": "docs/stories/1-6-create-kubernetes-deployment-manifests.md",
+  "status": "review",
+  "epic_num": 1,
+  "story_num": 6,
+  "context_ref": "docs/stories/1-6-create-kubernetes-deployment-manifests.context.xml"
+}

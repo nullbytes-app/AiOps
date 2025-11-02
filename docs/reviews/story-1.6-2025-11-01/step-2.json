@@ -1,0 +1,12 @@
+{
+  "step": 2,
+  "title": "Resolve story context file and specification inputs",
+  "story_context_found": true,
+  "story_context_path": "docs/stories/1-6-create-kubernetes-deployment-manifests.context.xml",
+  "tech_spec_found": true,
+  "tech_spec_path": "docs/tech-spec-epic-1.md",
+  "arch_docs_loaded": [
+    "docs/architecture.md"
+  ],
+  "warnings": []
+}

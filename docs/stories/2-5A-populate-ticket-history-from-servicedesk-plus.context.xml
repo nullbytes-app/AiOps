@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2-5A</storyId>
+    <title>Populate Ticket History from ServiceDesk Plus</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-5A-populate-ticket-history-from-servicedesk-plus.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform operator</asA>
+    <iWant>bulk import historical tickets from ServiceDesk Plus during tenant onboarding</iWant>
+    <soThat>the enhancement agent has context data available from day one</soThat>
+    <tasks>
+      - Task 1: Verify database schema and add provenance fields (source, ingested_at, UNIQUE constraint)
+      - Task 2: Research ServiceDesk Plus API v3 pagination and authentication
+      - Task 3: Create import script structure with argument parsing (--tenant-id, --days, --start-date, --end-date)
+      - Task 4: Implement ServiceDesk Plus API client with pagination and exponential backoff
+      - Task 5: Implement ticket data extraction and transformation from JSON to TicketHistory
+      - Task 6: Implement database insertion with IntegrityError handling for duplicates
+      - Task 7: Implement main import loop with progress tracking every 100 tickets
+      - Task 8: Implement error handling and retry logic (429, 401/403, 500/502/503, timeouts)
+      - Task 9: Create unit tests (8 test cases covering pagination, errors, idempotency, exit codes)
+      - Task 10: Create integration test with real database and mock API
+      - Task 11: Create script documentation and usage guide
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1. Python script created: scripts/import_tickets.py --tenant-id=X --days=90
+    2. Script fetches closed/resolved tickets from ServiceDesk Plus API
+    3. Uses pagination (100 tickets per page) for large datasets
+    4. Stores required fields: tenant_id, ticket_id, description, resolution, resolved_date, tags, source='bulk_import', ingested_at
+    5. Progress tracking: Logs "Imported 1000/5000 tickets (20%)" every 100 tickets
+    6. Error handling: Skip invalid tickets, log errors, continue processing
+    7. Idempotent: UNIQUE constraint on (tenant_id, ticket_id) prevents duplicates
+    8. Performance: Processes ~100 tickets/minute (target: 10,000 tickets in &lt;2 hours)
+    9. Accepts parameters: --start-date, --end-date, --days (default: 90)
+    10. Exit codes: 0 on success, non-zero on failure (for automation)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic Technical Specification: Core Enhancement Agent</title>
+        <section>Objectives and Scope - Context Gathering &amp; Data Ingestion</section>
+        <snippet>Bulk import of historical tickets from ServiceDesk Plus API (Story 2.5A). Automatic storage of resolved tickets via webhook (Story 2.5B). Knowledge base API integration with Redis caching (Story 2.6).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic Technical Specification: Core Enhancement Agent</title>
+        <section>System Architecture Alignment - Epic 2 Architecture</section>
+        <snippet>Story 2.5A populates ticket_history table with bulk import during tenant onboarding. This provides the historical context database that Story 2.5 queries for similar tickets.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Technology Stack Details - Core Technologies</section>
+        <snippet>PostgreSQL 17 for full-text search with row-level security. SQLAlchemy 2.0+ async ORM for database operations. Alembic for migrations. HTTPX for async HTTP calls to ServiceDesk Plus API.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-3-set-up-postgresql-database-with-schema.md</path>
+        <title>Story 1.3: Set Up PostgreSQL Database with Schema</title>
+        <section>Tasks - Task 2: Create database models for tenant_configs table</section>
+        <snippet>Database models created in src/database/models.py with SQLAlchemy Base. TicketHistory model already defined with fields: id, tenant_id, ticket_id, description, resolution, resolved_date, created_at, updated_at.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-5-implement-ticket-history-search-context-gathering.md</path>
+        <title>Story 2.5: Implement Ticket History Search Context Gathering</title>
+        <section>Integration with 2.5A</section>
+        <snippet>Story 2.5 implements search_similar_tickets(query, tenant_id) using PostgreSQL full-text search on ticket_history table. This story (2.5A) populates that table with bulk historical data during tenant onboarding.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - FR005: Search ticket history, FR012: Bulk import</section>
+        <snippet>Bulk import enables operators to seed new tenant deployments with historical context. Search leverages this historical data to provide similar ticket resolutions for technician enhancement requests.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <codeArtifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>TicketHistory</symbol>
+        <lines>191-264</lines>
+        <reason>Defines ticket_history table schema. This story adds source and ingested_at fields plus UNIQUE(tenant_id, ticket_id) constraint for idempotency. Existing fields: id, tenant_id, ticket_id, description, resolution, resolved_date, created_at, updated_at.</reason>
+      </codeArtifact>
+      <codeArtifact>
+        <path>src/database/session.py</path>
+        <kind>utility</kind>
+        <symbol>get_async_engine, async_session_maker, get_async_session</symbol>
+        <lines>22-94</lines>
+        <reason>Provides async database connection pooling and session factory. Script uses async_session_maker() to insert tickets in batches with connection pooling (max 20 connections, pool_pre_ping=True, pool_recycle=3600).</reason>
+      </codeArtifact>
+      <codeArtifact>
+        <path>src/utils/logger.py</path>
+        <kind>utility</kind>
+        <symbol>configure_logging</symbol>
+        <lines>22-59</lines>
+        <reason>Configures structured logging with Loguru. Script uses this for progress tracking: "Imported 1000/5000 tickets (20%)" and error logging with tenant_id context.</reason>
+      </codeArtifact>
+      <codeArtifact>
+        <path>src/database/connection.py</path>
+        <kind>service</kind>
+        <symbol>check_database_connection</symbol>
+        <reason>Database health check function. Script can use this to verify database connectivity before starting bulk import.</reason>
+      </codeArtifact>
+      <codeArtifact>
+        <path>tests/integration/test_database.py</path>
+        <kind>test</kind>
+        <symbol>test_db_session fixture, TestDatabaseConnection</symbol>
+        <lines>41-80</lines>
+        <reason>Integration test pattern for database operations. Story 2.5A creates similar integration tests for bulk import (test_import_tickets_integration.py) with TestDatabaseConnection pattern and async session management.</reason>
+      </codeArtifact>
+      <codeArtifact>
+        <path>tests/conftest.py</path>
+        <kind>test-config</kind>
+        <symbol>setup_test_env fixture, env_vars fixture</symbol>
+        <lines>27-58</lines>
+        <reason>Test environment setup and environment variable fixtures. Story 2.5A tests use these fixtures to mock database and API endpoints.</reason>
+      </codeArtifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version="&gt;=0.104.0" reason="Required for API integration patterns" />
+        <package name="pydantic" version="&gt;=2.5.0" reason="Data validation for tickets" />
+        <package name="sqlalchemy[asyncio]" version="&gt;=2.0.23" reason="Async ORM for database operations" />
+        <package name="asyncpg" version="&gt;=0.29.0" reason="Async PostgreSQL driver for session pooling" />
+        <package name="httpx" version="&gt;=0.25.2" reason="Async HTTP client for ServiceDesk Plus API calls" />
+        <package name="loguru" version="&gt;=0.7.2" reason="Structured logging for progress tracking and error handling" />
+        <package name="alembic" version="&gt;=1.12.1" reason="Database migrations for new schema fields (source, ingested_at, UNIQUE constraint)" />
+        <package name="pytest" version="&gt;=7.4.3" reason="Unit and integration test framework" />
+        <package name="pytest-asyncio" version="&gt;=0.21.1" reason="Async test support for async script functions" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>
+      <category>Architecture</category>
+      <description>Must use async/await patterns with SQLAlchemy AsyncSession from src/database/session.py. All database calls are async, all API calls are async using httpx.AsyncClient.</description>
+    </constraint>
+    <constraint>
+      <category>Data Isolation</category>
+      <description>All database queries must filter by tenant_id. Each ticket import is scoped to a single tenant via --tenant-id argument. Enforced by SQL: WHERE tenant_id = {tenant_id}.</description>
+    </constraint>
+    <constraint>
+      <category>Performance</category>
+      <description>Target: 100 tickets/minute (10,000 tickets in &lt;2 hours). Achieved through: pagination (100 tickets/page), connection pooling (max 20), minimal data transformation, bulk insert operations, 0.6s rate-limiting delay between API requests (respects 100 req/min limit).</description>
+    </constraint>
+    <constraint>
+      <category>Idempotency</category>
+      <description>UNIQUE(tenant_id, ticket_id) constraint prevents duplicates. On conflict, IntegrityError is caught, ticket is logged as skipped, import continues. Script can be re-run safely with same data.</description>
+    </constraint>
+    <constraint>
+      <category>Error Handling</category>
+      <description>Errors must not halt import. Pattern: Catch exception, log with context, continue. Exceptions: 429 (wait 60s, retry 3x), 401/403 (exit 3, no retry), 500/502/503 (retry 3x exponential backoff), 408 timeout (retry 3x), invalid ticket (skip, log, continue), DB error (log, skip, continue).</description>
+    </constraint>
+    <constraint>
+      <category>Code Style</category>
+      <description>Follow project conventions: PEP8 via Black (line-length=100), type hints for all functions, docstrings with Google style, async functions with async def, SQLAlchemy models from src/database/models.py.</description>
+    </constraint>
+    <constraint>
+      <category>Logging</category>
+      <description>Use loguru logger from src.utils.logger. Include tenant_id, operation context, progress metrics. Progress log format: "Imported {count}/{total} tickets ({pct}%)" every 100 tickets. Error log format: "Error: {error_type}, Ticket: {ticket_id}, Context: {context}".</description>
+    </constraint>
+    <constraint>
+      <category>Testing</category>
+      <description>Create unit tests in tests/unit/test_import_tickets.py and integration tests in tests/integration/test_import_tickets_integration.py. Use pytest.mark.asyncio for async tests, async_session_maker fixture for DB mocking, httpx_mock for API mocking. Minimum 8 unit tests + 3 integration tests covering: pagination, errors (429/401/timeout), idempotency, exit codes, performance, progress logging.</description>
+    </constraint>
+    <constraint>
+      <category>Database</category>
+      <description>Use Alembic migrations in alembic/versions/. Create migration for: adding source (VARCHAR(50)), ingested_at (TIMESTAMP) columns to ticket_history, adding UNIQUE(tenant_id, ticket_id) constraint. Migration is reversible (upgrade/downgrade).</description>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ServiceDesk Plus API v3 - GET /api/v3/requests</name>
+      <kind>REST endpoint</kind>
+      <signature>
+GET /api/v3/requests
+Headers:
+  - Authorization: Zoho-oauthtoken {api_key}
+  - Accept: application/vnd.manageengine.sdp.v3+json
+
+Request Body (JSON):
+{
+  "list_info": {
+    "start_index": 1,
+    "row_count": 100
+  },
+  "input_data": {
+    "status": {
+      "name": ["Closed", "Resolved"]
+    },
+    "resolved_time": {
+      "from": 1704067200000,
+      "to": 1712016000000
+    }
+  }
+}
+
+Response (200 OK):
+{
+  "response_status": [{"status_code": 2000, "status": "success"}],
+  "list_info": {
+    "has_more_rows": true,
+    "start_index": 1,
+    "row_count": 100
+  },
+  "requests": [
+    {
+      "id": "123456",
+      "subject": "Server not responding",
+      "description": "Web server down at 192.168.1.100",
+      "resolution": {"content": "Restarted Apache service"},
+      "resolved_time": {"value": 1704150000000},
+      "tags": [{"name": "critical"}, {"name": "web-server"}]
+    }
+  ]
+}
+      </signature>
+      <path>External API - ManageEngine ServiceDesk Plus v3</path>
+    </interface>
+    <interface>
+      <name>Database: ticket_history table insertion</name>
+      <kind>SQLAlchemy ORM operation</kind>
+      <signature>
+# Insert single ticket (async)
+async def insert_ticket(session: AsyncSession, ticket_obj: TicketHistory) -> bool:
+    try:
+        session.add(ticket_obj)
+        await session.commit()
+        return True
+    except IntegrityError:
+        await session.rollback()
+        return False
+    except DatabaseError as e:
+        await session.rollback()
+        raise
+
+# TicketHistory model (from src/database/models.py)
+class TicketHistory(Base):
+    __tablename__ = "ticket_history"
+    id: UUID
+    tenant_id: str  # Filter key for multi-tenant isolation
+    ticket_id: str
+    description: str
+    resolution: str
+    resolved_date: datetime
+    created_at: datetime = server_default(func.now())
+    updated_at: datetime = server_default(func.now())
+    source: str = "bulk_import"  # NEW: provenance field
+    ingested_at: datetime = func.now()  # NEW: provenance field
+      </signature>
+      <path>src/database/models.py (lines 191-264, with additions for source/ingested_at/UNIQUE constraint)</path>
+    </interface>
+    <interface>
+      <name>Script CLI interface</name>
+      <kind>Command-line argument interface</kind>
+      <signature>
+Usage: python scripts/import_tickets.py [OPTIONS]
+
+Options:
+  --tenant-id TEXT (required)    Tenant ID to import tickets for
+  --days INTEGER (default: 90)   Number of days of history to import
+  --start-date DATE (optional)   Override: import from this date (ISO format: YYYY-MM-DD)
+  --end-date DATE (optional)     Override: import until this date (ISO format: YYYY-MM-DD)
+  --log-level TEXT (optional)    Set log level (DEBUG, INFO, WARNING, ERROR)
+
+Exit Codes:
+  0 = Success
+  1 = Invalid arguments (missing --tenant-id, invalid dates)
+  2 = Tenant not found in tenant_configs table
+  3 = API error (401, 403, 500+, all retries exhausted)
+
+Examples:
+  python scripts/import_tickets.py --tenant-id=acme-corp
+  python scripts/import_tickets.py --tenant-id=acme-corp --days=180
+  python scripts/import_tickets.py --tenant-id=acme-corp --start-date=2024-01-01 --end-date=2024-03-31
+      </signature>
+      <path>scripts/import_tickets.py (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Project uses pytest with pytest-asyncio for async test support. Tests live in tests/unit/ and tests/integration/ mirroring src/ structure. Unit tests use mocks (httpx_mock) for external dependencies. Integration tests use real database (test PostgreSQL on localhost:5433). Fixtures from tests/conftest.py provide environment setup and database session management. All async functions marked with @pytest.mark.asyncio. Test databases use async_session_maker with rollback cleanup.
+    </standards>
+    <locations>
+tests/unit/test_import_tickets.py - Unit tests (mocked API, no database)
+tests/integration/test_import_tickets_integration.py - Integration tests (real database, mocked API)
+tests/conftest.py - Shared fixtures (setup_test_env, env_vars, etc.)
+    </locations>
+    <ideas>
+1. **Unit: test_pagination_two_pages** - Mock API returns 2 pages (100 + 50 tickets, has_more_rows=true then false). Verify: fetch_tickets_page() called twice, correct start_index increments, 150 total tickets extracted.
+
+2. **Unit: test_duplicate_handling** - Mock 100 unique + 50 duplicates. Verify: IntegrityError caught, logged as "Ticket {id} already exists, skipping", script continues, returns True=success.
+
+3. **Unit: test_invalid_ticket_data** - Mock ticket missing required field (resolved_time=null). Verify: extract_ticket_data() returns None, script skips, logs error, continues.
+
+4. **Unit: test_rate_limit_retry** - Mock first request returns 429, second succeeds. Verify: 60s sleep, retry called, success on second attempt.
+
+5. **Unit: test_auth_error_exit** - Mock 401 Unauthorized. Verify: logs error, exits with code 3, no retry attempts.
+
+6. **Unit: test_progress_logging** - Process 250 tickets. Verify: logs "Imported 100/250", "Imported 200/250" (every 100 tix).
+
+7. **Unit: test_date_range_calculation** - Args: --days=90. Verify: end_date=now(), start_date=now()-90d, API called with correct timestamp range.
+
+8. **Unit: test_exit_codes** - Verify: 0=success, 1=missing --tenant-id, 2=tenant not found, 3=API error.
+
+9. **Integration: test_import_100_tickets** - Real DB, mock API (100 tickets, 1 page). Verify: all 100 rows in ticket_history, fields populated: tenant_id, ticket_id, description, resolution, resolved_date, source='bulk_import', ingested_at set.
+
+10. **Integration: test_performance** - 100 tickets, measure time. Verify: elapsed &lt;60s (target: 100/min).
+
+11. **Integration: test_idempotency** - Run import twice same data. First: 100 imported, 0 skipped. Second: 0 imported, 100 skipped (UNIQUE constraint blocks duplicates).
+    </ideas>
+  </tests>
+</story-context>

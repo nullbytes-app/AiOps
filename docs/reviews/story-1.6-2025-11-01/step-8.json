@@ -1,0 +1,9 @@
+{
+  "step": 8,
+  "title": "Update sprint status based on review outcome",
+  "story_key": "1-6-create-kubernetes-deployment-manifests",
+  "previous_status": "review",
+  "outcome": "Blocked",
+  "target_status": "review",
+  "result": "No change required (remains in review)"
+}

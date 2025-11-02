@@ -1,0 +1,447 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>7</storyId>
+    <title>Set Up CI/CD Pipeline with GitHub Actions</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-7-set-up-cicd-pipeline-with-github-actions.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a developer</asA>
+    <iWant>automated testing and deployment pipeline</iWant>
+    <soThat>code changes are validated and can be deployed consistently</soThat>
+    <tasks>
+      <task id="1" ac="#1, #2">
+        <title>Create GitHub Actions workflow file</title>
+        <subtasks>
+          - Create directory .github/workflows/ if it doesn't exist
+          - Create workflow file: .github/workflows/ci.yml
+          - Configure workflow name: "AI Agents CI/CD Pipeline"
+          - Set triggers: on push to main branch, on pull requests to main branch
+          - Add workflow permissions: read repo contents, write to packages (for Docker registry)
+          - Document workflow structure in inline YAML comments
+        </subtasks>
+      </task>
+      <task id="2" ac="#3">
+        <title>Add Python setup and dependency installation step</title>
+        <subtasks>
+          - Add job: "lint-and-test" running on ubuntu-latest
+          - Checkout code using actions/checkout@v4
+          - Set up Python 3.12 using actions/setup-python@v5
+          - Cache pip dependencies using actions/cache@v3 (key: requirements hash)
+          - Install dependencies: pip install -e ".[dev]" (from pyproject.toml)
+          - Verify installation: pip list shows all required packages
+        </subtasks>
+      </task>
+      <task id="3" ac="#3">
+        <title>Add code formatting check step</title>
+        <subtasks>
+          - Run Black in check mode: black --check src/ tests/
+          - If formatting issues found, fail the job with clear error message
+          - Document in workflow comments: "Enforces consistent Python code formatting"
+          - Add inline comment suggesting: "Run black src/ tests/ locally to auto-format"
+        </subtasks>
+      </task>
+      <task id="4" ac="#3">
+        <title>Add linting step</title>
+        <subtasks>
+          - Run Ruff linter: ruff check src/ tests/
+          - Configure Ruff to check for: code quality issues, security patterns, unused imports
+          - Fail job if linting errors found
+          - Document common Ruff fixes in workflow comments
+        </subtasks>
+      </task>
+      <task id="5" ac="#3">
+        <title>Add type checking step</title>
+        <subtasks>
+          - Run Mypy: mypy src/ --ignore-missing-imports
+          - Configure Mypy strict mode via mypy.ini (created in Story 1.1)
+          - Fail job if type errors found
+          - Document type checking benefits in workflow comments
+        </subtasks>
+      </task>
+      <task id="6" ac="#3, #4">
+        <title>Add unit test execution step</title>
+        <subtasks>
+          - Run pytest with coverage: pytest tests/ --cov=src --cov-report=term --cov-report=xml
+          - Generate coverage report in XML format (for potential upload to coverage service)
+          - Display coverage summary in workflow output
+          - Fail job if coverage below 80% (per tech spec requirement)
+          - Add step to upload coverage report as artifact: actions/upload-artifact@v3
+        </subtasks>
+      </task>
+      <task id="7" ac="#3">
+        <title>Add Docker build step</title>
+        <subtasks>
+          - Add job: "docker-build" that depends on "lint-and-test" passing
+          - Set up Docker Buildx: docker/setup-buildx-action@v3
+          - Build API Docker image: docker build -f docker/backend.dockerfile -t ai-agents-api:test .
+          - Build Worker Docker image: docker build -f docker/celeryworker.dockerfile -t ai-agents-worker:test .
+          - Verify images built successfully: docker images | grep ai-agents
+          - Tag images with commit SHA for traceability
+        </subtasks>
+      </task>
+      <task id="8" ac="#5">
+        <title>Add Docker image push step</title>
+        <subtasks>
+          - Configure Docker registry authentication (GitHub Container Registry recommended)
+          - Log in to registry: docker/login-action@v3
+          - Set registry URL: ghcr.io (GitHub Container Registry)
+          - Use GitHub token for authentication: secrets.GITHUB_TOKEN
+          - Tag images with: latest (main branch) and commit SHA
+          - Push API image: docker push ghcr.io/${{ github.repository }}/ai-agents-api:latest
+          - Push Worker image: docker push ghcr.io/${{ github.repository }}/ai-agents-worker:latest
+          - Only push on main branch (not PRs): if: github.ref == 'refs/heads/main'
+        </subtasks>
+      </task>
+      <task id="9" ac="#6">
+        <title>Add workflow status badge to README</title>
+        <subtasks>
+          - Generate badge URL: https://github.com/$USER/$REPO/actions/workflows/ci.yml/badge.svg
+          - Add badge to README.md at top of file (below title)
+          - Format: ![CI/CD Pipeline](badge-url)
+          - Link badge to Actions page for click-through
+          - Verify badge displays correctly in GitHub UI
+        </subtasks>
+      </task>
+      <task id="10" ac="#7">
+        <title>Test workflow with sample commit</title>
+        <subtasks>
+          - Create test branch: test-ci-pipeline
+          - Make trivial change (e.g., update README comment)
+          - Commit and push to trigger workflow
+          - Open pull request to main branch
+          - Verify workflow runs automatically
+          - Check all steps pass (linting, type checking, tests, Docker build)
+          - Merge PR to main branch
+          - Verify Docker images pushed to registry
+          - Confirm workflow status badge shows "passing"
+        </subtasks>
+      </task>
+      <task id="11" ac="#7, #8">
+        <title>Create workflow documentation</title>
+        <subtasks>
+          - Add section to README.md: "CI/CD Pipeline"
+          - Document workflow triggers: PRs and main branch commits
+          - Document automated checks: Black, Ruff, Mypy, Pytest, Docker build
+          - Document how to run checks locally before pushing
+          - Document troubleshooting: common workflow failures and fixes
+          - Document registry authentication for local Docker push (optional for developers)
+          - Add link to GitHub Actions documentation for advanced customization
+        </subtasks>
+      </task>
+      <task id="12" ac="#7">
+        <title>Optimize workflow performance</title>
+        <subtasks>
+          - Enable dependency caching to speed up subsequent runs
+          - Use matrix strategy if testing multiple Python versions (optional)
+          - Configure job concurrency limits to prevent redundant runs on rapid commits
+          - Add timeout limits to prevent hung jobs (e.g., 15 minutes max)
+          - Document workflow runtime baseline: target less than 5 minutes for typical PR
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">
+      <description>GitHub Actions workflow file created (.github/workflows/ci.yml)</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+    <criterion id="2">
+      <description>Workflow runs on pull requests and main branch commits</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+    <criterion id="3">
+      <description>Automated steps: linting (black, flake8), unit tests (pytest), Docker build</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+    <criterion id="4">
+      <description>Test coverage report generated and displayed</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+    <criterion id="5">
+      <description>Docker images pushed to container registry on main branch</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+    <criterion id="6">
+      <description>Workflow status badge added to README</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+    <criterion id="7">
+      <description>Pipeline completes successfully for test commit</description>
+      <source>docs/epics.md#Story-1.7, docs/tech-spec-epic-1.md#AC7-CI/CD-Pipeline</source>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation and Infrastructure Setup</title>
+        <section>AC7: CI/CD Pipeline</section>
+        <snippet>GitHub Actions workflow file created (.github/workflows/ci.yml). Workflow triggers on pull requests and main branch commits. Linting (Black, Ruff), type checking (Mypy), unit tests (Pytest with coverage), Docker build steps. Pipeline passes for test commit.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation and Infrastructure Setup</title>
+        <section>CI/CD Pipeline Workflow</section>
+        <snippet>GitHub Actions triggers workflow on push/PR. Linting and type checking run. Unit tests run with Pytest coverage report. Docker images build and push to registry on main branch.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation and Infrastructure Setup</title>
+        <section>Objectives and Scope</section>
+        <snippet>GitHub Actions CI/CD pipeline for automated testing, linting, and Docker image builds. Comprehensive documentation for local development and Kubernetes deployment.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Project Structure</section>
+        <snippet>.github/workflows/ci.yml - GitHub Actions CI/CD workflow configuration</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Technology Stack - Development Tools</section>
+        <snippet>Python 3.12, FastAPI, Docker, Kubernetes 1.28+. Gunicorn + Uvicorn for production. GitHub Actions for CI/CD automation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Project Epics</title>
+        <section>Story 1.7</section>
+        <snippet>Set up GitHub Actions pipeline with automated linting, type checking, unit tests (pytest), and Docker image builds. Push images to container registry on main branch.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>pyproject.toml</path>
+        <kind>config</kind>
+        <symbol>project.optional-dependencies.dev</symbol>
+        <lines>24-31</lines>
+        <reason>Defines dev dependencies needed for CI: pytest, black, ruff, mypy. These exact tools must be used in the GitHub Actions workflow.</reason>
+      </artifact>
+      <artifact>
+        <path>pyproject.toml</path>
+        <kind>config</kind>
+        <symbol>tool.black, tool.ruff, tool.mypy, tool.pytest</symbol>
+        <lines>39-62</lines>
+        <reason>Configuration for linting and testing tools. CI workflow must use same settings (line-length=100, Python 3.12 target).</reason>
+      </artifact>
+      <artifact>
+        <path>docker/backend.dockerfile</path>
+        <kind>dockerfile</kind>
+        <symbol>Multi-stage build</symbol>
+        <lines>1-55</lines>
+        <reason>FastAPI application Dockerfile that CI will build. Multi-stage pattern reduces image size. Must build successfully in CI pipeline.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_config.py</path>
+        <kind>test</kind>
+        <symbol>test suite</symbol>
+        <lines>all</lines>
+        <reason>Example unit test structure. CI will run all tests in tests/ directory using pytest.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_docker_stack.py</path>
+        <kind>test</kind>
+        <symbol>integration tests</symbol>
+        <lines>all</lines>
+        <reason>Integration tests that validate Docker stack. May inform future CI enhancements but not run in initial pipeline.</reason>
+      </artifact>
+      <artifact>
+        <path>src/main.py</path>
+        <kind>service</kind>
+        <symbol>FastAPI app</symbol>
+        <lines>all</lines>
+        <reason>Main application entry point. CI linting and type checking will validate this file.</reason>
+      </artifact>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>service</kind>
+        <symbol>Settings class</symbol>
+        <lines>all</lines>
+        <reason>Application configuration. Used throughout codebase, will be validated by CI checks.</reason>
+      </artifact>
+      <artifact>
+        <path>README.md</path>
+        <kind>documentation</kind>
+        <symbol>Prerequisites, Local Development Setup</symbol>
+        <lines>1-50</lines>
+        <reason>Project documentation where CI/CD badge and pipeline documentation will be added per AC6 and AC7.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="pytest" version=">=7.4.3">Unit testing framework - used in CI test step</package>
+        <package name="pytest-asyncio" version=">=0.21.1">Async test support - required for FastAPI tests</package>
+        <package name="black" version=">=23.11.0">Code formatter - CI formatting check step</package>
+        <package name="ruff" version=">=0.1.6">Fast linter - CI linting step</package>
+        <package name="mypy" version=">=1.7.1">Type checker - CI type checking step</package>
+        <package name="pytest-cov" version="(implicit)">Coverage plugin - generates coverage reports in CI</package>
+      </python>
+      <github-actions>
+        <action name="actions/checkout" version="v4">Checkout repository code</action>
+        <action name="actions/setup-python" version="v5">Set up Python 3.12 environment</action>
+        <action name="actions/cache" version="v3">Cache pip dependencies for faster builds</action>
+        <action name="actions/upload-artifact" version="v3">Upload coverage reports</action>
+        <action name="docker/setup-buildx-action" version="v3">Set up Docker Buildx for image builds</action>
+        <action name="docker/login-action" version="v3">Authenticate to GitHub Container Registry</action>
+      </github-actions>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>
+      <category>Code Quality</category>
+      <description>All code must pass Black formatting check with line-length=100 (configured in pyproject.toml)</description>
+    </constraint>
+    <constraint>
+      <category>Code Quality</category>
+      <description>All code must pass Ruff linting with rules E, F, I, N, W enabled (configured in pyproject.toml)</description>
+    </constraint>
+    <constraint>
+      <category>Code Quality</category>
+      <description>All code must pass Mypy type checking with disallow_untyped_defs=true (configured in pyproject.toml)</description>
+    </constraint>
+    <constraint>
+      <category>Testing</category>
+      <description>Test coverage must be at least 80% (per tech spec NFR requirement)</description>
+    </constraint>
+    <constraint>
+      <category>Testing</category>
+      <description>All unit and integration tests must pass before Docker build step runs</description>
+    </constraint>
+    <constraint>
+      <category>Docker</category>
+      <description>Docker images must build successfully using existing Dockerfiles (docker/backend.dockerfile)</description>
+    </constraint>
+    <constraint>
+      <category>Docker</category>
+      <description>Images must be tagged with both 'latest' and commit SHA for traceability</description>
+    </constraint>
+    <constraint>
+      <category>Security</category>
+      <description>Workflow must use minimum required permissions (contents: read, packages: write)</description>
+    </constraint>
+    <constraint>
+      <category>Security</category>
+      <description>Use secrets.GITHUB_TOKEN for registry authentication (no hardcoded credentials)</description>
+    </constraint>
+    <constraint>
+      <category>Performance</category>
+      <description>Workflow should complete in under 5 minutes for typical PR (per dev notes target)</description>
+    </constraint>
+    <constraint>
+      <category>Performance</category>
+      <description>Must implement dependency caching to speed up subsequent runs</description>
+    </constraint>
+    <constraint>
+      <category>Workflow Design</category>
+      <description>Docker images only pushed on main branch commits, not on PRs</description>
+    </constraint>
+    <constraint>
+      <category>Workflow Design</category>
+      <description>Docker build job must depend on lint-and-test job passing (sequential execution)</description>
+    </constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>GitHub Actions Workflow Triggers</name>
+      <kind>Event-based</kind>
+      <signature>on: push.branches: [main], pull_request.branches: [main]</signature>
+      <path>.github/workflows/ci.yml</path>
+    </interface>
+    <interface>
+      <name>GitHub Container Registry</name>
+      <kind>Docker Registry API</kind>
+      <signature>ghcr.io/${{ github.repository }}/ai-agents-api:latest</signature>
+      <path>External - ghcr.io</path>
+    </interface>
+    <interface>
+      <name>Pytest CLI</name>
+      <kind>CLI</kind>
+      <signature>pytest tests/ --cov=src --cov-report=term --cov-report=xml</signature>
+      <path>CI workflow step</path>
+    </interface>
+    <interface>
+      <name>Black CLI</name>
+      <kind>CLI</kind>
+      <signature>black --check src/ tests/</signature>
+      <path>CI workflow step</path>
+    </interface>
+    <interface>
+      <name>Ruff CLI</name>
+      <kind>CLI</kind>
+      <signature>ruff check src/ tests/</signature>
+      <path>CI workflow step</path>
+    </interface>
+    <interface>
+      <name>Mypy CLI</name>
+      <kind>CLI</kind>
+      <signature>mypy src/ --ignore-missing-imports</signature>
+      <path>CI workflow step</path>
+    </interface>
+    <interface>
+      <name>Docker Build</name>
+      <kind>CLI</kind>
+      <signature>docker build -f docker/backend.dockerfile -t ai-agents-api:test .</signature>
+      <path>CI workflow step</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      The project uses pytest as the testing framework with pytest-asyncio for async test support. Tests are organized in tests/ directory with unit/ and integration/ subdirectories. All test files follow the test_*.py naming convention. Tests use type hints and follow Google-style docstrings. Fixtures are defined in tests/conftest.py for shared test setup. Coverage is measured using pytest-cov plugin with a minimum threshold of 80% (per tech spec NFR). CI pipeline runs: pytest tests/ --cov=src --cov-report=term --cov-report=xml to generate both terminal output and XML report for potential upload to coverage services.
+    </standards>
+    <locations>
+      - tests/unit/ - Unit tests for individual modules
+      - tests/integration/ - Integration tests for multi-component workflows
+      - tests/conftest.py - Shared pytest fixtures
+    </locations>
+    <ideas>
+      <idea ac="1">
+        <description>Verify .github/workflows/ci.yml file exists and contains required structure</description>
+        <approach>Manual verification or add unit test to validate YAML structure (optional enhancement)</approach>
+      </idea>
+      <idea ac="2">
+        <description>Test that workflow triggers are correctly configured for push and PR events</description>
+        <approach>Manual verification by creating test PR - workflow should run automatically</approach>
+      </idea>
+      <idea ac="3">
+        <description>Verify all automated steps execute successfully (Black, Ruff, Mypy, Pytest, Docker build)</description>
+        <approach>Run workflow on test branch - check GitHub Actions UI shows all steps passing with green checkmarks</approach>
+      </idea>
+      <idea ac="4">
+        <description>Confirm coverage report is generated and displayed in workflow output</description>
+        <approach>Check workflow logs for pytest coverage summary - verify coverage.xml artifact uploaded</approach>
+      </idea>
+      <idea ac="5">
+        <description>Validate Docker images are pushed to ghcr.io only on main branch commits</description>
+        <approach>1) Create PR - verify no push occurs, 2) Merge to main - verify images appear in ghcr.io with correct tags</approach>
+      </idea>
+      <idea ac="6">
+        <description>Verify workflow status badge displays in README and links to Actions page</description>
+        <approach>View README in GitHub UI - badge should show passing/failing status with click-through to workflow runs</approach>
+      </idea>
+      <idea ac="7">
+        <description>End-to-end test: Create test commit, open PR, verify workflow passes, merge to main</description>
+        <approach>Follow Task 10 steps exactly - validate all workflow stages complete successfully</approach>
+      </idea>
+      <idea ac="coverage-threshold">
+        <description>Ensure CI fails if test coverage drops below 80%</description>
+        <approach>Temporarily modify pytest command to use --cov-fail-under=80 flag</approach>
+      </idea>
+      <idea ac="caching">
+        <description>Verify dependency caching improves subsequent workflow run times</description>
+        <approach>Compare first run time vs second run time for same branch - should see ~30s improvement from cache hit</approach>
+      </idea>
+      <idea ac="security">
+        <description>Confirm workflow uses minimal permissions and secrets.GITHUB_TOKEN for authentication</description>
+        <approach>Review workflow YAML - verify permissions block and docker/login-action uses secrets.GITHUB_TOKEN</approach>
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

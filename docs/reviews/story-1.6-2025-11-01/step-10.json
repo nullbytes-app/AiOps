@@ -1,0 +1,12 @@
+{
+  "step": 10,
+  "title": "Validation and completion",
+  "validation_report": "docs/stories/validation-report-2025-11-01.md",
+  "overall": {
+    "pass": 15,
+    "partial": 2,
+    "fail": 0,
+    "na": 1
+  },
+  "note": "HALT after presenting summary per validate-workflow.xml"
+}

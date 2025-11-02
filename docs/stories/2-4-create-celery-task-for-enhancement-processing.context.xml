@@ -1,0 +1,208 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.4</storyId>
+    <title>Create Celery Task for Enhancement Processing</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-4-create-celery-task-for-enhancement-processing.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a Celery worker</asA>
+    <iWant>a dedicated task to process enhancement jobs from the queue</iWant>
+    <soThat>tickets can be enhanced asynchronously</soThat>
+    <tasks>
+      <task id="1" acs="1,4,5">Define Celery task structure and configuration</task>
+      <task id="2" acs="1">Create task input validation and deserialization</task>
+      <task id="3" acs="2">Implement job dequeuing from Redis</task>
+      <task id="4" acs="3">Implement logging for task lifecycle</task>
+      <task id="5" acs="6">Implement enhancement_history table update</task>
+      <task id="6" acs="1,6">Implement placeholder enhancement logic</task>
+      <task id="7" acs="5,6">Implement error handling and retry logic</task>
+      <task id="8" acs="7">Create unit tests for Celery task</task>
+      <task id="9" acs="1,2,6">Integration test with Docker stack</task>
+      <task id="10" acs="6">Add Prometheus metrics instrumentation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Celery task `enhance_ticket` created accepting job payload</criterion>
+    <criterion id="2">Task pulls job from Redis queue</criterion>
+    <criterion id="3">Task logs start, completion, and any errors</criterion>
+    <criterion id="4">Task timeout set to 120 seconds (per NFR001)</criterion>
+    <criterion id="5">Failed tasks retry up to 3 times with exponential backoff</criterion>
+    <criterion id="6">Task updates enhancement_history table with status (pending, completed, failed)</criterion>
+    <criterion id="7">Unit tests verify task execution with mock data</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements</section>
+        <snippet>NFR001: Performance - System shall complete ticket enhancement within 120 seconds from webhook receipt to ticket update, with p95 latency under 60 seconds under normal load.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Technology Stack - Message Queue & Workers</section>
+        <snippet>Redis 7.x as message broker + caching layer. Celery 5.x distributed task queue with retry logic and horizontal scaling. Async-first approach using FastAPI and asyncio.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Services and Modules - Celery Workers</section>
+        <snippet>Celery Workers process asynchronous tasks from Redis queue. Configured with retry logic, concurrency settings, and timeout constraints. Located in src/workers/ directory.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-5-implement-celery-worker-setup.md</path>
+        <title>Story 1.5 - Celery Worker Setup</title>
+        <section>Celery App Configuration</section>
+        <snippet>Celery app configured in src/workers/celery_app.py with Redis broker, JSON serialization, UTC timezone. Task discovery from src/workers/tasks.py module.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-3-queue-enhancement-jobs-to-redis.md</path>
+        <title>Story 2.3 - Queue Enhancement Jobs</title>
+        <section>EnhancementJob Schema</section>
+        <snippet>EnhancementJob Pydantic model defined in src/schemas/job.py with fields: ticket_id, description, priority, tenant_id, timestamp. Jobs pushed to enhancement:queue via Redis LPUSH.</snippet>
+      </doc>
+      <doc>
+        <path>External: TestDriven.io Celery Retry Guide</path>
+        <title>Automatically Retrying Failed Celery Tasks</title>
+        <section>Exponential Backoff and Best Practices</section>
+        <snippet>Use autoretry_for, retry_backoff=True, retry_jitter=True for automatic exponential backoff. retry_backoff_max caps maximum delay. Celery 4.0+ supports declarative retry configuration in task decorator.</snippet>
+      </doc>
+      <doc>
+        <path>External: Redis BLPOP Documentation</path>
+        <title>Redis Reliable Queue Pattern</title>
+        <section>BRPOP Consumer Pattern</section>
+        <snippet>Celery workers use Redis BRPOP for blocking queue consumption. BRPOPLPUSH variant adds reliability by moving items to processing list before returning. Jobs deserialized automatically by Celery.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/schemas/job.py</path>
+        <kind>schema</kind>
+        <symbol>EnhancementJob</symbol>
+        <lines>15-96</lines>
+        <reason>Pydantic model for job payload. Task will deserialize Redis queue data to this model. Contains: job_id, ticket_id, tenant_id, description, priority, timestamp, created_at.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>EnhancementHistory</symbol>
+        <lines>105-188</lines>
+        <reason>SQLAlchemy model for storing task results. Task must create/update records with status (pending, completed, failed), context_gathered, llm_output, error_message, processing_time_ms.</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/celery_app.py</path>
+        <kind>configuration</kind>
+        <symbol>celery_app</symbol>
+        <lines>24-65</lines>
+        <reason>Celery app instance with global retry config. Provides: autoretry_for=(Exception,), task_max_retries=3, retry_backoff=True, retry_backoff_max=8s, time_limit=120s.</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/tasks.py</path>
+        <kind>task</kind>
+        <symbol>enhance_ticket</symbol>
+        <lines>94-169</lines>
+        <reason>Existing placeholder task. Story 2.4 will replace placeholder with actual implementation including retry config, database updates, structured logging.</reason>
+      </artifact>
+      <artifact>
+        <path>src/utils/logger.py</path>
+        <kind>utility</kind>
+        <symbol>logger</symbol>
+        <lines>1-86</lines>
+        <reason>Loguru logger for structured logging. Task should log with extra fields: task_id, task_name, worker_id, ticket_id, tenant_id. Supports JSON serialization in production.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/queue_service.py</path>
+        <kind>service</kind>
+        <symbol>QueueService</symbol>
+        <lines>N/A</lines>
+        <reason>Redis queue service for reference. Task receives deserialized data from Celery (no direct BRPOP needed). Provides patterns for error handling and Redis operations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/cache/redis_client.py</path>
+        <kind>client</kind>
+        <symbol>get_redis_client</symbol>
+        <lines>N/A</lines>
+        <reason>Redis connection helper. Can be used if task needs direct Redis access for caching or queue inspection. Provides async connection pooling.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python version=">=3.12">
+        <package name="celery" version=">=5.3.4" usage="Distributed task queue with Redis broker. Task decorator, retry logic, time limits." />
+        <package name="redis" version=">=5.0.1" usage="Redis client for queue operations (included with celery[redis])" />
+        <package name="sqlalchemy" version=">=2.0.23" usage="Async ORM for database operations. EnhancementHistory model CRUD." />
+        <package name="asyncpg" version=">=0.29.0" usage="Async PostgreSQL driver for SQLAlchemy async sessions" />
+        <package name="pydantic" version=">=2.5.0" usage="Data validation. EnhancementJob model deserialization from Redis." />
+        <package name="loguru" version=">=0.7.2" usage="Structured logging with JSON serialization for production" />
+        <package name="fastapi" version=">=0.104.0" usage="Framework dependency. Not directly used in task but provides async patterns" />
+      </python>
+      <dev_dependencies>
+        <package name="pytest" version=">=7.4.3" usage="Unit testing framework for Celery tasks" />
+        <package name="pytest-asyncio" version=">=0.21.1" usage="Async test support for database operations in tasks" />
+      </dev_dependencies>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Task timeout MUST be set to 120 seconds (NFR001 requirement) - Use time_limit=120 in task decorator</constraint>
+    <constraint>Task MUST retry up to 3 times with exponential backoff on failure - Use autoretry_for=(Exception,), retry_backoff=True</constraint>
+    <constraint>Task MUST use async database sessions to match FastAPI pattern - Import from src/database/session.py</constraint>
+    <constraint>Task MUST log structured JSON in production with context fields: task_id, worker_id, ticket_id, tenant_id</constraint>
+    <constraint>Task MUST update enhancement_history table with status (pending → completed/failed)</constraint>
+    <constraint>Task MUST respect tenant isolation - All database operations include tenant_id filter (prep for Story 3.1)</constraint>
+    <constraint>Task implementation is PLACEHOLDER only - Real enhancement logic added in Stories 2.5-2.9 (context gathering, LLM call)</constraint>
+    <constraint>Celery auto-handles BRPOP queue dequeue - Task receives deserialized job_data dict, no manual Redis BRPOP needed</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>enhance_ticket task signature</name>
+      <kind>celery_task</kind>
+      <signature>@celery_app.task(bind=True, name="tasks.enhance_ticket", ...) def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]</signature>
+      <path>src/workers/tasks.py</path>
+    </interface>
+    <interface>
+      <name>EnhancementJob model</name>
+      <kind>pydantic_model</kind>
+      <signature>class EnhancementJob(BaseModel): job_id, ticket_id, tenant_id, description, priority, timestamp, created_at</signature>
+      <path>src/schemas/job.py</path>
+    </interface>
+    <interface>
+      <name>EnhancementHistory model</name>
+      <kind>sqlalchemy_model</kind>
+      <signature>class EnhancementHistory(Base): id, tenant_id, ticket_id, status, context_gathered, llm_output, error_message, processing_time_ms, created_at, completed_at</signature>
+      <path>src/database/models.py</path>
+    </interface>
+    <interface>
+      <name>Loguru structured logging</name>
+      <kind>logging</kind>
+      <signature>logger.info(message, extra={task_id, task_name, worker_id, ticket_id, tenant_id})</signature>
+      <path>src/utils/logger.py</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Project uses pytest with pytest-asyncio for async test support. Tests organized in tests/unit/ and tests/integration/ mirroring src/ structure. Fixtures defined in tests/conftest.py for shared setup. Tests use mocking (pytest-mock/unittest.mock) to isolate units. Test naming: test_*.py files, test_* functions. Async tests marked with @pytest.mark.asyncio. Environment variables cleaned with fixtures to ensure test isolation.</standards>
+    <locations>
+      <location>tests/unit/test_celery_tasks.py</location>
+      <location>tests/integration/test_celery_tasks.py</location>
+      <location>tests/conftest.py (shared fixtures)</location>
+    </locations>
+    <ideas>
+      <test_idea ac="1,7">test_enhance_ticket_valid_job_data: Mock database, pass valid EnhancementJob dict, verify task returns success status and enhancement_history record created with status='completed'</test_idea>
+      <test_idea ac="3,7">test_enhance_ticket_logging: Verify logger.info called with correct context (task_id, ticket_id, tenant_id, worker_id) at task start and completion</test_idea>
+      <test_idea ac="1,7">test_enhance_ticket_invalid_job_data: Pass job_data missing required field (e.g., no ticket_id), expect ValidationError or task failure with status='failed'</test_idea>
+      <test_idea ac="4,7">test_enhance_ticket_timeout: Use Celery test utilities to verify task aborts after 120 seconds hard time limit</test_idea>
+      <test_idea ac="5,7">test_enhance_ticket_retry_logic: Mock Exception on first call, success on retry. Verify task retried with exponential backoff (2s, 4s delays)</test_idea>
+      <test_idea ac="6,7">test_enhance_ticket_database_update: Verify enhancement_history record created with status='pending' at start, updated to 'completed' on success or 'failed' on error</test_idea>
+      <test_idea ac="7">test_enhance_ticket_tenant_isolation: Pass job_data with tenant_id, verify enhancement_history record includes correct tenant_id (prep for row-level security Story 3.1)</test_idea>
+      <test_idea ac="5,6">test_enhance_ticket_max_retries_exceeded: Mock persistent failure, verify task stops after 3 retries and sets status='failed' in database</test_idea>
+      <test_idea ac="1,2,6">integration_test_end_to_end_workflow: Start Docker stack, send webhook via API, verify job queued to Redis, Celery worker processes task, enhancement_history updated</test_idea>
+    </ideas>
+  </tests>
+</story-context>

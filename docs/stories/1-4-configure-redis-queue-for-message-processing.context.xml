@@ -1,0 +1,329 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>4</storyId>
+    <title>Configure Redis Queue for Message Processing</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-4-configure-redis-queue-for-message-processing.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>a Redis instance configured for job queuing</iWant>
+    <soThat>webhook requests can be buffered and processed asynchronously</soThat>
+    <tasks>
+- Task 1: Verify Redis container in docker-compose (AC: #1)
+  - Confirm Redis 7.x service exists in docker-compose.yml from Story 1.2
+  - Verify Redis container starts successfully: `docker-compose ps redis`
+  - Verify Redis port mapping: 6379→6379 (or custom if specified)
+  - Confirm environment variables loaded from .env (if any Redis-specific vars)
+  - Test Redis CLI access: `docker-compose exec redis redis-cli ping` returns PONG
+
+- Task 2: Configure Redis persistence (AOF or RDB) (AC: #4, #7)
+  - Choose persistence strategy: AOF (Append-Only File) for durability or RDB for snapshots
+  - Update docker-compose.yml redis service with persistence volume mount: `./data/redis:/data`
+  - Configure Redis with AOF enabled: Add command `redis-server --appendonly yes` to docker-compose service
+  - Alternatively configure RDB: Set save intervals if preferring snapshot approach
+  - Create data/redis directory if not exists
+  - Test persistence: Insert test key, restart container, verify key persists
+  - Document persistence strategy in README.md
+
+- Task 3: Create Redis client module in FastAPI application (AC: #2)
+  - Create src/cache/redis_client.py module
+  - Install redis-py dependency: `redis>=5.0.1` in pyproject.toml
+  - Implement get_redis() async function returning redis.asyncio client
+  - Configure connection from AI_AGENTS_REDIS_URL environment variable (via Settings)
+  - Set max_connections pool size (10 connections per tech spec)
+  - Set decode_responses=True for automatic string decoding
+  - Add connection timeout: 5 seconds (per tech spec NFR)
+  - Test basic connection: Execute PING command and verify PONG response
+
+- Task 4: Implement basic queue operations module (AC: #3)
+  - Create src/services/queue_service.py module
+  - Implement push_to_queue(queue_name, data) async function using LPUSH
+  - Implement pop_from_queue(queue_name) async function using BRPOP with 1s timeout
+  - Implement peek_queue(queue_name, count=10) async function using LRANGE
+  - Implement get_queue_depth(queue_name) async function using LLEN
+  - Use queue naming convention: `enhancement:queue` for main job queue (per architecture)
+  - Serialize/deserialize data as JSON (match Celery task serializer format)
+  - Add error handling: ConnectionError, TimeoutError with clear logging
+
+- Task 5: Create integration tests for queue operations (AC: #3, #7)
+  - Create tests/integration/test_redis_queue.py
+  - Write test_redis_connection(): Verify Redis client connects successfully
+  - Write test_push_to_queue(): Push sample job, verify LLEN increases
+  - Write test_pop_from_queue(): Push job, pop job, verify data matches
+  - Write test_peek_queue(): Push multiple jobs, peek without removing, verify order
+  - Write test_queue_depth(): Push N jobs, verify get_queue_depth() returns N
+  - Write test_persistence_across_restart(): Push job, stop redis container, restart, verify job still in queue
+  - Use pytest-asyncio for async test support
+  - Run tests: `docker-compose exec api pytest tests/integration/test_redis_queue.py`
+
+- Task 6: Update health check endpoint to validate Redis connection (AC: #5)
+  - Update src/api/health.py to import Redis client
+  - Implement check_redis_connection() async function
+  - Execute simple PING command to verify connection
+  - Return True if PING succeeds, False if exception (ConnectionError, TimeoutError)
+  - Update /health/ready endpoint to call check_redis_connection()
+  - Test endpoint: `curl http://localhost:8000/health/ready` should show redis: connected
+  - Test failure scenario: Stop Redis container and verify health check reports redis: disconnected
+
+- Task 7: Verify queue depth monitoring via Redis CLI (AC: #6)
+  - Access Redis CLI: `docker-compose exec redis redis-cli`
+  - Test LLEN command: `LLEN enhancement:queue` returns queue depth
+  - Test LRANGE command: `LRANGE enhancement:queue 0 -1` lists all queued jobs
+  - Test INFO command: `INFO` shows Redis server stats (memory, connections, etc.)
+  - Document Redis CLI monitoring commands in README.md
+  - Add troubleshooting section: "Queue not processing" → check LLEN, verify worker running
+
+- Task 8: Update README.md with Redis setup and monitoring instructions (AC: #1, #6)
+  - Add "Redis Queue Setup" section to README.md
+  - Document Redis initialization on docker-compose up
+  - Document persistence configuration (AOF/RDB settings)
+  - Document queue monitoring commands (LLEN, LRANGE, INFO)
+  - Document connection string format: AI_AGENTS_REDIS_URL=redis://localhost:6379/0
+  - Add troubleshooting section: connection errors, persistence not working, queue depth monitoring
+  - Document queue naming convention: enhancement:queue for main job queue
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Redis container running in docker-compose
+2. Redis connection configured in FastAPI application
+3. Basic queue operations tested (push, pop, peek)
+4. Redis persistence configured (AOF or RDB)
+5. Redis health check endpoint returns connection status
+6. Queue depth can be monitored via Redis CLI
+7. Test demonstrates message durability across container restarts
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture Document</title>
+        <section>ADR-002: Redis as Message Broker</section>
+        <snippet>Decision to use Redis 7.x as message broker and caching layer. Rationale includes existing caching usage, stable Celery support, and AWS ElastiCache availability.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture Document</title>
+        <section>Integration Points - Internal Service Communication</section>
+        <snippet>FastAPI → Redis Queue using redis-py client, queue key 'enhancement:queue', JSON message format. Celery Workers → Redis Broker with 10 connections per worker. All Services → Redis Cache for tenant configs (5min TTL) and KB results (1hr TTL).</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>APIs and Interfaces - Redis Connection</section>
+        <snippet>Redis client initialization using redis.asyncio with max_connections pooling (10 per service), decode_responses=True, 5-second connection timeout.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic 1 Technical Specification</title>
+        <section>Non-Functional Requirements - Redis Performance</section>
+        <snippet>Max connections: 10 per service, AOF persistence for durability, max memory 2GB (local) / 8GB (production), eviction policy: allkeys-lru.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - FR004</section>
+        <snippet>System shall push validated ticket enhancement requests to Redis message queue for asynchronous processing by Celery workers.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements - NFR002</section>
+        <snippet>System shall auto-scale worker pods (1-10 instances) based on Redis queue depth to maintain processing throughput.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-2-create-docker-configuration-for-local-development.md</path>
+        <title>Story 1.2: Docker Configuration</title>
+        <section>Docker Compose Services</section>
+        <snippet>Redis 7-alpine service defined in docker-compose.yml with port 6379:6379 mapping and volume configuration for data persistence.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>configuration</kind>
+        <symbol>Settings</symbol>
+        <lines>15-86</lines>
+        <reason>Settings class already has redis_url, redis_max_connections, celery_broker_url, and celery_result_backend fields configured. Story 1.4 creates queue service that uses these settings.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/health.py</path>
+        <kind>api_endpoint</kind>
+        <symbol>health_check, readiness_check</symbol>
+        <lines>17-116</lines>
+        <reason>Health check endpoints already validate Redis connectivity using get_redis_client() and ping() pattern (lines 48-55, 99-106). Story 1.4 can extend to check queue depth if needed.</reason>
+      </artifact>
+      <artifact>
+        <path>src/cache/redis_client.py</path>
+        <kind>service</kind>
+        <symbol>get_redis_client</symbol>
+        <lines>1-50</lines>
+        <reason>Redis client module already exists and is used by health checks. Story 1.4 queue service will import and use this client for queue operations.</reason>
+      </artifact>
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>infrastructure</kind>
+        <symbol>redis service</symbol>
+        <lines>23-37</lines>
+        <reason>Redis 7-alpine service already configured with AOF persistence (--appendonly yes), volume mount (./data/redis:/data), port 6379, and health checks. Ready for queue operations.</reason>
+      </artifact>
+      <artifact>
+        <path>.env.example</path>
+        <kind>configuration</kind>
+        <symbol>Redis environment variables</symbol>
+        <lines>1-50</lines>
+        <reason>Contains AI_AGENTS_REDIS_URL, AI_AGENTS_CELERY_BROKER_URL, and AI_AGENTS_CELERY_RESULT_BACKEND with examples. Story 1.4 will use these for queue configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/connection.py</path>
+        <kind>service</kind>
+        <symbol>get_engine, check_database_connection</symbol>
+        <lines>1-100</lines>
+        <reason>Database connection pattern with pooling, health checks, and singleton caching. Story 1.4 queue service should follow similar pattern for Redis connection management.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_database.py</path>
+        <kind>test</kind>
+        <symbol>TestDatabaseConnection</symbol>
+        <lines>1-100</lines>
+        <reason>Integration test pattern using pytest-asyncio, fixtures, and async SQLAlchemy. Story 1.4 should follow same pattern for Redis queue integration tests.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="redis" version=">=5.0.1" purpose="Async Redis client (redis.asyncio) for queue operations and caching"/>
+        <package name="celery[redis]" version=">=5.3.4" purpose="Distributed task queue using Redis as broker (Story 1.5 will implement workers)"/>
+        <package name="fastapi" version=">=0.104.0" purpose="Web framework for health check endpoints"/>
+        <package name="pydantic-settings" version=">=2.1.0" purpose="Type-safe configuration with Settings class"/>
+        <package name="pytest-asyncio" version=">=0.21.1" purpose="Async test support for Redis queue integration tests"/>
+      </python>
+      <infrastructure>
+        <component name="Redis" version="7-alpine" purpose="Message broker and caching layer with AOF persistence"/>
+        <component name="Docker Compose" version="3.8" purpose="Local development orchestration"/>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- **Async-only operations:** All Redis operations must use redis.asyncio client, not synchronous redis-py (blocking FastAPI event loop is unacceptable)
+- **Connection pooling:** Maximum 10 connections per service as defined in Settings.redis_max_connections (src/config.py:53-58)
+- **Connection timeout:** 5 seconds for all Redis operations per NFR specifications
+- **Persistence strategy:** AOF (Append-Only File) already configured in docker-compose.yml line 27 with --appendonly yes flag
+- **Queue naming convention:** Use 'enhancement:queue' pattern (module:purpose) as defined in architecture
+- **Message serialization:** JSON format to match Celery task serializer configuration
+- **Environment variable prefix:** All config must use AI_AGENTS_ prefix per Settings configuration (src/config.py:82)
+- **Health check integration:** Must integrate with existing health check pattern in src/api/health.py (lines 48-55)
+- **Testing framework:** Use pytest-asyncio for async tests, follow integration test pattern from tests/integration/test_database.py
+- **Error handling:** Catch ConnectionError and TimeoutError explicitly with clear logging per architecture standards
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>get_redis_client</name>
+      <kind>async function</kind>
+      <signature>async def get_redis_client() -> aioredis.Redis</signature>
+      <path>src/cache/redis_client.py</path>
+      <description>Returns async Redis client instance for cache and queue operations. Already exists and used by health checks.</description>
+    </interface>
+    <interface>
+      <name>Settings</name>
+      <kind>Pydantic class</kind>
+      <signature>class Settings(BaseSettings)</signature>
+      <path>src/config.py</path>
+      <description>Configuration class with redis_url, redis_max_connections, celery_broker_url, celery_result_backend fields. Story 1.4 queue service imports settings from this module.</description>
+    </interface>
+    <interface>
+      <name>health_check</name>
+      <kind>FastAPI endpoint</kind>
+      <signature>@router.get("/health") async def health_check() -> dict</signature>
+      <path>src/api/health.py</path>
+      <description>Health check endpoint that validates Redis connectivity (lines 48-55). Can be extended to check queue depth if needed.</description>
+    </interface>
+    <interface>
+      <name>Redis Queue Operations (to be created)</name>
+      <kind>service module</kind>
+      <signature>
+async def push_to_queue(queue_name: str, data: dict) -> bool
+async def pop_from_queue(queue_name: str) -> dict | None
+async def peek_queue(queue_name: str, count: int = 10) -> list[dict]
+async def get_queue_depth(queue_name: str) -> int
+      </signature>
+      <path>src/services/queue_service.py</path>
+      <description>Queue operations module to be created in Story 1.4. Uses LPUSH, BRPOP, LRANGE, LLEN commands with 'enhancement:queue' naming convention.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+The project uses pytest with pytest-asyncio for asynchronous testing. All integration tests follow the pattern established in tests/integration/test_database.py:
+
+**Test Framework:**
+- pytest 7.4.3+ with pytest-asyncio 0.21.1+ for async support
+- Test markers: @pytest.mark.asyncio for async test functions
+- Fixtures: Use @pytest.fixture or @pytest_asyncio.fixture for async fixtures
+- asyncio_mode = "auto" configured in pyproject.toml for automatic event loop management
+
+**Testing Approach:**
+- Integration tests use real Redis instance from docker-compose (not mocked)
+- Tests connect via localhost:6379 (Redis container mapped port)
+- Each test should be isolated and clean up after itself
+- Use fixtures for shared test setup (Redis client, test data)
+
+**Redis Testing Best Practices (from fakeredis maintainer):**
+- For unit tests: Can use fakeredis.aioredis.FakeRedis() for faster isolated tests
+- For integration tests: Use real Redis to test actual queue behavior and persistence
+- Create pytest fixtures for Redis client to ensure proper lifecycle management
+- Test both success cases and error cases (connection failures, timeouts)
+
+**Pattern to Follow:**
+- Test class organization: Group related tests in classes (e.g., TestRedisConnection, TestQueueOperations)
+- Async session fixture pattern: yield session, rollback/cleanup after test
+- Health check pattern: test_database_health_check() structure for Redis connectivity tests
+    </standards>
+    <locations>
+- tests/integration/test_redis_queue.py - Main Redis queue integration tests (to be created)
+- tests/unit/test_queue_service.py - Unit tests for queue service functions (optional, can use fakeredis)
+- tests/integration/ - All integration tests using real Docker services
+- tests/unit/ - Unit tests with mocked dependencies
+    </locations>
+    <ideas>
+**AC1: Redis container running**
+- test_redis_container_accessible(): Verify Redis container is reachable on port 6379
+- test_redis_ping(): Execute PING command and verify PONG response
+
+**AC2: Redis connection configured**
+- test_redis_client_initialization(): Verify get_redis_client() returns valid client
+- test_redis_connection_pool_configured(): Verify max_connections=10 and other settings
+- test_redis_connection_timeout(): Verify 5-second timeout is enforced
+
+**AC3: Basic queue operations tested**
+- test_push_to_queue(): Push job to 'enhancement:queue', verify LLEN increases
+- test_pop_from_queue(): Push job, pop job, verify data matches and LLEN decreases
+- test_peek_queue(): Push multiple jobs, peek without removing, verify order preserved
+- test_get_queue_depth(): Push N jobs, verify get_queue_depth() returns N
+- test_queue_operations_json_serialization(): Verify JSON encoding/decoding works correctly
+- test_queue_error_handling(): Test ConnectionError and TimeoutError handling
+
+**AC4: Redis persistence configured**
+- test_aof_persistence_enabled(): Verify AOF is enabled in Redis config
+- test_persistence_file_created(): Verify appendonly.aof file exists in data/redis volume
+
+**AC5: Health check endpoint**
+- test_health_endpoint_redis_connected(): Call /health, verify redis: healthy
+- test_health_endpoint_redis_disconnected(): Stop Redis container, verify redis: unhealthy
+- test_readiness_endpoint_redis_check(): Call /ready, verify redis dependency status
+
+**AC6: Queue depth monitoring**
+- test_redis_cli_llen_command(): Access CLI and verify LLEN enhancement:queue works
+- test_redis_cli_lrange_command(): Verify LRANGE lists queued jobs correctly
+
+**AC7: Message durability across restarts**
+- test_persistence_across_restart(): Push job, stop redis container, restart, verify job persists in queue
+- test_queue_survives_container_restart(): Integration test for durability requirement
+    </ideas>
+  </tests>
+</story-context>

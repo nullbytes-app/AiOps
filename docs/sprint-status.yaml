@@ -1,8 +1,9 @@
-# generated: 2025-11-01
+# generated: 2025-11-02
 # project: AI Agents
 # project_key: AI Agents
 # tracking_system: file-system
 # story_location: {project-root}/docs/stories
+# updated: 2025-11-02 - Added Stories 2.5A, 2.5B, Epic 6, Epic 7 (from gate check)
 
 # STATUS DEFINITIONS:
 # ==================
@@ -29,7 +30,7 @@
 # - SM typically drafts next story after previous one is 'done' to incorporate learnings
 # - Dev moves story to 'review', SM reviews, then Dev moves to 'done'
 
-generated: 2025-11-01
+generated: 2025-11-02
 project: AI Agents
 project_key: AI Agents
 tracking_system: file-system
@@ -52,8 +53,10 @@ development_status:
   2-2-implement-webhook-signature-validation: done
   2-3-queue-enhancement-jobs-to-redis: done
   2-4-create-celery-task-for-enhancement-processing: done
-  2-5-implement-ticket-history-search-context-gathering: backlog
-  2-6-implement-documentation-and-knowledge-base-search: backlog
+  2-5-implement-ticket-history-search-context-gathering: done
+  2-5A-populate-ticket-history-from-servicedesk-plus: done
+  2-5B-store-resolved-tickets-automatically: done
+  2-6-implement-documentation-and-knowledge-base-search: drafted
   2-7-implement-ip-address-cross-reference: backlog
   2-8-integrate-langgraph-workflow-orchestration: backlog
   2-9-integrate-openai-gpt4-for-context-synthesis: backlog
@@ -92,3 +95,64 @@ development_status:
   5-6-create-production-support-documentation-and-handoff: backlog
   5-7-conduct-post-mvp-retrospective-and-plan-next-phase: backlog
   epic-5-retrospective: optional
+
+  epic-6: backlog
+  6-1-set-up-streamlit-application-foundation: backlog
+  6-2-implement-system-status-dashboard-page: backlog
+  6-3-create-tenant-management-interface: backlog
+  6-4-implement-enhancement-history-viewer: backlog
+  6-5-add-system-operations-controls: backlog
+  6-6-integrate-real-time-metrics-display: backlog
+  6-7-add-worker-health-and-resource-monitoring: backlog
+  6-8-create-admin-ui-documentation-and-deployment-guide: backlog
+  epic-6-retrospective: optional
+
+  epic-7: backlog
+  7-1-design-and-implement-plugin-base-interface: backlog
+  7-2-implement-plugin-manager-and-registry: backlog
+  7-3-migrate-servicedesk-plus-to-plugin-architecture: backlog
+  7-4-implement-jira-service-management-plugin: backlog
+  7-5-update-database-schema-for-multi-tool-support: backlog
+  7-6-create-plugin-testing-framework-and-mock-plugins: backlog
+  7-7-document-plugin-architecture-and-extension-guide: backlog
+  epic-7-retrospective: optional
+
+# Milestones and Gate Checks
+milestones:
+  mvp-v1-0:
+    target_date: "2026-04-01"
+    epics: [1, 2, 3, 4, 5]
+    status: in_progress
+    completion: 12%
+
+  mvp-v1-5:
+    target_date: "2026-06-01"
+    epics: [6]
+    status: backlog
+    completion: 0%
+    prerequisites: ["mvp-v1-0 production validated"]
+
+  mvp-v2-0:
+    target_date: "2026-08-01"
+    epics: [7]
+    status: backlog
+    completion: 0%
+    prerequisites: ["mvp-v1-5 deployed and validated"]
+
+gate_checks:
+  solutioning_gate_check_2025_11_02:
+    date: "2025-11-02"
+    report: "docs/implementation-readiness-report-2025-11-02.md"
+    status: "CONDITIONALLY_READY"
+    decision: "CONTINUE_IMPLEMENTATION"
+    alignment_score: "96%"
+    critical_findings:
+      - "Epic 2 incomplete (67% remaining, 6-8 weeks estimated)"
+      - "Stories 2.5A, 2.5B added to tracking (ADR-020 implementation)"
+      - "Epics 6-7 added to tracking (staged for post-MVP)"
+    recommendations:
+      - "Complete Epic 2 to 80%+ before starting Epic 3"
+      - "Generate tech-spec-epic-2.md before Story 2.6"
+      - "Add mid-epic checkpoint after Story 2.8"
+      - "Split Story 2.9 into 4 sub-stories (2.9A-D)"
+    next_check: "After Epic 2 completion (estimated 2026-01-15)"

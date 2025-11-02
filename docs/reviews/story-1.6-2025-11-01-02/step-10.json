@@ -1,0 +1,23 @@
+{
+  "validation": {
+    "story_loaded": true,
+    "status_verified": true,
+    "ids_resolved": true,
+    "context_found": true,
+    "tech_spec_found": true,
+    "arch_docs_loaded": true,
+    "stack_detected": true,
+    "references_captured": true,
+    "ac_cross_checked": true,
+    "file_list_reviewed": true,
+    "tests_mapped": true,
+    "code_quality_reviewed": true,
+    "security_reviewed": true,
+    "outcome_decided": "CHANGES REQUESTED",
+    "review_appended": true,
+    "change_log_updated": true,
+    "status_updated": true,
+    "story_saved": true
+  },
+  "complete": true
+}

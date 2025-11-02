@@ -1,0 +1,307 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>5</storyId>
+    <title>Implement Ticket History Search (Context Gathering)</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-5-implement-ticket-history-search-context-gathering.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an enhancement agent</asA>
+    <iWant>to search past tickets for similar issues</iWant>
+    <soThat>technicians can see how similar problems were resolved</soThat>
+    <tasks>
+      <task id="1" name="Database schema validation and ticket_history table setup" acs="1,3,5">
+        <subtask id="1.1">Verify ticket_history table exists in src/database/models.py</subtask>
+        <subtask id="1.2">Confirm schema includes: ticket_id, tenant_id, description, resolution, resolved_date, created_at, updated_at</subtask>
+        <subtask id="1.3">Add indexes on (tenant_id, description) for query performance</subtask>
+        <subtask id="1.4">Add indexes on (resolved_date) for date-range filtering</subtask>
+        <subtask id="1.5">Verify row-level security policies exist for ticket_history</subtask>
+        <subtask id="1.6">Create migration script if indexes need to be added (Alembic)</subtask>
+        <subtask id="1.7">Test query: SELECT * FROM ticket_history WHERE tenant_id = ? LIMIT 1</subtask>
+      </task>
+      <task id="2" name="Implement full-text search function with PostgreSQL" acs="1,2,4">
+        <subtask id="2.1">Create src/services/ticket_search_service.py module</subtask>
+        <subtask id="2.2">Define TicketSearchResult Pydantic model</subtask>
+        <subtask id="2.3">Implement search_similar_tickets(tenant_id, query_description, limit=5)</subtask>
+        <subtask id="2.4">Use PostgreSQL full-text search: ts_vector, ts_query, rank() functions</subtask>
+        <subtask id="2.5">Configure full-text search language (English) and ts_vector on description</subtask>
+        <subtask id="2.6">Filter by tenant_id FIRST (security), then apply search</subtask>
+        <subtask id="2.7">Order results by ts_rank(ts_vector, ts_query) DESC</subtask>
+        <subtask id="2.8">Handle empty query gracefully (return empty list)</subtask>
+        <subtask id="2.9">Return top 5 results with similarity scores</subtask>
+      </task>
+      <task id="3" name="Implement similarity matching as fallback" acs="1,2,4">
+        <subtask id="3.1">Add similarity matching using PostgreSQL similarity() function (pg_trgm)</subtask>
+        <subtask id="3.2">If full-text search returns no results, fall back to similarity matching</subtask>
+        <subtask id="3.3">Calculate similarity(description, query_description) > 0.3 threshold</subtask>
+        <subtask id="3.4">Order fallback results by similarity score DESC</subtask>
+        <subtask id="3.5">Combine both methods: full-text search first, then similarity</subtask>
+        <subtask id="3.6">Log when fallback used for debugging/optimization</subtask>
+      </task>
+      <task id="4" name="Implement input validation and sanitization" acs="2,4">
+        <subtask id="4.1">Validate tenant_id is UUID or expected format</subtask>
+        <subtask id="4.2">Validate query_description is non-empty string</subtask>
+        <subtask id="4.3">Sanitize query_description to remove special characters</subtask>
+        <subtask id="4.4">Enforce max query length (1,000 characters)</subtask>
+        <subtask id="4.5">Raise ValidationError if inputs invalid</subtask>
+        <subtask id="4.6">Log validation failures at DEBUG level</subtask>
+      </task>
+      <task id="5" name="Implement RLS and data isolation" acs="3,5">
+        <subtask id="5.1">Verify database connection uses app_user role</subtask>
+        <subtask id="5.2">Add WHERE clause filtering by tenant_id at function level</subtask>
+        <subtask id="5.3">Test: Query as tenant A returns only tenant A's tickets</subtask>
+        <subtask id="5.4">Test: Query as tenant B returns only tenant B's tickets</subtask>
+        <subtask id="5.5">Document RLS setup requirement</subtask>
+      </task>
+      <task id="6" name="Implement result formatting and error handling" acs="4,6">
+        <subtask id="6.1">Format results as list of TicketSearchResult objects</subtask>
+        <subtask id="6.2">Include metadata: num_results, search_time_ms, fallback_method_used</subtask>
+        <subtask id="6.3">Handle no results gracefully: return empty list</subtask>
+        <subtask id="6.4">Catch database connection errors: log and raise DatabaseError</subtask>
+        <subtask id="6.5">Catch timeout errors (>2 seconds): log WARNING, return partial results</subtask>
+        <subtask id="6.6">Use structured logging with tenant_id and query info</subtask>
+      </task>
+      <task id="7" name="Implement performance optimization" acs="2,8">
+        <subtask id="7.1">Add query timeout: SET statement_timeout TO 2000 (2 seconds)</subtask>
+        <subtask id="7.2">Create composite index: (tenant_id, to_tsvector('english', description))</subtask>
+        <subtask id="7.3">Verify EXPLAIN plan uses index</subtask>
+        <subtask id="7.4">Add query result caching in Redis for 5 minutes (optional)</subtask>
+        <subtask id="7.5">Log slow queries: if execution time > 1000ms</subtask>
+        <subtask id="7.6">Document performance characteristics</subtask>
+      </task>
+      <task id="8" name="Create unit tests for ticket search" acs="7">
+        <subtask id="8.1">Create tests/unit/test_ticket_search_service.py</subtask>
+        <subtask id="8.2">Mock database session with sample ticket data</subtask>
+        <subtask id="8.3">Test: Valid search returns results (top 5)</subtask>
+        <subtask id="8.4">Test: Search with no results returns empty list</subtask>
+        <subtask id="8.5">Test: Tenant isolation - only search_tenant_id results returned</subtask>
+        <subtask id="8.6">Test: Full-text search finds relevant keywords</subtask>
+        <subtask id="8.7">Test: Fallback similarity matching works</subtask>
+        <subtask id="8.8">Test: Result count never exceeds 5</subtask>
+        <subtask id="8.9">Test: Each result includes required fields</subtask>
+        <subtask id="8.10">Test: Invalid tenant_id raises ValidationError</subtask>
+        <subtask id="8.11">Test: Empty query_description raises ValidationError</subtask>
+        <subtask id="8.12">Test: Performance test with <2s assertion</subtask>
+        <subtask id="8.13">Test: RLS verification</subtask>
+      </task>
+      <task id="9" name="Integration test with real database (optional)" acs="8">
+        <subtask id="9.1">Create tests/integration/test_ticket_search_integration.py</subtask>
+        <subtask id="9.2">Use test database with 1,000+ sample tickets</subtask>
+        <subtask id="9.3">Test with realistic ticket descriptions</subtask>
+        <subtask id="9.4">Measure actual query execution time</subtask>
+        <subtask id="9.5">Verify full-text search index usage</subtask>
+        <subtask id="9.6">Test with multiple concurrent searches</subtask>
+        <subtask id="9.7">Test timeout enforcement</subtask>
+        <subtask id="9.8">Document test results</subtask>
+      </task>
+      <task id="10" name="Update story context and documentation" acs="1,2,4">
+        <subtask id="10.1">Add story context XML reference</subtask>
+        <subtask id="10.2">Document search algorithm</subtask>
+        <subtask id="10.3">Document performance characteristics</subtask>
+        <subtask id="10.4">Add examples for search scenarios</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Function created to search ticket_history table by keywords from description</criterion>
+    <criterion id="2">Search uses PostgreSQL full-text search or similarity matching</criterion>
+    <criterion id="3">Results filtered by tenant_id for data isolation</criterion>
+    <criterion id="4">Returns top 5 most similar tickets with: ticket_id, description, resolution, resolved_date</criterion>
+    <criterion id="5">Search respects row-level security policies</criterion>
+    <criterion id="6">Empty results handled gracefully (returns empty list)</criterion>
+    <criterion id="7">Unit tests verify search with sample ticket data</criterion>
+    <criterion id="8">Performance: Search completes in &lt;2 seconds for 10,000 ticket database</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - Context Gathering</section>
+        <snippet>FR005: System shall search ticket history database for similar past tickets based on description and keywords. System shall perform internet research using web search APIs for additional context.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements - Performance</section>
+        <snippet>NFR001: System shall complete ticket enhancement within 120 seconds from webhook receipt to ticket update, with p95 latency under 60 seconds. NFR003: System shall achieve 99% success rate for ticket enhancements with automatic retry for transient failures.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Technology Stack - Database Layer</section>
+        <snippet>PostgreSQL 17: Primary database with row-level security for multi-tenancy. SQLAlchemy 2.0+: Async ORM for database operations. psycopg3: Async PostgreSQL driver.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Context Gathering - Ticket History Search</section>
+        <snippet>Story 2.5: PostgreSQL FTS on ticket_history table returns TOP 5 similar tickets. Uses full-text search with to_tsvector and to_tsquery. Filters by tenant_id for data isolation.</snippet>
+      </doc>
+      <doc>
+        <path>External: Neon PostgreSQL Documentation</path>
+        <title>PostgreSQL Full-Text Search Tutorial</title>
+        <section>FTS Core Concepts and GIN Indexes</section>
+        <snippet>Use tsvector and tsquery data types for full text searches. Match operator (@@) checks if documents match query. GIN indexes optimize tsvector searches. Generated columns with tsvector type store preprocessed searchable content.</snippet>
+      </doc>
+      <doc>
+        <path>External: Medium - PostgreSQL FTS</path>
+        <title>PostgreSQL Full-Text Search Alternative to Elasticsearch</title>
+        <section>Advanced FTS Techniques</section>
+        <snippet>ts_rank() function calculates relevance scores for search results. Weighted ranking with setweight() for title (A), content (B), categories (C). pg_trgm extension enables fuzzy/similarity matching. Full-text search completes in milliseconds for millions of records with proper indexing.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>EnhancementHistory</symbol>
+        <lines>105-188</lines>
+        <reason>Reference model for database operations pattern. Shows how to create SQLAlchemy models with proper typing, indexes, and composite keys. This story will need to verify/add ticket_history table following this pattern.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/session.py</path>
+        <kind>database</kind>
+        <symbol>async_session_maker</symbol>
+        <lines>57-62</lines>
+        <reason>Async database session factory pattern used throughout the codebase. The search service must use async_session_maker() for all database queries to maintain consistency with existing async patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>src/utils/logger.py</path>
+        <kind>utility</kind>
+        <symbol>configure_logging</symbol>
+        <lines>1-50</lines>
+        <reason>Structured logging configuration. Search service must use logger.info/debug/error with extra dict containing tenant_id, operation type, and performance metrics for observability.</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/tasks.py</path>
+        <kind>worker</kind>
+        <symbol>enhance_ticket</symbol>
+        <lines>126-403</lines>
+        <reason>Main Celery task that will call the search service. Shows error handling patterns, async database operations within sync Celery tasks using asyncio.run(), structured logging with tenant_id/ticket_id context, and placeholder comment for Story 2.5 integration at line 285-291.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/queue_service.py</path>
+        <kind>service</kind>
+        <symbol>QueueService</symbol>
+        <lines>1-100</lines>
+        <reason>Example service pattern in the codebase. Shows how to structure service classes with proper error handling, logging, and separation of concerns.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python version="3.12">
+        <package name="sqlalchemy" version=">=2.0.23" scope="required">Async ORM for database queries with full-text search support</package>
+        <package name="asyncpg" version=">=0.29.0" scope="required">Async PostgreSQL driver for SQLAlchemy</package>
+        <package name="pydantic" version=">=2.5.0" scope="required">Data validation for TicketSearchResult model and input validation</package>
+        <package name="loguru" version=">=0.7.2" scope="required">Structured logging with tenant_id context</package>
+        <package name="pytest" version=">=7.4.3" scope="dev">Unit testing framework</package>
+        <package name="pytest-asyncio" version=">=0.21.1" scope="dev">Async test support for database operations</package>
+      </python>
+      <database>
+        <extension name="pg_trgm" required="true">PostgreSQL trigram similarity matching for fuzzy search fallback</extension>
+        <feature name="full_text_search" required="true">Built-in PostgreSQL FTS with tsvector and tsquery</feature>
+        <feature name="gin_indexes" required="true">Generalized Inverted Index for efficient tsvector searches</feature>
+      </database>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance">Search queries must complete in &lt;2 seconds for 10,000 ticket database (AC #8, NFR001)</constraint>
+    <constraint type="security">All queries must filter by tenant_id at application level (defense in depth with RLS) for multi-tenant data isolation (AC #3, #5, NFR004)</constraint>
+    <constraint type="architecture">Service must use async_session_maker() from src/database/session.py for all database operations to maintain async consistency</constraint>
+    <constraint type="architecture">Service must use structured logging via loguru with tenant_id, operation, and performance metrics in extra dict</constraint>
+    <constraint type="architecture">Error handling must follow existing pattern: ValidationError for input errors, custom DatabaseError for connection issues, graceful degradation on failures</constraint>
+    <constraint type="data">Search results limited to TOP 5 tickets (AC #4) to prevent overwhelming context and maintain response times</constraint>
+    <constraint type="data">Empty query results must return empty list, not raise errors (AC #6) - graceful handling for UX</constraint>
+    <constraint type="future">RLS policies assumed from Story 3.1 - defense in depth with application-level tenant_id filtering required until Epic 3 complete</constraint>
+  </constraints>
+  <interfaces>
+    <interface type="function">
+      <name>search_similar_tickets</name>
+      <kind>async function</kind>
+      <signature>async def search_similar_tickets(tenant_id: str, query_description: str, limit: int = 5) -&gt; List[TicketSearchResult]</signature>
+      <path>src/services/ticket_search_service.py</path>
+      <description>Main search function to be called by enhance_ticket task (Story 2.4). Uses PostgreSQL full-text search with similarity fallback. Returns list of similar tickets with metadata.</description>
+    </interface>
+    <interface type="model">
+      <name>TicketSearchResult</name>
+      <kind>Pydantic model</kind>
+      <signature>class TicketSearchResult(BaseModel): ticket_id: str; description: str; resolution: str; resolved_date: datetime; similarity_score: Optional[float]</signature>
+      <path>src/services/ticket_search_service.py</path>
+      <description>Data model for search results. Includes ticket metadata and optional similarity score for ranking.</description>
+    </interface>
+    <interface type="database">
+      <name>ticket_history table</name>
+      <kind>PostgreSQL table</kind>
+      <signature>CREATE TABLE ticket_history (id, tenant_id, ticket_id, description, resolution, resolved_date, created_at, updated_at, search_vector tsvector GENERATED)</signature>
+      <path>src/database/models.py</path>
+      <description>Table storing historical tickets for search. Must include GIN index on search_vector and composite index on (tenant_id, description) for performance.</description>
+    </interface>
+    <interface type="integration">
+      <name>enhance_ticket Celery task</name>
+      <kind>Celery task</kind>
+      <signature>Line 285-291 in src/workers/tasks.py - placeholder for Story 2.5 integration</signature>
+      <path>src/workers/tasks.py</path>
+      <description>Celery task will call search_similar_tickets() and include results in context_gathered JSON field for LangGraph workflow (Story 2.8).</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Project uses pytest with pytest-asyncio for testing. All async functions must be tested with @pytest.mark.asyncio decorator. Tests follow AAA pattern (Arrange, Act, Assert). Mock database sessions using pytest fixtures. Service tests use mocked async_session_maker to avoid real database dependencies. Integration tests use test database with sample data. Code coverage target: 80%+ for services, 90%+ for critical functions. Test files mirror source structure: src/services/ticket_search_service.py → tests/unit/test_ticket_search_service.py.
+    </standards>
+    <locations>
+      <location>tests/unit/test_ticket_search_service.py</location>
+      <location>tests/integration/test_ticket_search_integration.py</location>
+      <location>tests/unit/test_config.py (pattern reference)</location>
+      <location>tests/integration/test_celery_tasks.py (pattern reference)</location>
+    </locations>
+    <ideas>
+      <test id="1" acs="1,2,4" priority="high">
+        <name>test_search_similar_tickets_valid_query</name>
+        <description>Valid search returns top 5 results with all required fields (ticket_id, description, resolution, resolved_date). Mock database to return 10 tickets, verify only 5 returned and properly formatted as TicketSearchResult objects.</description>
+      </test>
+      <test id="2" acs="6" priority="high">
+        <name>test_search_similar_tickets_no_results</name>
+        <description>Search with no matching tickets returns empty list (not exception). Mock database to return empty result set, assert result == [].</description>
+      </test>
+      <test id="3" acs="3,5" priority="high">
+        <name>test_search_respects_tenant_isolation</name>
+        <description>Search only returns tickets for specified tenant_id. Mock database with tickets from tenant-a and tenant-b, search as tenant-a, verify all results have tenant_id == 'tenant-a'.</description>
+      </test>
+      <test id="4" acs="2" priority="medium">
+        <name>test_full_text_search_matches_keywords</name>
+        <description>PostgreSQL FTS correctly matches search keywords using ts_vector and ts_query. Verify query generation includes to_tsvector and @@ match operator.</description>
+      </test>
+      <test id="5" acs="2,4" priority="medium">
+        <name>test_similarity_fallback_when_fts_empty</name>
+        <description>When full-text search returns 0 results, fallback to similarity() matching works. Mock FTS returning empty, similarity() returning 2 results with score > 0.3, verify fallback results returned.</description>
+      </test>
+      <test id="6" acs="1,2" priority="medium">
+        <name>test_input_validation_invalid_tenant_id</name>
+        <description>Invalid tenant_id raises ValidationError with clear message. Test with empty string, None, and non-UUID format.</description>
+      </test>
+      <test id="7" acs="1,2" priority="medium">
+        <name>test_input_validation_empty_description</name>
+        <description>Empty or whitespace-only query_description raises ValidationError. Test with "", "   ", and None.</description>
+      </test>
+      <test id="8" acs="4" priority="medium">
+        <name>test_result_limit_enforced</name>
+        <description>Search never returns more than limit (default 5) results. Mock database with 100 matching tickets, verify exactly 5 returned.</description>
+      </test>
+      <test id="9" acs="8" priority="low">
+        <name>test_search_performance_latency</name>
+        <description>Mock search completes in &lt;2 seconds. Use time.time() to measure execution, assert elapsed &lt; 2.0 seconds.</description>
+      </test>
+      <test id="10" acs="7,8" priority="low">
+        <name>test_integration_real_database_search (optional)</name>
+        <description>Integration test with real test database containing 1,000+ sample tickets. Verify FTS index usage via EXPLAIN ANALYZE, measure actual query performance, test concurrent searches.</description>
+      </test>
+    </ideas>
+  </tests>
+</story-context>

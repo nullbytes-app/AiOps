@@ -1,0 +1,26 @@
+{
+  "detected_stack": {
+    "language": "Python 3.12",
+    "frameworks": ["FastAPI", "Celery", "SQLAlchemy"],
+    "runtime": ["Uvicorn", "Gunicorn (prod)"],
+    "infrastructure": ["Kubernetes", "Docker", "Redis", "PostgreSQL"],
+    "manifests": ["k8s/*.yaml", "docker/backend.dockerfile", "docker-compose.yml"]
+  },
+  "best_practices_and_refs": [
+    {
+      "topic": "Kubernetes resource requests/limits",
+      "source": "docs/tech-spec-epic-1.md",
+      "note": "Ensure all Deployments/StatefulSets define requests and limits matching spec."
+    },
+    {
+      "topic": "Probes and health endpoints",
+      "source": "src/api/health.py",
+      "note": "Use /api/v1/health (liveness), /api/v1/ready (readiness)."
+    },
+    {
+      "topic": "Security context",
+      "source": "docs/architecture.md",
+      "note": "Run containers as non-root where feasible; set runAsNonRoot and runAsUser."
+    }
+  ]
+}

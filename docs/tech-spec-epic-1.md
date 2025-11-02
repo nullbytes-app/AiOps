@@ -354,6 +354,19 @@ celery_app.conf.update(
 - Docker Compose: restart: unless-stopped
 - Kubernetes: restartPolicy: Always
 
+## Post-Review Follow-ups
+
+Scope: Epic 1 — Foundation & Infrastructure Setup
+
+- Story 1.4: Add restart-durability integration test to verify Redis queue persistence across container restarts (AC #7). [tests/integration/test_redis_queue.py]
+- Story 1.4: Introduce `check_redis_connection()` helper and refactor health endpoints to use it (align with database readiness pattern). [src/api/health.py]
+- Story 1.4: Add explicit TimeoutError handling and structured logging within queue operations. [src/services/queue_service.py]
+- Story 1.4: Evaluate reusing a shared Redis client to reduce connection overhead on hot paths. [src/services/queue_service.py]
+- Story 1.6: Enforce non-root execution for PostgreSQL in K8s (runAsUser: 999, runAsNonRoot: true; consider fsGroup: 999). [k8s/deployment-postgres.yaml]
+- Story 1.6: Align service manifest organization (split `k8s/service-*.yaml` or update story/file list to reflect embedded Services). [k8s/deployment-*.yaml]
+- Story 1.6: Pin API image to version (avoid `latest`) and integrate with CI/CD tagging. [k8s/deployment-api.yaml]
+- Story 1.6: Pin Worker image to version (avoid `latest`) and integrate with CI/CD tagging. [k8s/deployment-worker.yaml]
+
 ### Observability
 
 **Logging Configuration:**

@@ -1,0 +1,17 @@
+{
+  "story_context_path": "docs/stories/1-6-create-kubernetes-deployment-manifests.context.xml",
+  "story_context_found": true,
+  "tech_spec_path": "docs/tech-spec-epic-1.md",
+  "tech_spec_found": true,
+  "arch_docs": [
+    {
+      "path": "docs/architecture.md",
+      "found": true
+    },
+    {
+      "path": "docs/backlog.md",
+      "found": true
+    }
+  ],
+  "warnings": []
+}

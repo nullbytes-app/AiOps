@@ -1,0 +1,264 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>3</storyId>
+    <title>Queue Enhancement Jobs to Redis</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-3-queue-enhancement-jobs-to-redis.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>webhook receiver</asA>
+    <iWant>to push validated ticket enhancement requests to Redis queue</iWant>
+    <soThat>work is buffered and processed asynchronously by workers</soThat>
+    <tasks>
+      - Task 1: Create queue service module for Redis operations (AC: #1, #2, #6)
+      - Task 2: Create job payload schema (AC: #3)
+      - Task 3: Integrate queue service into webhook endpoint (AC: #1, #4)
+      - Task 4: Add error handling for queue push failures (AC: #5)
+      - Task 5: Update Redis client configuration (AC: #6)
+      - Task 6: Create unit tests for queue service (AC: #7)
+      - Task 7: Update webhook endpoint integration tests (AC: #4, #5)
+      - Task 8: Manual testing with local Redis (AC: #1, #2, #3, #4)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1. After validation, ticket data serialized and pushed to Redis queue
+    2. Queue key follows naming convention: `enhancement:queue`
+    3. Job payload includes: ticket_id, description, priority, tenant_id, timestamp
+    4. Job ID generated and returned in webhook response for tracking
+    5. Queue push failures logged and return 503 Service Unavailable
+    6. Redis connection pooling configured for performance
+    7. Unit tests verify job queuing with mock Redis
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>AI Agents - Epic Breakdown</title>
+        <section>Story 2.3</section>
+        <snippet>Queue enhancement jobs to Redis queue with naming convention `enhancement:queue`. Job payload includes ticket_id, description, priority, tenant_id, timestamp. Queue push failures logged and return 503.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Internal Service Communication</section>
+        <snippet>FastAPI → Redis Queue protocol using Redis LPUSH command to add jobs to `enhancement:queue` key. Message format: JSON with ticket metadata. Connection pool: 10 max connections per worker.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Performance Considerations</section>
+        <snippet>Redis connection pooling configured with max_connections=10. Connection pool shared across all FastAPI worker processes for performance.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Error Handling Strategy</section>
+        <snippet>Queue push errors: Transient errors (network timeouts, connection errors) → Retry with exponential backoff. Permanent errors → Log and fail fast. Error logging includes tenant_id, ticket_id, correlation_id, error type.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>API Response Format</section>
+        <snippet>Success response format: {"status": "success", "data": {...}, "message": "Optional message"}. Error response: {"status": "error", "error": {"code": "ERROR_CODE", "message": "...", "details": {...}}}</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/cache/redis_client.py</path>
+        <kind>infrastructure</kind>
+        <symbol>get_redis_client</symbol>
+        <lines>19-41</lines>
+        <reason>Existing async Redis client factory with connection pooling. REUSE this function to get Redis client instances in queue service.</reason>
+      </file>
+      <file>
+        <path>src/cache/redis_client.py</path>
+        <kind>infrastructure</kind>
+        <symbol>get_shared_redis</symbol>
+        <lines>62-81</lines>
+        <reason>Shared Redis client for high-performance reuse. Consider using for queue operations to avoid creating new connections per request.</reason>
+      </file>
+      <file>
+        <path>src/api/webhooks.py</path>
+        <kind>api-endpoint</kind>
+        <symbol>receive_webhook</symbol>
+        <lines>N/A - full file</lines>
+        <reason>Webhook endpoint that receives validated payloads. MODIFY to integrate queue service and enqueue jobs after signature validation succeeds.</reason>
+      </file>
+      <file>
+        <path>src/schemas/webhook.py</path>
+        <kind>schema</kind>
+        <symbol>WebhookPayload</symbol>
+        <lines>15-82</lines>
+        <reason>Pydantic model for webhook payloads. USE as reference for creating EnhancementJob schema with similar fields (ticket_id, description, priority, tenant_id).</reason>
+      </file>
+      <file>
+        <path>src/services/webhook_validator.py</path>
+        <kind>service</kind>
+        <symbol>validate_webhook_signature</symbol>
+        <lines>76-151</lines>
+        <reason>FastAPI dependency pattern for signature validation. REFERENCE for implementing QueueService as a FastAPI dependency with Depends() pattern.</reason>
+      </file>
+      <file>
+        <path>src/services/queue_service.py</path>
+        <kind>service</kind>
+        <symbol>QueueService</symbol>
+        <lines>N/A - TO BE CREATED</lines>
+        <reason>Queue service to be created in this story. Will implement push_job() method using Redis LPUSH to enqueue jobs to `enhancement:queue`.</reason>
+      </file>
+      <file>
+        <path>src/schemas/job.py</path>
+        <kind>schema</kind>
+        <symbol>EnhancementJob</symbol>
+        <lines>N/A - TO BE CREATED</lines>
+        <reason>Pydantic model for job payload to be created. Fields: job_id, ticket_id, description, priority, tenant_id, timestamp, created_at.</reason>
+      </file>
+      <file>
+        <path>src/utils/exceptions.py</path>
+        <kind>exceptions</kind>
+        <symbol>QueueServiceError</symbol>
+        <lines>N/A - TO BE CREATED</lines>
+        <reason>Custom exception for queue service errors to be created. Raised when Redis LPUSH fails due to connection or timeout errors.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.104.0" />
+        <package name="pydantic" version=">=2.5.0" />
+        <package name="redis" version=">=5.0.1" />
+        <package name="pytest" version=">=7.4.3" dev="true" />
+        <package name="pytest-asyncio" version=">=0.21.1" dev="true" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Queue key MUST follow naming convention: `enhancement:queue` (per architecture spec)
+    - Job payload MUST be JSON-serialized Pydantic model (EnhancementJob)
+    - Redis operations MUST use async client (redis.asyncio) for FastAPI compatibility
+    - Connection pooling MUST be configured with max_connections=10 (per architecture)
+    - Description field max length: 10,000 chars (from WebhookPayload validation)
+    - Priority MUST be one of: ["low", "medium", "high", "critical"] (from WebhookPayload)
+    - Queue push failures MUST return 503 Service Unavailable (not 500 Internal Server Error)
+    - Job ID MUST be UUID format for tracking (use uuid.uuid4())
+    - Error logging MUST include: tenant_id, ticket_id, error message, correlation_id
+    - Queue service MUST follow FastAPI dependency injection pattern (Depends() decorator)
+    - All code MUST follow Google-style docstrings with type hints
+    - All code MUST be formatted with Black (line length 100)
+    - Testing MUST use pytest with async support (pytest-asyncio)
+    - Mock Redis using pytest-mock or fakeredis (avoid real Redis in unit tests)
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>get_redis_client</name>
+      <kind>function</kind>
+      <signature>async def get_redis_client() -> aioredis.Redis</signature>
+      <path>src/cache/redis_client.py</path>
+      <usage>Use to get Redis client instance for queue operations. Returns async client with connection pooling configured.</usage>
+    </interface>
+    <interface>
+      <name>get_shared_redis</name>
+      <kind>function</kind>
+      <signature>def get_shared_redis() -> aioredis.Redis</signature>
+      <path>src/cache/redis_client.py</path>
+      <usage>Use for high-performance queue operations. Returns shared Redis client reused across requests. Do not close this client.</usage>
+    </interface>
+    <interface>
+      <name>WebhookPayload</name>
+      <kind>pydantic-model</kind>
+      <signature>class WebhookPayload(BaseModel): event, ticket_id, tenant_id, description, priority, created_at</signature>
+      <path>src/schemas/webhook.py</path>
+      <usage>Reference for creating EnhancementJob schema. Reuse validation patterns (priority Literal, description max_length, etc.).</usage>
+    </interface>
+    <interface>
+      <name>POST /webhook/servicedesk</name>
+      <kind>rest-endpoint</kind>
+      <signature>@router.post("/webhook/servicedesk", dependencies=[Depends(validate_webhook_signature)])</signature>
+      <path>src/api/webhooks.py</path>
+      <usage>Modify to add QueueService dependency and enqueue job after validation. Update response to include job_id field.</usage>
+    </interface>
+    <interface>
+      <name>Redis LPUSH</name>
+      <kind>redis-command</kind>
+      <signature>await redis_client.lpush(queue_key: str, *values: str) -> int</signature>
+      <path>N/A - Redis command</path>
+      <usage>Use to push jobs to queue. Returns queue depth after push. For FIFO queue, use LPUSH (producer) + BRPOP (consumer).</usage>
+    </interface>
+    <interface>
+      <name>HTTPException</name>
+      <kind>fastapi-exception</kind>
+      <signature>HTTPException(status_code: int, detail: str)</signature>
+      <path>fastapi</path>
+      <usage>Raise HTTPException(503, "Queue unavailable") when Redis push fails. Follows established error handling pattern from webhook_validator.</usage>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows pytest framework with async support (pytest-asyncio). All tests use Google-style docstrings and type hints. Unit tests use mocks (pytest-mock or fakeredis) to avoid real Redis dependency. Integration tests may use test containers or docker-compose Redis. Test files mirror src/ structure in tests/ directory. Test coverage target: >80% per architecture. All tests must pass before merging.
+    </standards>
+    <locations>
+      - tests/unit/test_queue_service.py (new file for queue service tests)
+      - tests/unit/test_webhook_endpoint.py (existing file to update with job_id tests)
+      - tests/conftest.py (shared fixtures for Redis mocks and test data)
+    </locations>
+    <ideas>
+      - AC#1: Test job serialization to JSON before Redis push
+      - AC#2: Test queue key is `enhancement:queue` (assert Redis LPUSH called with correct key)
+      - AC#3: Test job payload includes all required fields (ticket_id, description, priority, tenant_id, timestamp)
+      - AC#4: Test job_id is UUID format and returned in webhook response
+      - AC#5: Test Redis ConnectionError raises HTTPException(503) with proper logging
+      - AC#6: Test Redis client initialized with max_connections=10
+      - AC#7: Test multiple jobs enqueued increase queue depth (LLEN enhancement:queue)
+      - Test job creation from WebhookPayload (all fields mapped correctly)
+      - Test invalid priority in EnhancementJob raises ValidationError
+      - Test description max length 10,000 chars enforced
+      - Test QueueService dependency injection works in FastAPI endpoint
+      - Test correlation ID included in error logs for queue failures
+    </ideas>
+  </tests>
+
+  <officialDocumentation>
+    <redis>
+      <lpushCommand>
+        <source>https://redis.io/docs/latest/commands/lpush/</source>
+        <summary>LPUSH inserts values at the head of the list stored at key. Returns the length of the list after push operation. Accepts multiple element arguments since Redis 2.4.0.</summary>
+        <usage>Use LPUSH for producer (enqueue), BRPOP for consumer (dequeue) to create FIFO queue</usage>
+      </lpushCommand>
+      <connectionPooling>
+        <source>https://redis.io/docs/latest/develop/clients/pools-and-muxing/</source>
+        <summary>Connection pooling improves performance by reusing connections instead of opening/closing frequently. redis-py supports connection pooling. Client opens small number of connections and reuses them. If all connections in use, client opens new ones as needed.</summary>
+        <bestPractice>Initialize pool at startup with appropriate max_connections. Client manages pool lifecycle automatically. Returns available connections from pool when requested.</bestPractice>
+      </connectionPooling>
+    </redis>
+    <fastapi>
+      <dependencyInjection>
+        <source>https://fastapi.tiangolo.com/tutorial/dependencies/</source>
+        <summary>FastAPI Dependency Injection allows declaring things your code requires. System automatically provides dependencies to path operation functions. Use Depends() to declare dependencies.</summary>
+        <pattern>Create dependency function with same parameters as path operation. Pass function (not called) to Depends(). FastAPI calls dependency with correct parameters and injects result.</pattern>
+        <asyncSupport>Can use async def or regular def for dependencies. FastAPI handles both. Can mix async/sync dependencies freely.</asyncSupport>
+        <typeAlias>Use Annotated to create type alias for dependencies: CommonsDep = Annotated[dict, Depends(function)]. Preserves type information for autocomplete and type checking.</typeAlias>
+      </dependencyInjection>
+    </fastapi>
+    <implementationGuidance>
+      <queueService>
+        - Create async function get_queue_service(redis: Redis = Depends(get_shared_redis)) -> QueueService
+        - Return QueueService instance initialized with Redis client
+        - In webhook endpoint: queue_service: QueueService = Depends(get_queue_service)
+        - FastAPI automatically calls dependency and injects QueueService instance
+      </queueService>
+      <redisOperations>
+        - Use await redis_client.lpush("enhancement:queue", job_json) to enqueue
+        - LPUSH returns queue length after push (useful for monitoring queue depth)
+        - Connection pool automatically managed by redis-py client
+        - For FIFO queue: producer uses LPUSH, consumer (Celery) uses BRPOP
+      </redisOperations>
+    </implementationGuidance>
+  </officialDocumentation>
+</story-context>

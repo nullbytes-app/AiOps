@@ -1,0 +1,59 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: api-ingress
+  namespace: ai-agents
+  labels:
+    app: api
+  annotations:
+    # NGINX Ingress Controller annotations
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+spec:
+  ingressClassName: nginx
+  rules:
+  # Development environment (local testing with minikube/kind)
+  - host: api.ai-agents.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 80
+  # Production environment (replace with actual domain)
+  - host: api.yourdomain.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: api
+            port:
+              number: 80
+  # Note: TLS configuration commented out for local development
+  # Uncomment and configure for production with cert-manager
+  # tls:
+  # - hosts:
+  #   - api.yourdomain.com
+  #   secretName: api-tls-cert
+---
+# Note: For local development with minikube/kind, you may need to:
+# 1. Install NGINX Ingress Controller:
+#    kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.0/deploy/static/provider/kind/deploy.yaml
+#
+# 2. Update /etc/hosts (macOS/Linux) or hosts file (Windows):
+#    127.0.0.1 api.ai-agents.local
+#
+# 3. Use port-forward to access the ingress:
+#    kubectl port-forward -n ingress-nginx svc/ingress-nginx-controller 8080:80
+#    Then access: http://localhost:8080 with Host header api.ai-agents.local
+#
+# For production:
+# 1. Replace api.yourdomain.com with your actual domain
+# 2. Set up DNS records pointing to your Kubernetes cluster's ingress IP
+# 3. Integrate cert-manager for automated TLS certificates
+# 4. Update tls section with certificate configuration

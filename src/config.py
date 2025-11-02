@@ -28,6 +28,7 @@ class Settings(BaseSettings):
         celery_result_backend: Redis URL for Celery results
         environment: Deployment environment (development/staging/production)
         log_level: Logging level (DEBUG/INFO/WARNING/ERROR/CRITICAL)
+        webhook_secret: Shared secret for HMAC-SHA256 webhook signature validation (min 32 chars)
 
     Returns:
         Settings: Configured settings instance
@@ -81,6 +82,13 @@ class Settings(BaseSettings):
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
         description="Logging level",
+    )
+
+    # Security Configuration
+    webhook_secret: str = Field(
+        ...,
+        description="Shared secret for HMAC-SHA256 webhook signature validation",
+        min_length=32,
     )
 
     model_config = SettingsConfigDict(

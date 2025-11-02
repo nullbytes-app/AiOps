@@ -1,0 +1,14 @@
+{
+  "persist_targets": ["story_review_section", "story_tasks", "backlog_file", "epic_followups"],
+  "story_tasks_updated": true,
+  "backlog_file_updated": true,
+  "epic_followups_updated": true,
+  "action_item_count": 1,
+  "items": [
+    {
+      "severity": "Med",
+      "description": "Pin Worker image tag to a specific version (align with API)",
+      "file": "k8s/deployment-worker.yaml:31"
+    }
+  ]
+}

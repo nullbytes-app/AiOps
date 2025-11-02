@@ -1,0 +1,306 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>6</storyId>
+    <title>Create Kubernetes Deployment Manifests</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-01</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/1-6-create-kubernetes-deployment-manifests.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer</asA>
+    <iWant>Kubernetes manifests for all components</iWant>
+    <soThat>the platform can be deployed to production clusters</soThat>
+    <tasks>
+      <task id="1" acs="1">
+        <title>Create Kubernetes namespace manifest</title>
+        <subtasks>
+          <subtask>Create k8s/namespace.yaml with namespace name "ai-agents"</subtask>
+          <subtask>Add metadata labels: environment=development, project=ai-agents</subtask>
+          <subtask>Verify namespace creation: kubectl apply -f k8s/namespace.yaml</subtask>
+          <subtask>Verify namespace exists: kubectl get namespaces ai-agents</subtask>
+        </subtasks>
+      </task>
+      <task id="2" acs="2,3,6">
+        <title>Create PostgreSQL StatefulSet and Service</title>
+        <subtasks>
+          <subtask>Create k8s/deployment-postgres.yaml with StatefulSet (not Deployment, for persistent storage)</subtask>
+          <subtask>Configure PostgreSQL image: postgres:17-alpine</subtask>
+          <subtask>Set container port: 5432</subtask>
+          <subtask>Environment variables: POSTGRES_DB=ai_agents, POSTGRES_USER, POSTGRES_PASSWORD (from Secrets)</subtask>
+          <subtask>Volume mounts: /var/lib/postgresql/data (persistent claim)</subtask>
+          <subtask>PersistentVolumeClaim: 10Gi storage, ReadWriteOnce access</subtask>
+          <subtask>Resource requests: cpu=500m, memory=1Gi; limits: cpu=1000m, memory=4Gi</subtask>
+          <subtask>Liveness probe: TCP on port 5432, initialDelaySeconds=30</subtask>
+          <subtask>Readiness probe: exec pg_isready, initialDelaySeconds=5</subtask>
+          <subtask>Create k8s/service-postgres.yaml for Service (ClusterIP, port 5432)</subtask>
+        </subtasks>
+      </task>
+      <task id="3" acs="2,3,6">
+        <title>Create Redis StatefulSet and Service</title>
+        <subtasks>
+          <subtask>Create k8s/deployment-redis.yaml with StatefulSet</subtask>
+          <subtask>Configure Redis image: redis:7-alpine</subtask>
+          <subtask>Resource requests: cpu=250m, memory=512Mi; limits: cpu=500m, memory=2Gi</subtask>
+          <subtask>Liveness/Readiness probes: redis-cli ping</subtask>
+          <subtask>Create k8s/service-redis.yaml for Service (ClusterIP, port 6379)</subtask>
+        </subtasks>
+      </task>
+      <task id="4" acs="2,3,6">
+        <title>Create API (FastAPI) Deployment and Service</title>
+        <subtasks>
+          <subtask>Create k8s/deployment-api.yaml with Deployment (2 replicas)</subtask>
+          <subtask>Container image: [REGISTRY]/ai-agents-api:latest, port 8000</subtask>
+          <subtask>Environment variables from ConfigMap and Secrets</subtask>
+          <subtask>Resource requests: cpu=250m, memory=512Mi; limits: cpu=500m, memory=1Gi</subtask>
+          <subtask>Liveness, readiness, and startup probes on /health endpoints</subtask>
+          <subtask>Pod security context: runAsNonRoot: true, runAsUser: 1000</subtask>
+          <subtask>Create k8s/service-api.yaml for Service (LoadBalancer or NodePort, port 8000)</subtask>
+        </subtasks>
+      </task>
+      <task id="5" acs="2,3,6">
+        <title>Create Celery Worker Deployment</title>
+        <subtasks>
+          <subtask>Create k8s/deployment-worker.yaml with Deployment (2 replicas)</subtask>
+          <subtask>Container image: [REGISTRY]/ai-agents-worker:latest</subtask>
+          <subtask>Command: celery -A src.workers.celery_app worker --loglevel=info</subtask>
+          <subtask>Resource requests: cpu=500m, memory=1Gi; limits: cpu=1000m, memory=2Gi</subtask>
+          <subtask>Graceful shutdown: terminationGracePeriodSeconds=120</subtask>
+        </subtasks>
+      </task>
+      <task id="6" acs="2,7">
+        <title>Create Horizontal Pod Autoscaler (HPA) for Workers</title>
+        <subtasks>
+          <subtask>Create k8s/hpa-worker.yaml</subtask>
+          <subtask>MinReplicas: 1, MaxReplicas: 10, target CPU: 70%</subtask>
+          <subtask>Scale-down stabilization: 3 minutes; scale-up: 30 seconds</subtask>
+        </subtasks>
+      </task>
+      <task id="7" acs="4">
+        <title>Create ConfigMap manifest</title>
+        <subtasks>
+          <subtask>Create k8s/configmap.yaml with LOG_LEVEL, ENVIRONMENT</subtask>
+          <subtask>Document which values come from ConfigMap vs Secrets</subtask>
+        </subtasks>
+      </task>
+      <task id="8" acs="5">
+        <title>Create Secret manifest template</title>
+        <subtasks>
+          <subtask>Create k8s/secrets.yaml.example template</subtask>
+          <subtask>Document required secrets: DATABASE_URL, REDIS_URL, OPENAI_API_KEY</subtask>
+          <subtask>Add warning: NEVER commit secrets.yaml to git</subtask>
+        </subtasks>
+      </task>
+      <task id="9" acs="3">
+        <title>Create Ingress manifest</title>
+        <subtasks>
+          <subtask>Create k8s/ingress.yaml with NGINX controller</subtask>
+          <subtask>Host: api.ai-agents.local (dev), api.yourdomain.com (prod)</subtask>
+          <subtask>Routes: / -> service/api (port 8000)</subtask>
+        </subtasks>
+      </task>
+      <task id="10" acs="7,8">
+        <title>Validate all manifests apply successfully</title>
+        <subtasks>
+          <subtask>Set up local Kubernetes cluster: minikube or kind</subtask>
+          <subtask>Apply all manifests in correct order</subtask>
+          <subtask>Verify all pods reach Running/Ready state</subtask>
+          <subtask>Test port-forward and health check: curl http://localhost:8000/health</subtask>
+        </subtasks>
+      </task>
+      <task id="11" acs="7,8">
+        <title>Create documentation</title>
+        <subtasks>
+          <subtask>Create docs/deployment.md with Kubernetes deployment guide</subtask>
+          <subtask>Document prerequisites, step-by-step instructions, troubleshooting</subtask>
+          <subtask>Update README.md with link to deployment.md</subtask>
+        </subtasks>
+      </task>
+      <task id="12" acs="7">
+        <title>Create test and validation scripts</title>
+        <subtasks>
+          <subtask>Create k8s/test-deployment.sh script to automate validation</subtask>
+          <subtask>Script validates: namespace, resources, pod readiness, health checks</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Kubernetes namespace manifest created (ai-agents)</criterion>
+    <criterion id="2">Deployment manifests for FastAPI, Celery workers, PostgreSQL, Redis</criterion>
+    <criterion id="3">Service manifests for inter-pod communication</criterion>
+    <criterion id="4">ConfigMap manifest for non-sensitive configuration</criterion>
+    <criterion id="5">Secret manifest template for sensitive credentials</criterion>
+    <criterion id="6">Resource limits and requests defined for each deployment</criterion>
+    <criterion id="7">All manifests apply successfully to local Kubernetes cluster (minikube or kind)</criterion>
+    <criterion id="8">Pods start and pass readiness checks</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-1.md</path>
+        <title>Epic Technical Specification: Foundation &amp; Infrastructure Setup</title>
+        <section>Detailed Design - Services and Modules</section>
+        <snippet>Defines resource requirements for all services: FastAPI (250m CPU/512Mi RAM request, 500m/1Gi limit), Celery Workers (500m CPU/1Gi RAM request, 1000m/2Gi limit), PostgreSQL (500m/1000m CPU, 1Gi/4Gi RAM), Redis (250m/500m CPU, 512Mi/2Gi RAM). Kubernetes manifests location: k8s/ directory.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Project Structure - k8s/ Directory</section>
+        <snippet>Complete K8s manifest file list: namespace.yaml, configmap.yaml, secrets.yaml.example, deployment-api.yaml, deployment-worker.yaml, deployment-redis.yaml (StatefulSet), deployment-postgres.yaml (StatefulSet), service-api.yaml, service-redis.yaml, service-postgres.yaml, hpa-worker.yaml for autoscaling workers 1-10 replicas.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Technology Stack Details - Infrastructure</section>
+        <snippet>Container orchestration: Kubernetes 1.28+. Container base: python:3.12-slim. Production server: Gunicorn + Uvicorn workers. Secrets management: Kubernetes Secrets (native). Docker Compose for local development mirrors K8s structure.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-2-create-docker-configuration-for-local-development.md</path>
+        <title>Story 1.2: Docker Configuration</title>
+        <section>Dev Notes - Container Images</section>
+        <snippet>Docker images established: postgres:17-alpine, redis:7-alpine, custom API image runs on port 8000 with health endpoints at /health and /health/ready. Environment variable pattern: AI_AGENTS_ prefix, centralized in src/config.py Settings class.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/1-5-implement-celery-worker-setup.md</path>
+        <title>Story 1.5: Celery Worker Setup</title>
+        <section>Dev Notes - Kubernetes Integration</section>
+        <snippet>Worker scaling strategy: HPA from 1-10 replicas based on CPU 70% threshold. Same Docker image as API with different command: celery -A src.workers.celery_app worker --loglevel=info. Graceful shutdown with 120s termination grace period.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>configuration</kind>
+        <symbol>Settings</symbol>
+        <lines>15-91</lines>
+        <reason>Central configuration class defining all environment variables with AI_AGENTS_ prefix. Required for ConfigMap and Secrets mapping in K8s manifests: database_url, redis_url, celery_broker_url, celery_result_backend, environment, log_level.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/health.py</path>
+        <kind>api-endpoint</kind>
+        <symbol>health_check, readiness_check</symbol>
+        <lines>15-116</lines>
+        <reason>Health endpoints at /api/v1/health and /api/v1/ready used for liveness and readiness probes in K8s Deployment manifests. Both check PostgreSQL and Redis connectivity.</reason>
+      </artifact>
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>infrastructure</kind>
+        <symbol>services</symbol>
+        <lines>1-94</lines>
+        <reason>Reference for service configuration including images (postgres:17-alpine, redis:7-alpine), ports, health checks, environment variables, and volume mounts. K8s manifests should mirror this structure.</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/celery_app.py</path>
+        <kind>worker</kind>
+        <symbol>celery_app</symbol>
+        <lines>all</lines>
+        <reason>Celery application configuration for worker command in K8s deployment: celery -A src.workers.celery_app worker --loglevel=info</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.104.0" />
+        <package name="uvicorn[standard]" version=">=0.24.0" />
+        <package name="pydantic" version=">=2.5.0" />
+        <package name="pydantic-settings" version=">=2.1.0" />
+        <package name="sqlalchemy[asyncio]" version=">=2.0.23" />
+        <package name="alembic" version=">=1.12.1" />
+        <package name="asyncpg" version=">=0.29.0" />
+        <package name="redis" version=">=5.0.1" />
+        <package name="celery[redis]" version=">=5.3.4" />
+        <package name="httpx" version=">=0.25.2" />
+        <package name="loguru" version=">=0.7.2" />
+      </python>
+      <containers>
+        <image name="postgres" version="17-alpine" />
+        <image name="redis" version="7-alpine" />
+        <image name="python" version="3.12-slim" note="Base image for API and Worker" />
+      </containers>
+      <infrastructure>
+        <tool name="kubectl" note="Required for applying K8s manifests" />
+        <tool name="minikube or kind" note="Local Kubernetes cluster for development" />
+        <tool name="docker" note="Container runtime" />
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All manifests must be placed in k8s/ directory at project root</constraint>
+    <constraint>All services must run in namespace: ai-agents</constraint>
+    <constraint>StatefulSet required for PostgreSQL and Redis (persistent storage), Deployment for API and Workers (stateless)</constraint>
+    <constraint>Resource requests and limits MUST match tech-spec-epic-1.md specifications exactly</constraint>
+    <constraint>Environment variables MUST use AI_AGENTS_ prefix as defined in src/config.py</constraint>
+    <constraint>Health endpoints: /api/v1/health (liveness), /api/v1/ready (readiness) on port 8000</constraint>
+    <constraint>ConfigMap for non-sensitive config (LOG_LEVEL, ENVIRONMENT), Secrets for credentials (DATABASE_URL, REDIS_URL, OPENAI_API_KEY)</constraint>
+    <constraint>Never commit secrets.yaml to git - only secrets.yaml.example template</constraint>
+    <constraint>All containers must run as non-root user (runAsNonRoot: true, runAsUser: 1000)</constraint>
+    <constraint>Worker graceful shutdown: terminationGracePeriodSeconds: 120</constraint>
+    <constraint>Service discovery via DNS: servicename.ai-agents.svc.cluster.local</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>FastAPI Health Endpoints</name>
+      <kind>HTTP REST</kind>
+      <signature>GET /api/v1/health - Returns: {"status": "healthy", "service": "AI Agents", "dependencies": {...}}</signature>
+      <path>src/api/health.py</path>
+    </interface>
+    <interface>
+      <name>FastAPI Readiness Endpoint</name>
+      <kind>HTTP REST</kind>
+      <signature>GET /api/v1/ready - Returns: {"status": "ready", "dependencies": {...}}</signature>
+      <path>src/api/health.py</path>
+    </interface>
+    <interface>
+      <name>PostgreSQL Service DNS</name>
+      <kind>Kubernetes Service</kind>
+      <signature>postgresql.ai-agents.svc.cluster.local:5432</signature>
+      <path>k8s/service-postgres.yaml</path>
+    </interface>
+    <interface>
+      <name>Redis Service DNS</name>
+      <kind>Kubernetes Service</kind>
+      <signature>redis.ai-agents.svc.cluster.local:6379</signature>
+      <path>k8s/service-redis.yaml</path>
+    </interface>
+    <interface>
+      <name>API Service DNS</name>
+      <kind>Kubernetes Service</kind>
+      <signature>api.ai-agents.svc.cluster.local:8000</signature>
+      <path>k8s/service-api.yaml</path>
+    </interface>
+    <interface>
+      <name>Celery Worker Command</name>
+      <kind>Container Command</kind>
+      <signature>celery -A src.workers.celery_app worker --loglevel=info</signature>
+      <path>src/workers/celery_app.py</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Testing follows Pytest framework with pytest-asyncio for async tests. Tests are organized into tests/unit/ for unit tests and tests/integration/ for integration tests. All test files follow test_*.py naming convention. Integration tests verify cross-service communication patterns. Shell script validation (test-deployment.sh) should be executable and report clear success/failure for each validation step.</standards>
+    <locations>
+      <location>tests/integration/test_k8s_deployment.py - Integration tests for K8s deployment validation</location>
+      <location>k8s/test-deployment.sh - Shell script for automated manifest validation</location>
+      <location>tests/unit/test_manifests.py - Unit tests for manifest YAML structure validation</location>
+    </locations>
+    <ideas>
+      <idea ac="1,7">Test namespace creation: Apply namespace.yaml and verify namespace exists with correct labels</idea>
+      <idea ac="2,7,8">Test PostgreSQL StatefulSet deployment: Verify pod creation, PVC binding, readiness probe success</idea>
+      <idea ac="2,7,8">Test Redis StatefulSet deployment: Verify pod creation, persistence configuration, health checks</idea>
+      <idea ac="2,7,8">Test API Deployment: Verify 2 replicas created, health endpoints respond, environment variables loaded from ConfigMap/Secrets</idea>
+      <idea ac="2,7,8">Test Worker Deployment: Verify worker pods start with correct Celery command, resource limits applied</idea>
+      <idea ac="3,7">Test Service DNS resolution: Verify services are accessible via DNS (postgresql.ai-agents.svc.cluster.local)</idea>
+      <idea ac="4,7">Test ConfigMap application: Verify ConfigMap created and values available to pods</idea>
+      <idea ac="5,7">Test Secrets template: Verify secrets.yaml.example exists, contains required keys, has proper base64 encoding instructions</idea>
+      <idea ac="6,7">Test resource limits enforcement: Verify all pods have requests and limits matching tech spec</idea>
+      <idea ac="7,8">Test HPA configuration: Verify HPA created, min/max replicas correct, scaling metrics configured</idea>
+      <idea ac="7,8">Test end-to-end deployment: Apply all manifests in order, verify all pods reach Running/Ready state within timeout</idea>
+      <idea ac="8">Test pod readiness checks: Verify all readiness probes pass and pods join service endpoints</idea>
+      <idea ac="7">Test deployment script: Verify test-deployment.sh executes without errors and reports all validation steps</idea>
+    </ideas>
+  </tests>
+</story-context>

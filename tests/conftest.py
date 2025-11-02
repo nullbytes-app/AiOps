@@ -33,6 +33,7 @@ def setup_test_env():
     os.environ.setdefault("AI_AGENTS_REDIS_URL", "redis://localhost:6379/0")
     os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
     os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+    os.environ.setdefault("AI_AGENTS_WEBHOOK_SECRET", "test-webhook-secret-minimum-32-chars-required-here")
 
     # Import config module AFTER environment variables are set
     from src import config

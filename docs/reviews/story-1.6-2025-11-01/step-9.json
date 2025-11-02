@@ -1,0 +1,27 @@
+{
+  "step": 9,
+  "title": "Persist action items to tasks/backlog/epic",
+  "story_tasks_updated": true,
+  "backlog_updated": true,
+  "epic_followups_updated": true,
+  "items": [
+    {
+      "severity": "High",
+      "description": "Run PostgreSQL as non-root in K8s (runAsUser: 999, runAsNonRoot: true)",
+      "targets": ["story_tasks", "backlog_file", "epic_followups"],
+      "refs": ["k8s/deployment-postgres.yaml"]
+    },
+    {
+      "severity": "Med",
+      "description": "Align service manifests (split service YAMLs or update story tasks/file list)",
+      "targets": ["story_tasks", "backlog_file", "epic_followups"],
+      "refs": ["k8s/deployment-*.yaml"]
+    },
+    {
+      "severity": "Low",
+      "description": "Pin API image tag; avoid latest in production",
+      "targets": ["story_tasks", "backlog_file", "epic_followups"],
+      "refs": ["k8s/deployment-api.yaml"]
+    }
+  ]
+}

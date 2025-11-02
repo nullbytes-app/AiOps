@@ -1,0 +1,285 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2-5B</storyId>
+    <title>Store Resolved Tickets Automatically</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-5B-store-resolved-tickets-automatically.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform operator</asA>
+    <iWant>resolved tickets to be automatically stored in ticket_history when they are resolved in ServiceDesk Plus</iWant>
+    <soThat>the enhancement agent has fresh ticket context without requiring manual bulk imports</soThat>
+    <tasks>
+      1. Verify webhook infrastructure from Stories 2.1-2.2
+      2. Design webhook payload schema for resolved tickets
+      3. Implement webhook endpoint for resolved tickets
+      4. Implement async ticket storage with UPSERT logic
+      5. Integrate webhook storage with async/await pattern
+      6. Error handling and logging
+      7. Database integration and constraints
+      8. Integration with Webhook Validator (Story 2.2 reuse)
+      9. Create unit tests for webhook endpoint
+      10. Create integration test
+      11. ServiceDesk Plus webhook configuration guide
+      12. Update README and docs
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Webhook endpoint created: POST /webhook/servicedesk/resolved-ticket</criterion>
+    <criterion id="2">Webhook receives ticket resolution events from ServiceDesk Plus (triggered by ticket status change to "Resolved" or "Closed")</criterion>
+    <criterion id="3">Webhook payload includes: ticket_id, subject, description, resolution, resolved_date, priority, tags, tenant_id</criterion>
+    <criterion id="4">Webhook signature validated using HMAC-SHA256 (Story 2.2 logic reused)</criterion>
+    <criterion id="5">Resolved ticket data stored in ticket_history table with source='webhook_resolved', ingested_at=NOW()</criterion>
+    <criterion id="6">UPSERT logic: If ticket already exists (tenant_id, ticket_id), update resolution and resolved_date; maintain idempotency</criterion>
+    <criterion id="7">Async processing: Store ticket in &lt;1 second (non-blocking webhook response)</criterion>
+    <criterion id="8">Error handling: Invalid/malformed webhooks logged but don't break endpoint (400 Bad Request returned)</criterion>
+    <criterion id="9">Data validation: ticket_id non-empty, resolved_date valid ISO8601 datetime</criterion>
+    <criterion id="10">Performance: Handle 1000+ webhook events per minute without queue buildup (async/await pattern)</criterion>
+    <criterion id="11">Monitoring: Log all webhook events with correlation_id for traceability</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic Technical Specification: Core Enhancement Agent</title>
+        <section>1. Context Gathering: Ticket History Search (Story 2.5), 2.5B Automatic Continuous Ticket Ingestion</section>
+        <snippet>Story 2.5B implements automatic continuous ticket ingestion for the enhancement agent's context gathering capability. While Story 2.5A provides historical ticket data via bulk import, Story 2.5B keeps the ticket_history table fresh by storing resolved tickets in real-time via webhook.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-2-implement-webhook-signature-validation.md</path>
+        <title>Story 2.2: Implement Webhook Signature Validation (COMPLETED)</title>
+        <section>Webhook Validation Pattern</section>
+        <snippet>HMAC-SHA256 signature validation using X-ServiceDesk-Signature header. Signature computed from payload + shared secret, compared with constant-time comparison (hmac.compare_digest). Invalid signatures rejected with 401 Unauthorized.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-5A-populate-ticket-history-from-servicedesk-plus.md</path>
+        <title>Story 2.5A: Populate Ticket History from ServiceDesk Plus (COMPLETED)</title>
+        <section>Data Provenance Pattern, Database Schema</section>
+        <snippet>Story 2.5A establishes provenance tracking: source field ('bulk_import' vs 'webhook_resolved'), ingested_at timestamp. UNIQUE constraint on (tenant_id, ticket_id) for idempotency. Both 2.5A (bulk import) and 2.5B (webhook) populate same ticket_history table with different source values.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture Reference</title>
+        <section>Webhook Integration Architecture, Async Processing Pattern</section>
+        <snippet>Webhook handler pattern: Validate signature → Return 202 Accepted immediately → Async background processing. UPSERT idempotency via UNIQUE constraint. Non-blocking endpoint response ensures &lt;50ms latency even under high load.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements FR005 (Search ticket history), FR007 (Webhook integration)</section>
+        <snippet>Platform must support continuous ticket ingestion via webhook for real-time context availability. Webhooks trigger on ticket resolution in ServiceDesk Plus. System must handle 1000+ events/minute with idempotency guarantee.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/api/webhooks.py</path>
+        <kind>controller</kind>
+        <symbol>router, receive_webhook</symbol>
+        <reason>Existing webhook endpoint handler structure. Story 2.1-2.4 implement POST /webhook/servicedesk. Story 2.5B extends with new POST /webhook/servicedesk/resolved-ticket endpoint following same pattern.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/webhook_validator.py</path>
+        <kind>service</kind>
+        <symbol>validate_signature, validate_webhook_signature</symbol>
+        <reason>HMAC-SHA256 signature validation (Story 2.2, COMPLETED). Story 2.5B reuses validate_signature() function for X-ServiceDesk-Signature header validation. Constant-time comparison (hmac.compare_digest) prevents timing attacks.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>TicketHistory</symbol>
+        <lines>192-281</lines>
+        <reason>Target table for webhook storage. Contains all fields needed: tenant_id (multi-tenant isolation), ticket_id (ServiceDesk ID), description, resolution, resolved_date, source ('bulk_import' vs 'webhook_resolved'), ingested_at. UNIQUE constraint on (tenant_id, ticket_id) for idempotency.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/session.py</path>
+        <kind>utility</kind>
+        <symbol>async_session_maker, get_async_session</symbol>
+        <reason>Database session management for async operations. Story 2.5B will use async_session_maker for non-blocking storage operations. AsyncSession supports async context managers and transaction control.</reason>
+      </artifact>
+      <artifact>
+        <path>src/utils/logger.py</path>
+        <kind>utility</kind>
+        <symbol>configure_logging</symbol>
+        <reason>Structured logging infrastructure. Story 2.5B will use logger from loguru with context fields (tenant_id, ticket_id, correlation_id) for traceability. Supports both development (colorized) and production (JSON) output.</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/webhook.py</path>
+        <kind>schema</kind>
+        <reason>Pydantic models for webhook request validation. Story 2.5B will add ResolvedTicketWebhook model with fields: tenant_id, ticket_id, subject, description, resolution, resolved_date, priority, tags. Pydantic provides automatic validation and 422 response on invalid input.</reason>
+      </artifact>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>configuration</kind>
+        <reason>Settings model with environment variable loading. Webhook validation requires shared secret (webhook_secret) from config. Story 2.2 establishes this pattern with AI_AGENTS_WEBHOOK_SECRET environment variable.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_webhook_validator.py</path>
+        <kind>test</kind>
+        <reason>Existing unit tests for Story 2.2 signature validation. Story 2.5B tests will follow same pattern: mock database, mock validator, test valid/invalid signatures, test 202 Accepted vs 401 Unauthorized responses.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.100.0">Web framework, async request handling, status codes (202 Accepted, 401, 422, etc.)</package>
+        <package name="sqlalchemy" version=">=2.0.0">Async ORM, insert().on_conflict_do_update() for UPSERT, UniqueConstraint</package>
+        <package name="pydantic" version=">=2.0.0">Request validation with automatic 422 UnprocessableEntity responses</package>
+        <package name="loguru" version=">=0.7.0">Structured logging with context fields</package>
+        <package name="httpx" version=">=0.24.0">Async HTTP client for potential retry implementations</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>
+      <name>webhook_signature_validation</name>
+      <description>All webhook requests MUST be validated using HMAC-SHA256 signature (Story 2.2 pattern). If signature invalid or missing, reject with 401 Unauthorized. Use hmac.compare_digest() for timing-attack-safe comparison.</description>
+      <source>Story 2.2, AC #4; Epic 2 Security Architecture</source>
+    </constraint>
+    <constraint>
+      <name>async_processing_pattern</name>
+      <description>Webhook endpoint MUST return 202 Accepted immediately without blocking storage operation. Storage must complete asynchronously (Celery task or asyncio.create_task()). AC #7: &lt;1 second storage time, &lt;50ms endpoint response.</description>
+      <source>Story 2.5B, AC #7, #10; Epic 2 Architecture</source>
+    </constraint>
+    <constraint>
+      <name>multi_tenant_isolation</name>
+      <description>All ticket_history queries and operations MUST filter by tenant_id. UNIQUE constraint on (tenant_id, ticket_id) prevents cross-tenant data collisions. No query should return results without tenant_id filter.</description>
+      <source>Story 1.3 Schema, AC #5; Epic 3 Security (out-of-scope but referenced)</source>
+    </constraint>
+    <constraint>
+      <name>idempotency_via_upsert</name>
+      <description>Use SQLAlchemy insert().on_conflict_do_update() with UNIQUE constraint on (tenant_id, ticket_id). If webhook delivered twice (network retry), second delivery MUST update existing record, not create duplicate. Verify: created_at unchanged, updated_at changed on update.</description>
+      <source>Story 2.5A Pattern (bulk import), AC #6; Story 2.5B, AC #6</source>
+    </constraint>
+    <constraint>
+      <name>data_provenance_tracking</name>
+      <description>All stored tickets MUST include: source='webhook_resolved' (not 'bulk_import'), ingested_at=NOW(). This distinguishes webhook-ingested data from bulk-imported data and enables future filtering by data freshness or source reliability.</description>
+      <source>Story 2.5A establishes pattern, Story 2.5B extends it; Epic 2 Design</source>
+    </constraint>
+    <constraint>
+      <name>database_session_async</name>
+      <description>Use async_session_maker from src/database/session.py for all database operations. FastAPI dependency must use get_async_session() or manual async_session_maker() context manager. No blocking database calls in webhook endpoint path.</description>
+      <source>src/database/session.py, Epic 2 Architecture</source>
+    </constraint>
+    <constraint>
+      <name>structured_logging</name>
+      <description>Use logger from loguru with context fields: correlation_id (trace request), tenant_id (isolate issues), ticket_id, event (webhook_received, stored, error), error_message (if applicable). Enable traceability per AC #11.</description>
+      <source>src/utils/logger.py, AC #11</source>
+    </constraint>
+    <constraint>
+      <name>performance_targets</name>
+      <description>Endpoint response time &lt;50ms (before storage completes). Storage completion &lt;1 second per ticket. Throughput: 1000+ webhooks/minute (16.67/sec, 60ms per ticket in background). Each storage operation estimated &lt;50ms (DB write), supports 200+ concurrent requests.</description>
+      <source>Story 2.5B, AC #7, #10</source>
+    </constraint>
+    <constraint>
+      <name>error_handling_non_blocking</name>
+      <description>If webhook storage fails (DB error, invalid data), log error but DO NOT block endpoint. Return 202 Accepted regardless of storage outcome. Errors logged for alerting and monitoring, not returned to webhook sender.</description>
+      <source>Story 2.5B, AC #8, #10; Epic 2 Graceful Degradation principle</source>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /webhook/servicedesk/resolved-ticket</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /webhook/servicedesk/resolved-ticket
+Headers:
+  - X-ServiceDesk-Signature: HMAC-SHA256(secret, payload)
+  - Content-Type: application/json
+Body: ResolvedTicketWebhook
+  {
+    "tenant_id": "string",
+    "ticket_id": "string",
+    "subject": "string",
+    "description": "string",
+    "resolution": "string",
+    "resolved_date": "ISO8601 datetime",
+    "priority": "string",
+    "tags": ["string"]
+  }
+Response: 202 Accepted
+  {
+    "status": "accepted"
+  }
+Error Responses:
+  - 401 Unauthorized: Invalid or missing signature
+  - 400 Bad Request: Malformed payload
+  - 422 Unprocessable Entity: Validation error (Pydantic)
+  - 503 Service Unavailable: Database error
+  - 500 Internal Server Error: Unexpected exception</signature>
+      <path>src/api/webhooks.py</path>
+    </interface>
+    <interface>
+      <name>WebhookValidator.validate_signature()</name>
+      <kind>function signature</kind>
+      <signature>validate_signature(
+  tenant_id: str,
+  payload_dict: dict,
+  signature_header: str,
+  secret: str
+) -> bool
+Raises: HTTPException(401) if validation fails
+Uses: hmac.new() + hmac.compare_digest() for timing-attack safety</signature>
+      <path>src/services/webhook_validator.py</path>
+    </interface>
+    <interface>
+      <name>TicketHistory ORM Model</name>
+      <kind>SQLAlchemy model</kind>
+      <signature>class TicketHistory(Base):
+  id: UUID (primary key)
+  tenant_id: str (indexed, required)
+  ticket_id: str (required)
+  description: str (required)
+  resolution: str (required)
+  resolved_date: datetime (required)
+  source: str (default='bulk_import', accepts 'webhook_resolved')
+  ingested_at: datetime (server_default=func.now())
+  created_at: datetime (server_default=func.now())
+  updated_at: datetime (server_default=func.now(), onupdate=func.now())
+UNIQUE constraint: (tenant_id, ticket_id)
+Indexes: tenant_id, resolved_date, (tenant_id, ticket_id)</signature>
+      <path>src/database/models.py</path>
+    </interface>
+    <interface>
+      <name>Pydantic ResolvedTicketWebhook Model</name>
+      <kind>data schema</kind>
+      <signature>class ResolvedTicketWebhook(BaseModel):
+  tenant_id: str (non-empty)
+  ticket_id: str (non-empty)
+  subject: str
+  description: str (max 10K chars, Epic 3 AC)
+  resolution: str
+  resolved_date: datetime (ISO8601 format)
+  priority: str
+  tags: list[str] (default=[])
+
+Validation:
+  - Pydantic auto-validation returns 422 on invalid type/format
+  - Custom validators for ticket_id non-empty, description &lt;10K, resolved_date valid ISO8601</signature>
+      <path>src/schemas/webhook.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use pytest with AsyncMock for database and validator mocking. Integration tests use real PostgreSQL test database with ticket_history table. Test fixtures include valid/invalid webhook payloads, HMAC signatures, and test tenant configuration. Expected coverage: 100% for webhook endpoint, storage logic, signature validation. Follow testing patterns from Story 2.2 (webhook validation) and Story 2.5A (database UPSERT).
+    </standards>
+    <locations>
+      tests/unit/test_resolved_ticket_webhook.py (unit tests for endpoint, validation, error handling)
+      tests/integration/test_resolved_ticket_webhook_integration.py (integration tests with real DB, async storage, UPSERT idempotency)
+    </locations>
+    <ideas>
+      AC #1-4 (Endpoint, Validation): Test valid webhook + correct signature → 202 Accepted; test invalid signature → 401 Unauthorized; test missing header → 401; test malformed payload → 422.
+      AC #5-6 (Storage, UPSERT): Test insert new ticket → stored with source='webhook_resolved', ingested_at set; test duplicate ticket (same tenant_id, ticket_id) → updates resolution/resolved_date, created_at unchanged, updated_at changed.
+      AC #7-8 (Async, Error Handling): Test endpoint responds &lt;50ms even with DB delays (mock slow insert); test database error → 503 Service Unavailable; test validation error → 422 (Pydantic).
+      AC #9-11 (Validation, Performance, Logging): Test ticket_id non-empty validation; test resolved_date ISO8601 parsing; test 100 concurrent webhooks stored within 5 seconds; verify correlation_id, tenant_id logged for each webhook.
+    </ideas>
+  </tests>
+</story-context>
