@@ -12,12 +12,20 @@ import pytest
 
 def pytest_configure(config):
     """Configure pytest before test collection."""
-    # Set default test environment variables BEFORE importing any modules
-    # These defaults are only used if explicitly needed by tests
-    # Some tests specifically test error handling when env vars are missing,
-    # so we don't set defaults for all required variables
+    # Set test environment variables BEFORE importing any modules
+    # This is critical - many modules import settings at module load time
+    os.environ.setdefault("AI_AGENTS_DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5433/ai_agents")
+    os.environ.setdefault("AI_AGENTS_REDIS_URL", "redis://localhost:6379/0")
+    os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
+    os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+    os.environ.setdefault("AI_AGENTS_WEBHOOK_SECRET", "test-webhook-secret-minimum-32-chars-required-here")
+    os.environ.setdefault("AI_AGENTS_OPENROUTER_API_KEY", "test-openrouter-api-key-sk-or-v1-valid-format")
+    os.environ.setdefault("AI_AGENTS_SERVICEDESK_API_KEY", "test-servicedesk-api-key")
+    os.environ.setdefault("AI_AGENTS_SERVICEDESK_BASE_URL", "https://test.servicedesk.com")
+    os.environ.setdefault("AI_AGENTS_OPENROUTER_SITE_URL", "https://test.example.com")
+    os.environ.setdefault("AI_AGENTS_OPENROUTER_APP_NAME", "AI Agents Test Suite")
 
-    # Only set environment if not already in CI/Docker environment
+    # Only set additional environment if not already in CI/Docker environment
     if not os.environ.get("CI"):
         # These can be set safely as they're used by most integration tests
         os.environ.setdefault("AI_AGENTS_ENVIRONMENT", "development")
@@ -34,17 +42,19 @@ def setup_test_env():
     os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
     os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     os.environ.setdefault("AI_AGENTS_WEBHOOK_SECRET", "test-webhook-secret-minimum-32-chars-required-here")
+    os.environ.setdefault("AI_AGENTS_OPENROUTER_API_KEY", "test-openrouter-api-key")
+    os.environ.setdefault("AI_AGENTS_SERVICEDESK_API_KEY", "test-servicedesk-api-key")
+    os.environ.setdefault("AI_AGENTS_SERVICEDESK_BASE_URL", "https://test.servicedesk.com")
 
     # Import config module AFTER environment variables are set
     from src import config
 
     # Force reload of settings module to pick up test environment variables
-    if config.settings is None:
-        try:
-            config.settings = config.Settings()
-        except Exception as e:
-            print(f"Warning: Could not initialize settings: {e}")
-            # Continue anyway, some tests may not need settings
+    try:
+        config.settings = config.Settings()
+    except Exception as e:
+        print(f"Warning: Could not initialize settings: {e}")
+        # Continue anyway, some tests may not need settings
 
     yield
 

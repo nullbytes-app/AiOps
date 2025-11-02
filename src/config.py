@@ -91,6 +91,46 @@ class Settings(BaseSettings):
         min_length=32,
     )
 
+    # OpenRouter/LLM Configuration
+    openrouter_api_key: str = Field(
+        ...,
+        description="OpenRouter API key for LLM synthesis (sk-or-v1-...)",
+    )
+    openrouter_base_url: str = Field(
+        default="https://openrouter.ai/api/v1",
+        description="OpenRouter API base URL",
+    )
+    openrouter_site_url: str = Field(
+        ...,
+        description="Site URL for HTTP-Referer header (for OpenRouter rankings)",
+    )
+    openrouter_app_name: str = Field(
+        ...,
+        description="App name for X-Title header (for OpenRouter rankings)",
+    )
+    llm_model: str = Field(
+        default="openai/gpt-4o-mini",
+        description="LLM model to use for synthesis (via OpenRouter)",
+    )
+    llm_max_tokens: int = Field(
+        default=1000,
+        description="Maximum tokens for LLM response (~500 words)",
+        ge=100,
+        le=4000,
+    )
+    llm_temperature: float = Field(
+        default=0.3,
+        description="LLM temperature for consistent, focused output",
+        ge=0.0,
+        le=1.0,
+    )
+    llm_timeout_seconds: int = Field(
+        default=30,
+        description="Timeout for LLM API calls (seconds)",
+        ge=5,
+        le=120,
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="AI_AGENTS_",

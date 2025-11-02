@@ -1,0 +1,297 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>2.10</storyId>
+    <title>Implement ServiceDesk Plus API Integration for Ticket Updates</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-10-implement-servicedesk-plus-api-integration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>enhancement agent</asA>
+    <iWant>update tickets in ServiceDesk Plus via API</iWant>
+    <soThat>technicians see enhancements within their existing workflow</soThat>
+    <tasks>
+      <task id="1" title="Set Up ServiceDesk Plus API Client Configuration">
+        <subtask id="1.1">Create servicedesk client module (src/services/servicedesk_client.py)</subtask>
+        <subtask id="1.2">Define API client function signature with async support</subtask>
+        <subtask id="1.3">Implement URL construction logic for ServiceDesk Plus API</subtask>
+        <subtask id="1.4">Configure HTTP client headers with authtoken authentication</subtask>
+      </task>
+      <task id="2" title="Implement Enhancement Content Formatting">
+        <subtask id="2.1">Create markdown-to-HTML converter function</subtask>
+        <subtask id="2.2">Test markdown conversion with sample enhancement</subtask>
+        <subtask id="2.3">Integrate conversion into API payload</subtask>
+      </task>
+      <task id="3" title="Implement Retry Logic with Exponential Backoff">
+        <subtask id="3.1">Define retry configuration constants (MAX_RETRIES=3, backoff 2s/4s/8s)</subtask>
+        <subtask id="3.2">Implement retry loop structure</subtask>
+        <subtask id="3.3">Implement retry decision logic (retry on 5xx, timeout, not on 401/404)</subtask>
+        <subtask id="3.4">Implement exponential backoff sleep mechanism</subtask>
+      </task>
+      <task id="4" title="Implement Error Handling and Logging">
+        <subtask id="4.1">Implement authentication error handling (401 as CRITICAL)</subtask>
+        <subtask id="4.2">Implement timeout error handling (WARNING level)</subtask>
+        <subtask id="4.3">Implement server error handling (5xx as ERROR)</subtask>
+        <subtask id="4.4">Implement connection error handling</subtask>
+        <subtask id="4.5">Implement generic exception handler (catch-all)</subtask>
+      </task>
+      <task id="5" title="Implement HTTP POST Request Logic">
+        <subtask id="5.1">Construct payload dictionary with note structure</subtask>
+        <subtask id="5.2">Create async HTTP client and execute POST request</subtask>
+        <subtask id="5.3">Handle successful response (2xx status codes)</subtask>
+        <subtask id="5.4">Extract response data for logging and audit trail</subtask>
+      </task>
+      <task id="6" title="Integration with Enhancement History Table">
+        <subtask id="6.1">Document expected integration pattern for Story 2.11</subtask>
+        <subtask id="6.2">Define enhancement_history update interface</subtask>
+        <subtask id="6.3">Add correlation ID parameter support</subtask>
+      </task>
+      <task id="7" title="Unit Tests with Mocked API Responses">
+        <subtask id="7.1">Create test file with fixtures and imports</subtask>
+        <subtask id="7.2">Test happy path - successful API call</subtask>
+        <subtask id="7.3">Test timeout error - retries then fails</subtask>
+        <subtask id="7.4">Test authentication failure (401) - no retry</subtask>
+        <subtask id="7.5">Test server error (500) - retries then fails</subtask>
+        <subtask id="7.6">Test not found error (404) - no retry</subtask>
+        <subtask id="7.7">Test connection error - retries then fails</subtask>
+        <subtask id="7.8">Test markdown to HTML conversion</subtask>
+      </task>
+      <task id="8" title="Documentation and Integration Notes">
+        <subtask id="8.1">Add function docstrings (Google style)</subtask>
+        <subtask id="8.2">Document ServiceDesk Plus API requirements</subtask>
+        <subtask id="8.3">Document retry configuration rationale</subtask>
+        <subtask id="8.4">Update architecture diagram if needed</subtask>
+      </task>
+      <task id="9" title="Validation Against Acceptance Criteria">
+        <subtask id="9.1">Checklist: API client configured (AC #1)</subtask>
+        <subtask id="9.2">Checklist: Work note function implemented (AC #2)</subtask>
+        <subtask id="9.3">Checklist: Content formatting (AC #3)</subtask>
+        <subtask id="9.4">Checklist: Retry logic (AC #4)</subtask>
+        <subtask id="9.5">Checklist: Error handling and logging (AC #5)</subtask>
+        <subtask id="9.6">Checklist: Enhancement history integration (AC #6)</subtask>
+        <subtask id="9.7">Checklist: Unit tests (AC #7)</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" title="ServiceDesk Plus API Client Configured">
+      <requirement>API client created in src/services/servicedesk_client.py</requirement>
+      <requirement>Base URL and API key loaded from tenant configuration (tenant_configs table)</requirement>
+      <requirement>Client initialization validates API key format (non-empty string)</requirement>
+      <requirement>Support for both HTTP and HTTPS base URLs with proper URL construction</requirement>
+    </criterion>
+    <criterion id="AC2" title="Work Note/Comment Function Implemented">
+      <requirement>Function: async def update_ticket_with_enhancement(base_url, api_key, ticket_id, enhancement) -&gt; bool</requirement>
+      <requirement>API Endpoint: POST /api/v3/requests/{ticket_id}/notes</requirement>
+      <requirement>Payload format: {"note": {"description": ..., "show_to_requester": True, ...}}</requirement>
+      <requirement>Returns True on success, False on failure</requirement>
+      <requirement>Function properly constructs full API URL from base_url and ticket_id</requirement>
+    </criterion>
+    <criterion id="AC3" title="Enhancement Content Formatting">
+      <requirement>Enhancement markdown converted to HTML for ServiceDesk Plus display</requirement>
+      <requirement>Use simple markdown-to-HTML conversion (newlines → &lt;br&gt;, basic formatting)</requirement>
+      <requirement>Preserve section headers, bullet points, and formatting from LLM output</requirement>
+      <requirement>Special characters properly escaped for HTML display</requirement>
+    </criterion>
+    <criterion id="AC4" title="Retry Logic with Exponential Backoff">
+      <requirement>Maximum 3 retry attempts on transient failures</requirement>
+      <requirement>Exponential backoff delays: 2s, 4s, 8s between retries</requirement>
+      <requirement>Retry on: TimeoutException, 5xx errors, connection errors</requirement>
+      <requirement>Do NOT retry on: 401 Unauthorized, 404 Not Found, 400 Bad Request</requirement>
+      <requirement>Total maximum timeout: 30 seconds (per AC in tech spec)</requirement>
+    </criterion>
+    <criterion id="AC5" title="Error Handling and Logging">
+      <requirement>All API failures logged with: ticket_id, tenant_id, status_code, error_message, correlation_id</requirement>
+      <requirement>Authentication errors (401) logged as CRITICAL security events</requirement>
+      <requirement>Timeout errors logged as WARNING with retry count</requirement>
+      <requirement>API 5xx errors logged as ERROR with stack trace</requirement>
+      <requirement>Connection errors logged with network details</requirement>
+      <requirement>Graceful degradation: Return False on failure, don't crash application</requirement>
+    </criterion>
+    <criterion id="AC6" title="Enhancement History Status Update">
+      <requirement>On success: Update enhancement_history table with status='completed'</requirement>
+      <requirement>Include: completed_at timestamp, processing_time_ms</requirement>
+      <requirement>On failure: Update enhancement_history table with status='failed', error_message</requirement>
+      <requirement>Store full context for debugging failed enhancements</requirement>
+    </criterion>
+    <criterion id="AC7" title="Unit Tests with Mocked API Responses">
+      <requirement>Test happy path: Successful API call returns True</requirement>
+      <requirement>Test timeout: API timeout after 30s returns False after retries</requirement>
+      <requirement>Test auth failure (401): Returns False immediately without retry</requirement>
+      <requirement>Test server error (500): Returns False after 3 retry attempts</requirement>
+      <requirement>Test not found (404): Returns False immediately without retry</requirement>
+      <requirement>Test connection error: Returns False after retries</requirement>
+      <requirement>Test invalid payload: Proper error handling and logging</requirement>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR015-FR017: Ticket Update Requirements</section>
+        <snippet>System shall update the original ticket in ServiceDesk Plus via API with enhancement content. System shall handle API failures with retry logic (max 3 attempts with exponential backoff).</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR001: Performance Requirements</section>
+        <snippet>System shall complete ticket enhancement within 120 seconds from webhook receipt to ticket update, with p95 latency under 60 seconds under normal load.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>HTTP Client: HTTPX</section>
+        <snippet>HTTPX chosen for sync + async support, HTTP/2, type hints, modern replacement for requests. Architecture mandates async/await patterns for HTTP operations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Logging Library: Loguru</section>
+        <snippet>Loguru for beginner-friendly logging, auto-configured, JSON output, rotation, colorized dev output. Structured logging with correlation IDs required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Story 2.10: ServiceDesk Plus API Integration (lines 1100-1197)</section>
+        <snippet>Complete implementation reference for update_ticket_with_enhancement function including API endpoint, payload structure, retry logic (3 attempts, 2s/4s/8s backoff), error handling (no retry on 401/404), and timeout (30s).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-9-integrate-openai-gpt4-for-context-synthesis.md</path>
+        <title>Story 2.9: LLM Synthesis</title>
+        <section>Integration Point</section>
+        <snippet>Story 2.9 outputs markdown enhancement (max 500 words) with sections: Similar Tickets, Documentation, System Info, Recommended Next Steps. Story 2.10 must convert this markdown to HTML for ServiceDesk Plus.</snippet>
+      </doc>
+      <doc>
+        <path>External: HTTPX Async Documentation</path>
+        <title>HTTPX Async Support</title>
+        <section>AsyncClient Usage</section>
+        <snippet>Use async with httpx.AsyncClient() as context manager for connection pooling. All request methods are async (await client.post(...)). Timeout configuration: httpx.AsyncClient(timeout=30.0).</snippet>
+      </doc>
+      <doc>
+        <path>External: ServiceDesk Plus API v3</path>
+        <title>ManageEngine ServiceDesk Plus Cloud API v3</title>
+        <section>Authentication and Work Notes</section>
+        <snippet>Authentication via 'authtoken' header (not Bearer). Endpoint: POST /api/v3/requests/{id}/notes. Payload: {"note": {"description": "...", "show_to_requester": true}}.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/services/llm_synthesis.py</path>
+        <kind>service</kind>
+        <symbol>synthesize_enhancement</symbol>
+        <lines>247-418</lines>
+        <reason>Story 2.9 output - returns markdown enhancement string that this story must convert to HTML and post to ServiceDesk Plus</reason>
+      </artifact>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>configuration</kind>
+        <symbol>Settings</symbol>
+        <lines>N/A</lines>
+        <reason>Configuration management - may need to import Settings class if ServiceDesk-specific config is added</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>EnhancementHistory</symbol>
+        <lines>106-189</lines>
+        <reason>Database model for tracking enhancement status - Story 2.11 will update this table based on API success/failure returned by this story</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_llm_synthesis.py</path>
+        <kind>test</kind>
+        <symbol>test_llm_synthesis_*</symbol>
+        <lines>N/A</lines>
+        <reason>Reference for test patterns - async mocking, fixtures, error handling tests to follow similar patterns</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="httpx" version="latest">Async HTTP client for ServiceDesk Plus API calls</package>
+        <package name="asyncio" version="stdlib">Async/await support and timeout management</package>
+        <package name="logging" version="stdlib">Structured logging with correlation IDs</package>
+        <package name="pytest" version="latest">Unit testing framework</package>
+        <package name="pytest-asyncio" version="latest">Async test support</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="performance">30-second total timeout per API call (part of 120s NFR001 budget)</constraint>
+    <constraint type="performance">Retry logic must complete within timeout: 3 retries × (API time + backoff) ≤ 30s</constraint>
+    <constraint type="architecture">Use async/await patterns (FastAPI async framework requirement)</constraint>
+    <constraint type="architecture">No direct database access - return boolean for caller to handle DB updates</constraint>
+    <constraint type="architecture">Separation of concerns - this module only handles API, Story 2.11 handles orchestration</constraint>
+    <constraint type="security">Never log API keys or sensitive credentials</constraint>
+    <constraint type="security">Validate base_url format to prevent injection attacks</constraint>
+    <constraint type="error-handling">Graceful degradation - return False on failure, never raise exceptions that crash application</constraint>
+    <constraint type="error-handling">Authentication errors (401) logged as CRITICAL security events</constraint>
+    <constraint type="testing">Mock all external HTTP calls - no real ServiceDesk Plus API calls in unit tests</constraint>
+    <constraint type="testing">Test coverage must include all 7 AC scenarios (success, timeout, 401, 500, 404, connection error, markdown conversion)</constraint>
+    <constraint type="code-style">Follow project standards: Black formatting, type hints, Google-style docstrings, PEP8</constraint>
+    <constraint type="markdown-conversion">MVP approach - simple conversion without external markdown library (defer mistletoe/markdown2 to future)</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>update_ticket_with_enhancement</name>
+      <kind>async function</kind>
+      <signature>async def update_ticket_with_enhancement(base_url: str, api_key: str, ticket_id: str, enhancement: str) -&gt; bool</signature>
+      <path>src/services/servicedesk_client.py (to be created)</path>
+      <description>Main API function - posts enhancement to ServiceDesk Plus, returns success/failure boolean</description>
+    </interface>
+    <interface>
+      <name>convert_markdown_to_html</name>
+      <kind>function</kind>
+      <signature>def convert_markdown_to_html(markdown: str) -&gt; str</signature>
+      <path>src/services/servicedesk_client.py (to be created)</path>
+      <description>Helper function - converts markdown to simple HTML for ServiceDesk Plus display</description>
+    </interface>
+    <interface>
+      <name>ServiceDesk Plus API v3 - Add Work Note</name>
+      <kind>REST API endpoint</kind>
+      <signature>POST /api/v3/requests/{ticket_id}/notes</signature>
+      <path>External: ServiceDesk Plus API</path>
+      <description>ServiceDesk Plus endpoint - payload: {"note": {"description": "HTML", "show_to_requester": true}}, auth: authtoken header</description>
+    </interface>
+    <interface>
+      <name>synthesize_enhancement</name>
+      <kind>async function (upstream)</kind>
+      <signature>async def synthesize_enhancement(context: WorkflowState) -&gt; str</signature>
+      <path>src/services/llm_synthesis.py:247</path>
+      <description>Story 2.9 function - returns markdown enhancement that this story consumes as input</description>
+    </interface>
+    <interface>
+      <name>EnhancementHistory</name>
+      <kind>database model (downstream)</kind>
+      <signature>SQLAlchemy model with status, error_message, completed_at, processing_time_ms fields</signature>
+      <path>src/database/models.py:106</path>
+      <description>Story 2.11 will update this model based on boolean returned by this story's API function</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Testing framework: Pytest with pytest-asyncio for async test support. Test file location: tests/unit/test_servicedesk_client.py. Mock external HTTP calls using unittest.mock.AsyncMock - no real ServiceDesk Plus API calls in unit tests. Test patterns follow test_llm_synthesis.py: fixtures for sample data, AsyncMock for httpx.AsyncClient.post, parametrized tests for multiple scenarios. Each acceptance criterion requires dedicated test function(s). Assertions verify both return values and side effects (HTTP call count, log messages). Test coverage must include all 7 AC scenarios plus edge cases.
+    </standards>
+    <locations>
+      <location>tests/unit/test_servicedesk_client.py (to be created)</location>
+      <location>tests/unit/ (pytest discovers test_*.py files automatically)</location>
+    </locations>
+    <ideas>
+      <test id="1" maps_to="AC1,AC2">test_update_ticket_success - Mock successful 200 response, verify POST called with correct URL/headers/payload, assert returns True</test>
+      <test id="2" maps_to="AC4">test_update_ticket_timeout_retries - Mock TimeoutException 3 times, verify 3 POST calls, verify exponential backoff sleep calls (2s, 4s, 8s), assert returns False</test>
+      <test id="3" maps_to="AC4,AC5">test_update_ticket_auth_failure_no_retry - Mock 401 HTTPStatusError, verify only 1 POST call (no retry), verify CRITICAL log message, assert returns False</test>
+      <test id="4" maps_to="AC4">test_update_ticket_server_error_retries - Mock 500 HTTPStatusError 3 times, verify 3 POST calls with backoff, assert returns False</test>
+      <test id="5" maps_to="AC4">test_update_ticket_not_found_no_retry - Mock 404 HTTPStatusError, verify only 1 POST call, assert returns False</test>
+      <test id="6" maps_to="AC4">test_update_ticket_connection_error_retries - Mock ConnectError 3 times, verify retry logic, assert returns False</test>
+      <test id="7" maps_to="AC3">test_convert_markdown_to_html - Test markdown conversion with sample enhancement: headers, bullets, newlines, special characters (<>&)</test>
+      <test id="8" maps_to="AC2">test_url_construction - Verify base_url stripping of trailing slashes, correct endpoint construction with ticket_id</test>
+      <test id="9" maps_to="AC5">test_logging_on_errors - Verify correct log levels (CRITICAL for 401, WARNING for timeout, ERROR for 5xx) and correlation_id included</test>
+      <test id="10" maps_to="AC2">test_payload_structure - Verify payload matches {"note": {"description": "HTML", "show_to_requester": true, ...}}</test>
+    </ideas>
+  </tests>
+</story-context>

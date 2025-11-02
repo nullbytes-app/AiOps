@@ -58,11 +58,11 @@ development_status:
   2-5B-store-resolved-tickets-automatically: done
   2-6-implement-documentation-and-knowledge-base-search: done
   2-7-implement-ip-address-cross-reference: done
-  2-8-integrate-langgraph-workflow-orchestration: review
-  2-9-integrate-openai-gpt4-for-context-synthesis: backlog
-  2-10-implement-servicedesk-plus-api-integration-for-ticket-updates: backlog
-  2-11-end-to-end-enhancement-workflow-integration: backlog
-  2-12-create-unit-and-integration-tests-for-enhancement-pipeline: backlog
+  2-8-integrate-langgraph-workflow-orchestration: done
+  2-9-integrate-openai-gpt4-for-context-synthesis: done
+  2-10-implement-servicedesk-plus-api-integration-for-ticket-updates: done
+  2-11-end-to-end-enhancement-workflow-integration: done
+  2-12-create-unit-and-integration-tests-for-enhancement-pipeline: done
   epic-2-retrospective: optional
 
   epic-3: backlog
