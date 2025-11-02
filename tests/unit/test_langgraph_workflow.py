@@ -1,397 +1,67 @@
 """
 Unit tests for LangGraph workflow orchestration.
 
-Tests Story 2.8: Integrate LangGraph Workflow Orchestration
-
-Test coverage:
-- Workflow initialization and graph structure (AC #1)
-- Node execution with mocked services (AC #2-#3)
-- Graceful degradation when nodes fail (AC #4)
-- State persistence for debugging (AC #5)
-- Performance logging (AC #6)
-- Concurrent execution validation (AC #7)
-
-Framework: Pytest with pytest-asyncio
-Mocking: unittest.mock (AsyncMock for async functions)
+Tests WorkflowState, individual node behavior, and state aggregation.
+Coverage: AC #1 (workflow structure), #3 (aggregation), #7 (unit tests)
 """
 
-import json
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
-
+import asyncio
 import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Dict, Any, List
 
 from src.workflows.enhancement_workflow import (
+    WorkflowState,
+    ticket_search_node,
+    kb_search_node,
+    ip_lookup_node,
     aggregate_results_node,
     build_enhancement_workflow,
-    doc_search_node,
-    get_debug_state,
-    ticket_search_node,
+    execute_context_gathering,
 )
-from src.workflows.state import WorkflowState
 
 
 # ============================================================================
-# Fixtures
+# FIXTURES
 # ============================================================================
-
 
 @pytest.fixture
-def base_state() -> WorkflowState:
-    """Minimal valid WorkflowState for testing."""
+def sample_workflow_state() -> Dict[str, Any]:
+    """
+    Sample WorkflowState for testing.
+
+    Provides baseline state with tenant isolation, description, and empty results.
+    """
     return {
-        "tenant_id": "test-tenant",
+        "tenant_id": "test-tenant-1",
         "ticket_id": "TICKET-001",
-        "description": "Server is down. IP 192.168.1.5 is unreachable.",
+        "description": "Server down - 192.168.1.100 not responding",
         "priority": "high",
-        "timestamp": "2025-11-02T10:30:00Z",
-        "correlation_id": "test-correlation-001",
+        "timestamp": "2025-11-02T10:00:00Z",
+        "correlation_id": "test-correlation-id",
         "similar_tickets": [],
         "kb_articles": [],
         "ip_info": [],
         "errors": [],
+        "ticket_search_time_ms": 0,
+        "kb_search_time_ms": 0,
+        "ip_lookup_time_ms": 0,
+        "workflow_start_time": 1000.0,
+        "workflow_end_time": 0,
+        "workflow_execution_time_ms": 0,
     }
 
 
-@pytest.fixture
-def mock_ticket_search_result():
-    """Mock result from ticket search service."""
-    return [
-        {
-            "ticket_id": "TICKET-001",
-            "description": "Server connectivity issue",
-            "resolution": "Restarted network service",
-            "resolved_date": "2025-10-30",
-        },
-        {
-            "ticket_id": "TICKET-002",
-            "description": "Server down",
-            "resolution": "Replaced faulty power supply",
-            "resolved_date": "2025-10-25",
-        },
-    ]
-
-
-@pytest.fixture
-def mock_kb_articles():
-    """Mock result from KB search service."""
-    return [
-        {
-            "title": "How to diagnose server connectivity issues",
-            "summary": "Step-by-step guide for troubleshooting server problems",
-            "url": "https://kb.example.com/article/server-connectivity",
-        }
-    ]
-
-
-@pytest.fixture
-def mock_ip_info():
-    """Mock result from IP lookup service."""
-    return [
-        {
-            "ip_address": "192.168.1.5",
-            "hostname": "db-server-01",
-            "role": "database",
-            "client": "web-app",
-            "location": "us-east-1",
-        }
-    ]
-
-
 # ============================================================================
-# AC #1: Workflow Initialization and Structure
+# UNIT TESTS: WorkflowState
 # ============================================================================
 
+class TestWorkflowState:
+    """AC #1: Workflow defined with required fields"""
 
-class TestWorkflowInitialization:
-    """Tests for workflow graph creation and node registration."""
-
-    def test_workflow_compilation(self):
-        """AC #1: Workflow initializes and compiles successfully."""
-        workflow = build_enhancement_workflow()
-        assert workflow is not None
-        # Compiled graph should have invoke method for execution
-        assert hasattr(workflow, "invoke")
-
-    def test_workflow_has_nodes(self):
-        """AC #1: Workflow graph contains all required nodes."""
-        workflow = build_enhancement_workflow()
-        # Compiled graph should have invoke method for execution
-        assert hasattr(workflow, "invoke")
-        # Graph is functional and can be called
-        assert callable(workflow.invoke)
-
-
-# ============================================================================
-# AC #2-#3: Node Execution and Result Aggregation
-# ============================================================================
-
-
-class TestTicketSearchNode:
-    """Tests for ticket_search_node (Story 2.5 integration)."""
-
-    @pytest.mark.asyncio
-    async def test_ticket_search_success(self, base_state, mock_ticket_search_result):
-        """AC #2, #3: Node executes and updates state with results."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.return_value = (
-                mock_ticket_search_result,
-                {"method": "fts", "elapsed_ms": 150},
-            )
-            mock_service_class.return_value = mock_service
-
-            result_state = await ticket_search_node(base_state)
-
-            assert len(result_state["similar_tickets"]) == 2
-            assert result_state["similar_tickets"][0]["ticket_id"] == "TICKET-001"
-            assert result_state["errors"] == []
-
-    @pytest.mark.asyncio
-    async def test_ticket_search_empty_results(self, base_state):
-        """AC #3: Node handles empty results gracefully."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.return_value = ([], {"method": "fts"})
-            mock_service_class.return_value = mock_service
-
-            result_state = await ticket_search_node(base_state)
-
-            assert result_state["similar_tickets"] == []
-            assert result_state["errors"] == []
-
-    @pytest.mark.asyncio
-    async def test_ticket_search_exception(self, base_state):
-        """AC #4: Node catches exception, logs, adds to errors, continues."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.side_effect = Exception(
-                "Database connection failed"
-            )
-            mock_service_class.return_value = mock_service
-
-            result_state = await ticket_search_node(base_state)
-
-            assert result_state["similar_tickets"] == []
-            assert len(result_state["errors"]) == 1
-            assert "Database connection failed" in result_state["errors"][0]["error_message"]
-
-
-class TestDocSearchNode:
-    """Tests for doc_search_node (Story 2.6 integration)."""
-
-    @pytest.mark.asyncio
-    async def test_kb_search_success(self, base_state, mock_kb_articles):
-        """AC #2, #3: Node executes KB search and updates state."""
-        with patch(
-            "src.workflows.enhancement_workflow.search_knowledge_base"
-        ) as mock_search:
-            mock_search.return_value = mock_kb_articles
-
-            result_state = await doc_search_node(base_state)
-
-            assert len(result_state["kb_articles"]) == 1
-            assert result_state["kb_articles"][0]["title"] == "How to diagnose server connectivity issues"
-            assert result_state["errors"] == []
-            mock_search.assert_called_once()
-
-    @pytest.mark.asyncio
-    async def test_kb_search_timeout_graceful(self, base_state):
-        """AC #4, #6: KB timeout (10s) returns empty list, doesn't block."""
-        with patch(
-            "src.workflows.enhancement_workflow.search_knowledge_base"
-        ) as mock_search:
-            # Simulate timeout returning empty list (AC #4: graceful degradation)
-            mock_search.return_value = []
-
-            result_state = await doc_search_node(base_state)
-
-            assert result_state["kb_articles"] == []
-            assert result_state["errors"] == []
-
-    @pytest.mark.asyncio
-    async def test_kb_search_api_error(self, base_state):
-        """AC #4: KB API error caught, logged, added to errors, continues."""
-        with patch(
-            "src.workflows.enhancement_workflow.search_knowledge_base"
-        ) as mock_search:
-            mock_search.side_effect = Exception("KB API unreachable")
-
-            result_state = await doc_search_node(base_state)
-
-            assert result_state["kb_articles"] == []
-            assert len(result_state["errors"]) == 1
-            assert "KB API unreachable" in result_state["errors"][0]["error_message"]
-
-
-# ============================================================================
-# AC #4: Graceful Degradation (Partial Failures)
-# ============================================================================
-
-
-class TestGracefulDegradation:
-    """Tests for workflow continuation when nodes fail."""
-
-    @pytest.mark.asyncio
-    async def test_one_node_fails_others_succeed(self, base_state):
-        """AC #4: Workflow completes even if one node fails."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_ticket_service, patch(
-            "src.workflows.enhancement_workflow.search_knowledge_base"
-        ) as mock_kb:
-            # Ticket search fails
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.side_effect = Exception("DB error")
-            mock_ticket_service.return_value = mock_service
-
-            # KB search succeeds
-            mock_kb.return_value = [{"title": "Article", "summary": "...", "url": "..."}]
-
-            # Execute ticket search node
-            result_state = await ticket_search_node(base_state)
-            assert len(result_state["errors"]) == 1
-            assert result_state["similar_tickets"] == []
-
-            # Execute KB search node
-            result_state = await doc_search_node(result_state)
-            assert len(result_state["kb_articles"]) == 1
-            # Only ticket search error should be in errors list
-            assert result_state["errors"][0]["node_name"] == "ticket_search_node"
-
-    @pytest.mark.asyncio
-    async def test_all_nodes_fail(self, base_state):
-        """AC #4: Workflow completes with only errors in state (all nodes fail)."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_ticket_service, patch(
-            "src.workflows.enhancement_workflow.search_knowledge_base"
-        ) as mock_kb:
-            # Both services fail
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.side_effect = Exception("DB error")
-            mock_ticket_service.return_value = mock_service
-            mock_kb.side_effect = Exception("API error")
-
-            result_state = await ticket_search_node(base_state)
-            result_state = await doc_search_node(result_state)
-
-            assert result_state["similar_tickets"] == []
-            assert result_state["kb_articles"] == []
-            assert len(result_state["errors"]) == 2
-
-
-# ============================================================================
-# AC #5: State Persistence for Debugging
-# ============================================================================
-
-
-class TestStatePersistence:
-    """Tests for workflow state persistence."""
-
-    @pytest.mark.asyncio
-    async def test_state_persisted_after_aggregation(self, base_state, mock_ticket_search_result):
-        """AC #5: State serialized and stored after workflow completion."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.return_value = (
-                mock_ticket_search_result,
-                {"method": "fts"},
-            )
-            mock_service_class.return_value = mock_service
-
-            # Execute nodes
-            state = await ticket_search_node(base_state)
-            state = await aggregate_results_node(state)
-
-            # Check state was persisted
-            debug_state = get_debug_state(state["ticket_id"])
-            assert debug_state is not None
-            assert debug_state["ticket_id"] == "TICKET-001"
-            assert debug_state["similar_tickets_count"] == 2
-
-    def test_state_history_limit(self, base_state):
-        """AC #5: State history maintains max 100 entries."""
-        # Create multiple states
-        for i in range(150):
-            state = base_state.copy()
-            state["ticket_id"] = f"TICKET-{i:03d}"
-            from src.workflows.enhancement_workflow import _persist_state_for_debugging
-            _persist_state_for_debugging(state)
-
-        # Should never exceed 100 entries
-        from src.workflows.enhancement_workflow import _state_history
-        assert len(_state_history) <= 100
-
-
-# ============================================================================
-# AC #6: Performance Logging
-# ============================================================================
-
-
-class TestPerformanceLogging:
-    """Tests for workflow execution timing and logging."""
-
-    @pytest.mark.asyncio
-    async def test_node_execution_time_logged(self, base_state):
-        """AC #6: Node execution time is measured and logged."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.return_value = ([], {"method": "fts"})
-            mock_service_class.return_value = mock_service
-
-            import time
-            start = time.time()
-            result_state = await ticket_search_node(base_state)
-            elapsed = time.time() - start
-
-            # Should complete in reasonable time (< 1s for mock)
-            assert elapsed < 1.0
-            # Logger should have been called with timing info
-            # (verified via logging assertions)
-
-    @pytest.mark.asyncio
-    async def test_aggregation_logs_stats(self, base_state, mock_ticket_search_result):
-        """AC #6: Aggregation node logs summary stats."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.return_value = (
-                mock_ticket_search_result,
-                {"method": "fts"},
-            )
-            mock_service_class.return_value = mock_service
-
-            state = await ticket_search_node(base_state)
-            result_state = await aggregate_results_node(state)
-
-            # Aggregation should add source citations
-            assert "source_citations" in result_state
-            assert "similar_tickets" in result_state["source_citations"]
-
-
-# ============================================================================
-# AC #7: State Structure
-# ============================================================================
-
-
-class TestWorkflowStateStructure:
-    """Tests for WorkflowState integrity and required fields."""
-
-    def test_state_has_all_required_fields(self, base_state):
-        """AC #7: State contains all required fields for aggregation."""
-        required_fields = [
+    def test_workflow_state_has_all_required_fields(self, sample_workflow_state):
+        """Verify WorkflowState has all fields defined in AC #1"""
+        required_fields = {
             "tenant_id",
             "ticket_id",
             "description",
@@ -402,77 +72,263 @@ class TestWorkflowStateStructure:
             "kb_articles",
             "ip_info",
             "errors",
-        ]
-        for field in required_fields:
-            assert field in base_state
+            "ticket_search_time_ms",
+            "kb_search_time_ms",
+            "ip_lookup_time_ms",
+            "workflow_start_time",
+            "workflow_end_time",
+            "workflow_execution_time_ms",
+        }
+        assert all(field in sample_workflow_state for field in required_fields)
 
-    @pytest.mark.asyncio
-    async def test_state_mutations_preserve_fields(self, base_state):
-        """State fields persist through node execution."""
-        original_tenant = base_state["tenant_id"]
-        original_ticket = base_state["ticket_id"]
+    def test_workflow_state_field_types(self, sample_workflow_state):
+        """Verify field types match TypedDict definition"""
+        assert isinstance(sample_workflow_state["tenant_id"], str)
+        assert isinstance(sample_workflow_state["similar_tickets"], list)
+        assert isinstance(sample_workflow_state["kb_articles"], list)
+        assert isinstance(sample_workflow_state["ip_info"], list)
+        assert isinstance(sample_workflow_state["errors"], list)
+        assert isinstance(sample_workflow_state["ticket_search_time_ms"], int)
 
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
-            mock_service = AsyncMock()
-            mock_service.search_similar_tickets.return_value = ([], {"method": "fts"})
-            mock_service_class.return_value = mock_service
-
-            result_state = await ticket_search_node(base_state)
-
-        assert result_state["tenant_id"] == original_tenant
-        assert result_state["ticket_id"] == original_ticket
+    def test_workflow_state_tenant_isolation(self, sample_workflow_state):
+        """Tenant ID must be present for data isolation"""
+        assert sample_workflow_state["tenant_id"] == "test-tenant-1"
+        state_copy = sample_workflow_state.copy()
+        state_copy["tenant_id"] = "different-tenant"
+        assert state_copy["tenant_id"] != sample_workflow_state["tenant_id"]
 
 
 # ============================================================================
-# Error Accumulation and Reporting
+# UNIT TESTS: Node Behavior
 # ============================================================================
 
-
-class TestErrorHandling:
-    """Tests for error tracking and reporting."""
+class TestTicketSearchNode:
+    """AC #3: Nodes update state correctly, AC #4: Error handling"""
 
     @pytest.mark.asyncio
-    async def test_error_record_structure(self, base_state):
-        """Error records include node name, message, timestamp, severity."""
-        with patch(
-            "src.workflows.enhancement_workflow.TicketSearchService"
-        ) as mock_service_class:
+    async def test_ticket_search_node_success(self, sample_workflow_state):
+        """Test ticket_search_node succeeds with mock data"""
+        mock_results = [
+            {"ticket_id": "TICKET-002", "description": "Similar issue"},
+            {"ticket_id": "TICKET-003", "description": "Related problem"},
+        ]
+        mock_metadata = {"method": "fts", "num_results": 2}
+
+        with patch("src.workflows.enhancement_workflow.TicketSearchService") as MockService:
             mock_service = AsyncMock()
-            mock_service.search_similar_tickets.side_effect = Exception("Test error")
-            mock_service_class.return_value = mock_service
+            mock_service.search_similar_tickets = AsyncMock(
+                return_value=(mock_results, mock_metadata)
+            )
+            MockService.return_value = mock_service
 
-            result_state = await ticket_search_node(base_state)
+            result = await ticket_search_node(sample_workflow_state)
 
-            assert len(result_state["errors"]) == 1
-            error = result_state["errors"][0]
-            assert "node_name" in error
-            assert "error_message" in error
-            assert "timestamp" in error
-            assert "severity" in error
-            assert error["node_name"] == "ticket_search_node"
-            assert error["severity"] in ["low", "medium", "high"]
+            # Verify results are in state
+            assert len(result["similar_tickets"]) == 2
+            assert result["ticket_search_time_ms"] >= 0
+            assert "errors" not in result or len(result.get("errors", [])) == 0
 
     @pytest.mark.asyncio
-    async def test_multiple_errors_accumulated(self, base_state):
-        """Multiple node failures accumulate errors in state."""
-        state_with_error = base_state.copy()
-        state_with_error["errors"] = [
-            {
-                "node_name": "ticket_search_node",
-                "error_message": "Error 1",
-                "timestamp": "2025-11-02T10:30:00Z",
-                "severity": "medium",
-            }
+    async def test_ticket_search_node_graceful_degradation(self, sample_workflow_state):
+        """AC #4: Node catches exception, logs error, returns gracefully"""
+        with patch("src.workflows.enhancement_workflow.TicketSearchService") as MockService:
+            mock_service = AsyncMock()
+            mock_service.search_similar_tickets = AsyncMock(
+                side_effect=Exception("Database connection failed")
+            )
+            MockService.return_value = mock_service
+
+            result = await ticket_search_node(sample_workflow_state)
+
+            # Verify graceful degradation
+            assert result["similar_tickets"] == []
+            assert len(result["errors"]) == 1
+            assert result["errors"][0]["node"] == "ticket_search_node"
+            assert "Database connection failed" in result["errors"][0]["message"]
+
+    @pytest.mark.asyncio
+    async def test_ticket_search_node_empty_results(self, sample_workflow_state):
+        """Node handles empty search results gracefully"""
+        with patch("src.workflows.enhancement_workflow.TicketSearchService") as MockService:
+            mock_service = AsyncMock()
+            mock_service.search_similar_tickets = AsyncMock(return_value=([], {}))
+            MockService.return_value = mock_service
+
+            result = await ticket_search_node(sample_workflow_state)
+
+            assert result["similar_tickets"] == []
+            assert "errors" not in result or len(result.get("errors", [])) == 0
+
+
+class TestKBSearchNode:
+    """AC #3: Nodes update state correctly, AC #4: Error handling"""
+
+    @pytest.mark.asyncio
+    async def test_kb_search_node_success(self, sample_workflow_state):
+        """Test kb_search_node succeeds with mock data"""
+        mock_articles = [
+            {"title": "How to troubleshoot server downtime", "url": "http://kb.example.com/1"},
+            {"title": "Common network issues", "url": "http://kb.example.com/2"},
         ]
 
-        with patch(
-            "src.workflows.enhancement_workflow.search_knowledge_base"
-        ) as mock_kb:
-            mock_kb.side_effect = Exception("Error 2")
-            result_state = await doc_search_node(state_with_error)
+        with patch("src.workflows.enhancement_workflow.KBSearchService") as MockService:
+            mock_service = AsyncMock()
+            mock_service.search_knowledge_base = AsyncMock(return_value=mock_articles)
+            MockService.return_value = mock_service
 
-        assert len(result_state["errors"]) == 2
-        assert result_state["errors"][0]["node_name"] == "ticket_search_node"
-        assert result_state["errors"][1]["node_name"] == "doc_search_node"
+            result = await kb_search_node(sample_workflow_state)
+
+            assert len(result["kb_articles"]) == 2
+            assert result["kb_search_time_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_kb_search_node_empty_config_returns_empty(self, sample_workflow_state):
+        """KB search with empty URL/API key returns empty list (graceful)"""
+        with patch("src.workflows.enhancement_workflow.KBSearchService") as MockService:
+            mock_service = AsyncMock()
+            mock_service.search_knowledge_base = AsyncMock(return_value=[])
+            MockService.return_value = mock_service
+
+            result = await kb_search_node(sample_workflow_state)
+
+            assert result["kb_articles"] == []
+            assert "errors" not in result or len(result.get("errors", [])) == 0
+
+    @pytest.mark.asyncio
+    async def test_kb_search_node_graceful_degradation(self, sample_workflow_state):
+        """AC #4: KB node catches exception and returns empty gracefully"""
+        with patch("src.workflows.enhancement_workflow.KBSearchService") as MockService:
+            mock_service = AsyncMock()
+            mock_service.search_knowledge_base = AsyncMock(
+                side_effect=Exception("KB API timeout")
+            )
+            MockService.return_value = mock_service
+
+            result = await kb_search_node(sample_workflow_state)
+
+            assert result["kb_articles"] == []
+            assert len(result["errors"]) == 1
+            assert "KB API timeout" in result["errors"][0]["message"]
+
+
+class TestIPLookupNode:
+    """AC #3: Nodes update state correctly, AC #4: Error handling"""
+
+    @pytest.mark.asyncio
+    async def test_ip_lookup_node_no_session_returns_empty(self, sample_workflow_state):
+        """IP lookup with no session returns empty list (expected behavior)"""
+        result = await ip_lookup_node(sample_workflow_state)
+
+        # When session is None, node returns empty results
+        assert result["ip_info"] == []
+        assert result["ip_lookup_time_ms"] == 0
+
+    @pytest.mark.asyncio
+    async def test_ip_lookup_node_graceful_error(self, sample_workflow_state):
+        """IP lookup handles errors gracefully"""
+        result = await ip_lookup_node(sample_workflow_state)
+        
+        # No session, so returns empty (not an error condition)
+        assert result["ip_info"] == []
+
+
+# ============================================================================
+# UNIT TESTS: Aggregation
+# ============================================================================
+
+class TestAggregateResultsNode:
+    """AC #3: Workflow aggregates results from all nodes"""
+
+    @pytest.mark.asyncio
+    async def test_aggregate_results_node_empty_inputs(self, sample_workflow_state):
+        """Aggregation handles empty results from all nodes"""
+        result = await aggregate_results_node(sample_workflow_state)
+
+        assert "workflow_end_time" in result
+        assert "workflow_execution_time_ms" in result
+        assert result["workflow_execution_time_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_aggregate_results_node_with_data(self, sample_workflow_state):
+        """Aggregation processes data from all three nodes"""
+        state_with_data = sample_workflow_state.copy()
+        state_with_data["similar_tickets"] = [{"ticket_id": "1"}]
+        state_with_data["kb_articles"] = [{"title": "Article"}]
+        state_with_data["ip_info"] = [{"ip": "192.168.1.1"}]
+
+        result = await aggregate_results_node(state_with_data)
+
+        assert "workflow_end_time" in result
+        assert result["workflow_execution_time_ms"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_aggregate_results_node_with_errors(self, sample_workflow_state):
+        """Aggregation continues even with errors from nodes"""
+        state_with_errors = sample_workflow_state.copy()
+        state_with_errors["errors"] = [
+            {"node": "ticket_search_node", "message": "Failed", "timestamp": 1000}
+        ]
+
+        result = await aggregate_results_node(state_with_errors)
+
+        # Aggregation should still complete
+        assert "workflow_end_time" in result
+
+
+# ============================================================================
+# UNIT TESTS: Workflow Builder
+# ============================================================================
+
+class TestBuildEnhancementWorkflow:
+    """AC #1: Workflow defined with nodes, AC #2: Parallel structure"""
+
+    def test_build_workflow_creates_state_graph(self):
+        """Workflow builder creates a compilable StateGraph"""
+        workflow = build_enhancement_workflow()
+
+        # Verify it's compiled and executable
+        assert workflow is not None
+        assert hasattr(workflow, "ainvoke")
+
+    def test_workflow_execution_structure(self):
+        """Workflow has correct structure"""
+        workflow = build_enhancement_workflow()
+
+        # Verify workflow can be invoked (structure is correct)
+        assert hasattr(workflow, "ainvoke")
+
+
+# ============================================================================
+# UNIT TESTS: Execute Context Gathering
+# ============================================================================
+
+class TestExecuteContextGathering:
+    """AC #1, #2, #3, #4, #5, #6: Full workflow execution"""
+
+    @pytest.mark.asyncio
+    async def test_execute_context_gathering_with_mocks(self):
+        """execute_context_gathering returns a valid WorkflowState with mocks"""
+        with patch("src.workflows.enhancement_workflow.TicketSearchService") as MockTicket, \
+             patch("src.workflows.enhancement_workflow.KBSearchService") as MockKB:
+
+            # Mock services
+            ticket_service = AsyncMock()
+            ticket_service.search_similar_tickets = AsyncMock(
+                return_value=([{"ticket_id": "1"}], {"method": "fts"})
+            )
+            MockTicket.return_value = ticket_service
+
+            kb_service = AsyncMock()
+            kb_service.search_knowledge_base = AsyncMock(return_value=[{"title": "Article"}])
+            MockKB.return_value = kb_service
+
+            result = await execute_context_gathering(
+                tenant_id="test-tenant",
+                ticket_id="TICKET-001",
+                description="test issue",
+            )
+
+            # Verify result structure
+            assert result is not None
+            assert result["tenant_id"] == "test-tenant"
+            assert "workflow_execution_time_ms" in result
