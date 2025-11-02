@@ -45,11 +45,11 @@ def compute_webhook_signature(payload_dict: dict, secret: str) -> str:
     return signature
 
 
-@pytest.mark.asyncio
+@pytest.mark.integration
 class TestResolvedTicketWebhookIntegration:
     """Integration tests for resolved ticket webhook endpoint."""
 
-    async def test_webhook_endpoint_returns_202_accepted(self):
+    def test_webhook_endpoint_returns_202_accepted(self):
         """
         AC #1, #7: Webhook endpoint returns 202 Accepted immediately.
         """

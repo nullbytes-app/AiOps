@@ -7,7 +7,7 @@ success scenarios, error handling, and validation of job data.
 
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
@@ -44,7 +44,7 @@ class TestQueueService:
             "tenant_id": "tenant-abc",
             "description": "Server is slow and unresponsive",
             "priority": "high",
-            "timestamp": datetime.utcnow(),
+            "timestamp": datetime.now(UTC),
         }
 
     @pytest.mark.asyncio
@@ -246,7 +246,7 @@ class TestQueueService:
                 "tenant_id": "tenant-abc",
                 "description": f"Issue {i}",
                 "priority": "high",
-                "timestamp": datetime.utcnow(),
+                "timestamp": datetime.now(UTC),
             }
             for i in range(1, 4)
         ]

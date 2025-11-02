@@ -1,0 +1,163 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>7</storyId>
+    <title>Implement IP Address Cross-Reference</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-02</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/2-7-implement-ip-address-cross-reference.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an enhancement agent</asA>
+    <iWant>to identify and cross-reference IP addresses mentioned in tickets</iWant>
+    <soThat>technicians know which systems are affected</soThat>
+    <tasks>
+      <task id="1" title="Design IP lookup service interface">Acceptance Criteria: #1, #2, #3. Define function signature, document parameter meanings, define IPv4/IPv6 regex patterns, create Pydantic response model, document tenant isolation requirement.</task>
+      <task id="2" title="Implement IP extraction logic">Acceptance Criteria: #1, #6. Create src/services/ip_lookup.py with regex extraction for IPv4/IPv6, deduplication, error handling, and structured logging with correlation_id.</task>
+      <task id="3" title="Implement system inventory lookup">Acceptance Criteria: #2, #3, #4. Query system_inventory table by IP addresses filtered by tenant_id, return hostname/role/client/location fields, handle database errors gracefully.</task>
+      <task id="4" title="Implement error handling and graceful degradation">Acceptance Criteria: #5. Handle no IPs found, database unavailable, invalid regex patterns, malformed IPs, and no inventory matches - all return empty list with appropriate logging.</task>
+      <task id="5" title="Create unit tests for IP lookup">Acceptance Criteria: #7. Create tests/unit/test_ip_lookup.py with 10+ unit tests covering IPv4/IPv6 extraction, edge cases, inventory lookup, tenant isolation, and database error handling.</task>
+      <task id="6" title="Integration with enhancement workflow">Acceptance Criteria: #4, #5. Review Story 2.8 LangGraph workflow ip_lookup_node signature, verify async pattern, confirm WorkflowState.ip_info field, document error handling.</task>
+      <task id="7" title="Create integration test">Acceptance Criteria: #2, #3, #4, #5. Create tests/integration/test_ip_lookup_integration.py with end-to-end tests for extraction, lookup, multiple systems, tenant isolation, and error handling.</task>
+      <task id="8" title="Documentation and API contract">Acceptance Criteria: #1, #2, #3, #6. Document IP extraction patterns in module docstring, document system_inventory schema, add code examples, document tenant isolation strategy.</task>
+      <task id="9" title="Performance and monitoring">Acceptance Criteria: #1, #2. Log extraction time, lookup time, count of extracted IPs and matches, structured logging with tenant_id and correlation_id.</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Function extracts IP addresses from ticket description using regex (IPv4 and IPv6)</criterion>
+    <criterion id="2">Queries system_inventory table for matching IPs, tenant-isolated</criterion>
+    <criterion id="3">Returns system details: hostname, role, client, location</criterion>
+    <criterion id="4">Handles multiple IPs in single ticket (returns results for all matched IPs)</criterion>
+    <criterion id="5">No match returns empty list (not an error; graceful degradation)</criterion>
+    <criterion id="6">IPv4 and IPv6 patterns both supported (per tech-spec Section 5)</criterion>
+    <criterion id="7">Unit tests verify IP extraction, lookup, and edge cases</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Epic 2 Technical Specification</title>
+        <section>Section 5: Context Gathering - IP Address Cross-Reference (Story 2.7)</section>
+        <snippet>Extract IP addresses from ticket description using IPv4 and IPv6 regex patterns. Query system_inventory table for matching IPs (tenant-isolated). Return system details: hostname, role, client, location. Patterns: IPv4 = \b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b; IPv6 = \b(?:[A-Fa-f0-9]{1,4}:){7}[A-Fa-f0-9]{1,4}\b</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>Epic 2 Architecture - Context Gathering Pipeline</section>
+        <snippet>IP lookup node executes in parallel with ticket history search and KB search via LangGraph workflow. Results feed into LLM synthesis for context-aware enhancement generation. Graceful degradation: missing IP data acceptable, enhancement continues with partial context.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - FR005: Context Gathering</section>
+        <snippet>System must identify and cross-reference IP addresses mentioned in ticket descriptions. Integration with system inventory enables technicians to know which systems are affected and accelerates resolution.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/2-6-implement-documentation-and-knowledge-base-search.md</path>
+        <title>Story 2.6 - Knowledge Base Search (Completed Reference)</title>
+        <section>Dev Notes - Patterns to Reuse</section>
+        <snippet>Async function patterns for database operations, graceful degradation with logging, structured logging with correlation_id and tenant_id, tenant isolation via WHERE tenant_id = ? filter, empty results handling as non-error state.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model_definitions</kind>
+        <symbol>Base, TenantConfig, EnhancementHistory, TicketHistory</symbol>
+        <reason>Reference for database model patterns and tenant isolation implementation. SystemInventory model must be added following same pattern as other models (SQLAlchemy ORM with UUID primary key, tenant_id constraint, indexed columns).</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/kb_search.py</path>
+        <kind>service_implementation</kind>
+        <symbol>KBSearchService, search_knowledge_base</symbol>
+        <reason>Template for async service pattern. Shows async function signature, error handling strategy, database session usage, tenant isolation via WHERE clause, and graceful degradation (empty list return on error).</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_kb_search.py</path>
+        <kind>test_examples</kind>
+        <symbol>Test methods and fixtures</symbol>
+        <reason>Reference for unit test structure, mocking database operations, testing async functions, tenant isolation verification, and error handling scenarios.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_kb_search_integration.py</path>
+        <kind>integration_test</kind>
+        <symbol>Integration test suite</symbol>
+        <reason>Template for integration tests: database setup, fixture usage, end-to-end scenario testing, and cleanup patterns for IP lookup integration tests.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <ecosystem name="python">
+        <package name="sqlalchemy" version="2.0+">ORM for database access, async session support</package>
+        <package name="sqlalchemy-utils" version="0.41+">For INET type support (PostgreSQL IP address type)</package>
+        <package name="pydantic" version="2.0+">Data validation for response models</package>
+        <package name="pytest" version="7.0+">Unit and integration testing framework</package>
+        <package name="pytest-asyncio" version="0.21+">Async test support</package>
+      </ecosystem>
+      <ecosystem name="postgresql">
+        <component name="INET data type">Native support for IPv4 and IPv6 addresses with operators and indexing</component>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All database queries must filter by tenant_id to prevent cross-tenant data leakage</constraint>
+    <constraint>IP extraction must support both IPv4 and IPv6 formats per tech-spec patterns</constraint>
+    <constraint>Function must use async/await pattern for database operations (consistency with existing services)</constraint>
+    <constraint>Error handling must follow graceful degradation: no IPs found or DB unavailable → return empty list, log warning</constraint>
+    <constraint>Service must be structured as module in src/services/ (max 500 lines code per CLAUDE.md)</constraint>
+    <constraint>All functions require docstrings using Google style with Args, Returns sections</constraint>
+    <constraint>SystemInventory model must be added to src/database/models.py with proper constraints and indexing</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>extract_and_lookup_ips</name>
+      <kind>async function</kind>
+      <signature>async def extract_and_lookup_ips(session: AsyncSession, tenant_id: str, description: str) -> List[Dict]</signature>
+      <path>src/services/ip_lookup.py</path>
+      <details>Parameters: session (AsyncSession for DB access), tenant_id (for tenant isolation), description (ticket description string). Returns: List of dicts with keys: ip_address, hostname, role, client, location. Empty list on no matches, DB error, or invalid input.</details>
+    </interface>
+    <interface>
+      <name>WorkflowState.ip_info</name>
+      <kind>TypedDict field</kind>
+      <signature>ip_info: Optional[List[Dict]]</signature>
+      <path>src/workflows/enhancement_workflow.py</path>
+      <details>Workflow state field for storing IP lookup results. Populated by ip_lookup_node. Format: List of system info dicts with ip_address, hostname, role, client, location fields.</details>
+    </interface>
+    <interface>
+      <name>ip_lookup_node</name>
+      <kind>async LangGraph node</kind>
+      <signature>async def ip_lookup_node(state: WorkflowState, session) -> WorkflowState</signature>
+      <path>src/workflows/enhancement_workflow.py</path>
+      <details>LangGraph node that calls extract_and_lookup_ips, populates state[ip_info], handles errors by appending to state[errors]. Executes in parallel with ticket_search_node and kb_search_node.</details>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Testing uses pytest with async support (pytest-asyncio). Unit tests mock database operations using sqlalchemy mock objects or fixtures. Integration tests use real test database with sample system_inventory data. All tests verify: (1) correct extraction of IPs, (2) proper database queries with tenant isolation, (3) error handling and graceful degradation, (4) empty result handling. Minimum coverage: 85% of service code.</standards>
+    <locations>
+      <location>tests/unit/test_ip_lookup.py (NEW)</location>
+      <location>tests/integration/test_ip_lookup_integration.py (NEW)</location>
+    </locations>
+    <ideas>
+      <idea ac="1, 6">Test IPv4 extraction from single and multiple IPs in description using regex validation</idea>
+      <idea ac="1, 6">Test IPv6 extraction with various formats (compressed, full, mixed)</idea>
+      <idea ac="1">Test deduplication of extracted IPs (set behavior)</idea>
+      <idea ac="2, 3">Test system_inventory lookup with mock database, verifying hostname/role/client/location fields returned</idea>
+      <idea ac="2, 3">Test tenant isolation: same IP in different tenants returns different or empty results per tenant</idea>
+      <idea ac="4">Test multiple IPs in description returns multiple system records</idea>
+      <idea ac="5">Test no IPs found returns empty list (not error)</idea>
+      <idea ac="5">Test database unavailable returns empty list with error logged</idea>
+      <idea ac="5">Test invalid IP formats filtered out, valid IPs processed</idea>
+      <idea ac="1">Test regex edge cases: IPs at start/end of string, in parentheses, with punctuation</idea>
+      <idea ac="2, 3, 4">Integration test: end-to-end flow from description through extraction to inventory lookup</idea>
+      <idea ac="2, 3, 4, 5">Integration test: concurrent requests with same IP verify data consistency and correct tenant isolation</idea>
+    </ideas>
+  </tests>
+</story-context>

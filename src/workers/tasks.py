@@ -10,7 +10,7 @@ per tech spec requirements.
 """
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, UTC
 from time import time
 from typing import Any, Dict
 
@@ -240,7 +240,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                     llm_output=None,
                     error_message=None,
                     processing_time_ms=None,
-                    created_at=datetime.utcnow(),
+                    created_at=datetime.now(UTC),
                     completed_at=None,
                 )
                 session.add(enhancement)
@@ -284,7 +284,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                 processing_time_ms = int((time() - start_time) * 1000)
                 enhancement.status = "completed"
                 enhancement.processing_time_ms = processing_time_ms
-                enhancement.completed_at = datetime.utcnow()
+                enhancement.completed_at = datetime.now(UTC)
                 enhancement.llm_output = f"Placeholder: Enhancement processing completed for ticket {job.ticket_id}"
                 await session.commit()
 
@@ -348,7 +348,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                         enhancement.status = "failed"
                         enhancement.error_message = "Task exceeded soft time limit (100s)"
                         enhancement.processing_time_ms = processing_time_ms
-                        enhancement.completed_at = datetime.utcnow()
+                        enhancement.completed_at = datetime.now(UTC)
                         await session.commit()
 
             asyncio.run(mark_timeout())
@@ -388,7 +388,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                         enhancement.status = "failed"
                         enhancement.error_message = f"{type(exc).__name__}: {str(exc)}"
                         enhancement.processing_time_ms = processing_time_ms
-                        enhancement.completed_at = datetime.utcnow()
+                        enhancement.completed_at = datetime.now(UTC)
                         await session.commit()
 
             asyncio.run(mark_failed())

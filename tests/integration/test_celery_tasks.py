@@ -364,5 +364,5 @@ class TestCeleryTaskMonitoring:
         assert final_result == 7
 
 
-# Mark all tests to require Redis connection
-pytestmark = pytest.mark.asyncio
+# Mark all tests to require Redis connection (integration tests)
+pytestmark = pytest.mark.integration

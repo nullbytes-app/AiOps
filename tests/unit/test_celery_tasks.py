@@ -13,7 +13,7 @@ NOTE: These tests are currently skipped due to Celery decorator complexity.
 Integration tests in tests/integration/test_celery_tasks.py provide better coverage.
 """
 
-from datetime import datetime
+from datetime import datetime, UTC
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 import uuid
 
@@ -53,8 +53,8 @@ def valid_job_data():
         "tenant_id": "tenant-test",
         "description": "Test ticket description for enhancement processing",
         "priority": "high",
-        "timestamp": datetime.utcnow().isoformat(),
-        "created_at": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
 
 
@@ -90,7 +90,7 @@ def mock_enhancement_record():
     mock_record.llm_output = None
     mock_record.error_message = None
     mock_record.processing_time_ms = None
-    mock_record.created_at = datetime.utcnow()
+    mock_record.created_at = datetime.now(UTC)
     mock_record.completed_at = None
     return mock_record
 
@@ -235,7 +235,7 @@ async def test_enhance_ticket_invalid_job_data_missing_field(mock_celery_request
         "tenant_id": "tenant-test",
         "description": "Test description",
         "priority": "high",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
     with patch("src.workers.tasks.async_session_maker") as mock_session_maker, \

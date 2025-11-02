@@ -20,7 +20,7 @@ from sqlalchemy import (
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 import uuid
 
 # Base class for all database models
@@ -279,4 +279,91 @@ class TicketHistory(Base):
         Index("ix_ticket_history_resolved_date", "resolved_date"),
         Index("ix_ticket_history_tenant_ticket", "tenant_id", "ticket_id"),
         UniqueConstraint("tenant_id", "ticket_id", name="uq_ticket_history_tenant_ticket"),
+    )
+
+
+class SystemInventory(Base):
+    """
+    System inventory records for IP address cross-reference.
+
+    Stores information about systems and their IP addresses (both IPv4 and IPv6).
+    Enables the enhancement agent to identify which systems are affected based on
+    IP addresses mentioned in ticket descriptions. Supports multi-tenant isolation.
+
+    Attributes:
+        id: UUID primary key (globally unique)
+        tenant_id: Tenant identifier for multi-tenant isolation
+        ip_address: IPv4 or IPv6 address (stored as string, indexed)
+        hostname: System hostname
+        role: System role/function (e.g., 'web', 'db', 'cache')
+        client: Client/project name associated with system
+        location: Physical or logical location of system
+        created_at: Timestamp when record was created
+        updated_at: Timestamp when record was last updated
+    """
+
+    __tablename__ = "system_inventory"
+
+    id: UUID = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+        doc="Globally unique system inventory record ID",
+    )
+    tenant_id: str = Column(
+        String(100),
+        nullable=False,
+        index=True,
+        doc="Tenant identifier for multi-tenant isolation",
+    )
+    ip_address: str = Column(
+        String(45),  # Max length for IPv6 addresses
+        nullable=False,
+        index=True,
+        doc="IPv4 or IPv6 address",
+    )
+    hostname: str = Column(
+        String(255),
+        nullable=False,
+        doc="System hostname",
+    )
+    role: str = Column(
+        String(100),
+        nullable=False,
+        doc="System role/function (e.g., 'web', 'db', 'cache')",
+    )
+    client: str = Column(
+        String(255),
+        nullable=False,
+        doc="Client/project name associated with system",
+    )
+    location: str = Column(
+        String(255),
+        nullable=False,
+        doc="Physical or logical location of system",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Record creation timestamp",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last modification timestamp",
+    )
+
+    # Composite indexes for efficient searching and data isolation
+    # UNIQUE constraint on (tenant_id, ip_address) prevents duplicates per tenant
+    __table_args__ = (
+        Index("ix_system_inventory_tenant_id", "tenant_id"),
+        Index("ix_system_inventory_ip_address", "ip_address"),
+        Index("ix_system_inventory_tenant_ip", "tenant_id", "ip_address"),
+        UniqueConstraint(
+            "tenant_id", "ip_address", name="uq_system_inventory_tenant_ip"
+        ),
     )
