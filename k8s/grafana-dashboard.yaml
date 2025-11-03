@@ -88,6 +88,7 @@ data:
             }
           ],
           "title": "Enhancement Success Rate",
+          "description": "Percentage of enhancement requests that completed successfully. If success rate drops below 95%, check the following runbooks: [Worker Failures](../../docs/runbooks/worker-failures.md) (worker crash investigation), [Database Connection Issues](../../docs/runbooks/database-connection-issues.md) (PostgreSQL problems), [API Timeout](../../docs/runbooks/api-timeout.md) (external service issues). Also see [Alert Runbooks](../../docs/operations/alert-runbooks.md#enhancementsuccessratelow) for detailed troubleshooting.",
           "type": "gauge"
         },
         {
@@ -167,6 +168,7 @@ data:
             }
           ],
           "title": "Pending Enhancement Jobs in Queue",
+          "description": "Number of enhancement jobs waiting to be processed. Elevated queue depth indicates workers may be unable to keep up with incoming requests. If queue depth is between 50-100 (elevated but not alerting), see [High Queue Depth Runbook](../../docs/runbooks/high-queue-depth.md) for proactive diagnosis. If queue depth exceeds 100 (alert threshold), see [Alert Runbooks - Queue Depth High](../../docs/operations/alert-runbooks.md#queuedepthhigh). For slow processing diagnosis, see [Distributed Tracing Setup](../../docs/operations/distributed-tracing-setup.md) for Jaeger guidance.",
           "type": "timeseries"
         },
         {
@@ -245,6 +247,7 @@ data:
             }
           ],
           "title": "p95 Enhancement Processing Latency",
+          "description": "95th percentile latency for enhancement requests (in seconds). High latency indicates bottlenecks in the enhancement pipeline. See [API Timeout Runbook](../../docs/runbooks/api-timeout.md) if latencies exceed 120 seconds (may indicate external API slowness). For database performance issues, see [Database Connection Issues Runbook](../../docs/runbooks/database-connection-issues.md). Use [Distributed Tracing Setup](../../docs/operations/distributed-tracing-setup.md) to analyze per-component latency and identify bottlenecks.",
           "type": "timeseries"
         },
         {
@@ -437,6 +440,7 @@ data:
             }
           ],
           "title": "Active Celery Workers",
+          "description": "Number of healthy, actively processing Celery workers. Red status indicates 0 workers (critical incident). If workers are down or frequently restarting, see [Worker Failures Runbook](../../docs/runbooks/worker-failures.md) for crash analysis and remediation. For alert details, see [Alert Runbooks - Worker Down](../../docs/operations/alert-runbooks.md#workerdown).",
           "type": "stat"
         }
       ],

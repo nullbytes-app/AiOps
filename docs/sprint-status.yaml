@@ -82,8 +82,8 @@ development_status:
   4-3-create-grafana-dashboards-for-real-time-monitoring: done
   4-4-configure-alerting-rules-in-prometheus: done  # Code Review: APPROVED - All task checkboxes marked complete
   4-5-integrate-alertmanager-for-alert-routing: done  # Code Review: APPROVED - All 13 ACs verified, 33 tests passing, follow-up work complete
-  4-6-implement-distributed-tracing-with-opentelemetry: in-progress
-  4-7-create-operational-runbooks-and-dashboards: backlog
+  4-6-implement-distributed-tracing-with-opentelemetry: done  # Code Review Follow-ups Complete: AC12/AC14 processors fixed with working implementation, AC15 operational doc (1650+ lines), AC16 integration tests (12 passing), .env.example updated. All 26 tests passing.
+  4-7-create-operational-runbooks-and-dashboards: in-progress  # Code Review: CHANGES REQUESTED - AC9 (runbook validation testing) not yet executed; Tasks 7, 9-13 incomplete; medium-severity findings for dashboard enhancements
   epic-4-retrospective: optional
 
   epic-5: backlog

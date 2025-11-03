@@ -4,13 +4,18 @@ Custom OpenTelemetry Span Processors for Data Redaction and Slow Trace Detection
 This module provides:
 - RedactionSpanProcessor: Removes sensitive data from spans before export
 - SlowTraceProcessor: Tags spans exceeding 60-second duration for monitoring
+- RedactionAndSlowTraceExporter: Wrapper exporter that applies redaction and slow trace tagging
 
 Story 4.6: Implement Distributed Tracing with OpenTelemetry
 """
 
-from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace import ReadableSpan, Span
 from opentelemetry.sdk.trace.export import SpanProcessor, SpanExporter, SpanExportResult
-from typing import Sequence
+from typing import Sequence, Mapping, Any, Optional
+from collections.abc import MutableMapping
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class RedactionSpanProcessor(SpanProcessor):
@@ -151,6 +156,32 @@ class SlowTraceProcessor(SpanProcessor):
         return True
 
 
+class ModifiedSpanWrapper:
+    """
+    Wraps a ReadableSpan with modified attributes for redaction and slow trace tagging.
+
+    Since ReadableSpan.attributes is immutable, this wrapper presents a modified
+    view with redacted attributes and slow trace indicators.
+    """
+
+    def __init__(self, span: ReadableSpan, modified_attributes: Mapping[str, Any]):
+        """
+        Initialize the span wrapper.
+
+        Args:
+            span: The original ReadableSpan.
+            modified_attributes: Dictionary of modified attributes to use instead of originals.
+        """
+        self._span = span
+        self._modified_attributes = modified_attributes
+
+    def __getattr__(self, name: str) -> Any:
+        """Forward attribute access to wrapped span, except for 'attributes'."""
+        if name == "attributes":
+            return self._modified_attributes
+        return getattr(self._span, name)
+
+
 class RedactionAndSlowTraceExporter(SpanExporter):
     """
     Custom OTLP exporter that redacts sensitive data and adds slow trace attributes.
@@ -211,37 +242,45 @@ class RedactionAndSlowTraceExporter(SpanExporter):
         """
         Process a single span: redact sensitive data and tag slow traces.
 
-        Note: Since ReadableSpan is immutable, we return the span as-is.
-        The actual redaction would happen by modifying the span before
-        the OTLP exporter encodes it. In production Jaeger deployments,
-        this is typically handled at the Jaeger collector level.
+        Creates modified attributes by:
+        1. Copying original attributes
+        2. Removing sensitive keys
+        3. Adding slow_trace=true if duration > 60s
 
         Args:
             span: The span to process.
 
         Returns:
-            The processed span (or reference to it).
+            Wrapper span with modified attributes, or original if no changes needed.
         """
-        # Redaction check (for documentation purposes)
-        if hasattr(span, "attributes") and span.attributes is not None:
-            sensitive_found = [
-                key for key in span.attributes.keys()
-                if any(sensitive in key.lower() for sensitive in self.SENSITIVE_KEYS)
-            ]
-            # In production, these would be redacted here before export
-            # For now, we document detection
-            if sensitive_found:
-                # Audit log: sensitive data detected in span
-                pass
+        # Start with original attributes
+        modified_attrs = dict(span.attributes) if span.attributes else {}
 
-        # Slow trace check
+        # Redact sensitive data (AC14)
+        redacted_keys = []
+        if span.attributes is not None:
+            for key in list(modified_attrs.keys()):
+                if any(sensitive in key.lower() for sensitive in self.SENSITIVE_KEYS):
+                    modified_attrs[key] = "[REDACTED]"
+                    redacted_keys.append(key)
+
+        # Tag slow traces (AC12)
+        is_slow = False
         if span.start_time is not None and span.end_time is not None:
             duration_ms = (span.end_time - span.start_time) / 1_000_000
             if duration_ms > self._slow_trace_threshold_ms:
-                # Mark as slow trace (in production, add slow_trace=true attribute here)
-                pass
+                modified_attrs["slow_trace"] = True
+                is_slow = True
 
-        return span
+        # Log if modifications were made
+        if redacted_keys or is_slow:
+            logger.debug(
+                f"Span {span.name}: redacted {len(redacted_keys)} keys, "
+                f"slow_trace={is_slow}"
+            )
+
+        # Return wrapper with modified attributes
+        return ModifiedSpanWrapper(span, modified_attrs)
 
     def shutdown(self) -> None:
         """Shutdown the exporter."""

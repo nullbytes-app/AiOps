@@ -19,7 +19,11 @@ from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from src.monitoring.span_processors import RedactionSpanProcessor, SlowTraceProcessor
+from src.monitoring.span_processors import (
+    RedactionSpanProcessor,
+    SlowTraceProcessor,
+    RedactionAndSlowTraceExporter,
+)
 
 
 def init_tracer_provider() -> TracerProvider:
@@ -62,26 +66,23 @@ def init_tracer_provider() -> TracerProvider:
     # Configure OTLP exporter for Jaeger
     otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
 
+    # Wrap OTLP exporter with redaction and slow trace detection
+    # This wrapper (AC12 & AC14):
+    # - Redacts sensitive attributes (api_key, secret, password, token)
+    # - Tags spans exceeding 60 seconds with slow_trace=true
+    # - Forwards modified spans to Jaeger via OTLP
+    wrapped_exporter = RedactionAndSlowTraceExporter(otlp_exporter)
+
     # Configure batch span processor for performance optimization
     # BatchSpanProcessor batches spans before export, reducing overhead
     batch_processor = BatchSpanProcessor(
-        otlp_exporter,
+        wrapped_exporter,
         max_queue_size=2048,  # Buffer up to 2048 spans before blocking
         schedule_delay_millis=5000,  # Export every 5 seconds
         max_export_batch_size=512,  # Send max 512 spans per export
         export_timeout_millis=30000,  # Timeout after 30s
     )
     tracer_provider.add_span_processor(batch_processor)
-
-    # Add custom span processor for data redaction
-    # Removes sensitive attributes before export (API keys, secrets, etc.)
-    redaction_processor = RedactionSpanProcessor()
-    tracer_provider.add_span_processor(redaction_processor)
-
-    # Add custom span processor for slow trace detection
-    # Tags traces exceeding 60 seconds for easy identification
-    slow_trace_processor = SlowTraceProcessor()
-    tracer_provider.add_span_processor(slow_trace_processor)
 
     # Set as global tracer provider
     trace.set_tracer_provider(tracer_provider)

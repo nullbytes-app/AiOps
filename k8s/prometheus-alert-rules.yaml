@@ -25,6 +25,7 @@ data:
               summary: "Enhancement success rate below 95% (current: {{ $value }}%)"
               description: "Enhancement pipeline success rate has been below 95% for the last 10 minutes. Current value: {{ $value }}%. Check worker logs and recent failures to identify root cause (API errors, rate limits, invalid configs)."
               runbook_url: "docs/operations/alert-runbooks.md#enhancementsuccessratelow"
+              operational_context: "May be caused by: Worker Failures (docs/runbooks/worker-failures.md), Database Connection Issues (docs/runbooks/database-connection-issues.md), or API Timeout (docs/runbooks/api-timeout.md)"
 
           # Alert 2: Queue Depth High
           - alert: QueueDepthHigh
@@ -38,6 +39,7 @@ data:
               summary: "Redis queue depth exceeds 100 jobs (current: {{ $value }})"
               description: "Enhancement job queue has {{ $value }} pending jobs, indicating workers may be overloaded or failing. Check worker health and scale if needed. Monitor queue drain rate in Grafana."
               runbook_url: "docs/operations/alert-runbooks.md#queuedepthhigh"
+              operational_context: "For pre-alert investigation (queue 50-100), see High Queue Depth Runbook (docs/runbooks/high-queue-depth.md)"
 
           # Alert 3: Worker Down
           - alert: WorkerDown
@@ -51,6 +53,7 @@ data:
               summary: "No active Celery workers detected"
               description: "All Celery workers are down. Enhancement processing is halted. Check worker pods/containers immediately for crashes or resource issues."
               runbook_url: "docs/operations/alert-runbooks.md#workerdown"
+              operational_context: "For detailed crash analysis, see Worker Failures Runbook (docs/runbooks/worker-failures.md)"
 
           # Alert 4: High Latency
           - alert: HighLatency
@@ -65,3 +68,4 @@ data:
               summary: "p95 enhancement latency exceeds 120 seconds (current: {{ $value }}s)"
               description: "95th percentile enhancement processing latency is {{ $value }} seconds, exceeding the 120-second SLA. Check for slow external API calls (ServiceDesk Plus, OpenAI) or LLM timeouts."
               runbook_url: "docs/operations/alert-runbooks.md#highlatency"
+              operational_context: "Likely causes: API Timeout (docs/runbooks/api-timeout.md) or Database Connection Issues (docs/runbooks/database-connection-issues.md). Use distributed tracing (Jaeger) to identify bottleneck."
