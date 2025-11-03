@@ -7,10 +7,10 @@ for tickets received via webhooks.
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class EnhancementJob(BaseModel):
@@ -81,6 +81,13 @@ class EnhancementJob(BaseModel):
         default_factory=datetime.utcnow,
         description="UTC timestamp when job was queued",
     )
+    correlation_id: str = Field(
+        ...,
+        min_length=36,
+        max_length=36,
+        description="Request correlation ID for distributed tracing (UUID v4 format)",
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -92,6 +99,31 @@ class EnhancementJob(BaseModel):
                 "priority": "high",
                 "timestamp": "2025-11-01T12:00:00Z",
                 "created_at": "2025-11-01T12:00:05.123456Z",
+                "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
             }
         }
     }
+
+    @field_validator("correlation_id")
+    @classmethod
+    def validate_correlation_id_format(cls, v: str) -> str:
+        """
+        Validate correlation_id is in UUID v4 format (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx).
+
+        Args:
+            v: Correlation ID value to validate
+
+        Returns:
+            Validated correlation ID
+
+        Raises:
+            ValueError: If correlation_id is not in UUID v4 format
+        """
+        import re
+        uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        if not re.match(uuid_pattern, v, re.IGNORECASE):
+            raise ValueError(
+                "correlation_id must be in UUID v4 format "
+                "(e.g., '550e8400-e29b-41d4-a716-446655440000')"
+            )
+        return v

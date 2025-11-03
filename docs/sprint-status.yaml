@@ -72,7 +72,7 @@ development_status:
   3-4-implement-input-validation-and-sanitization: done
   3-5-implement-webhook-signature-validation-with-multiple-tenants: done
   3-6-create-kubernetes-namespaces-for-tenant-isolation: done
-  3-7-implement-audit-logging-for-all-operations: backlog
+  3-7-implement-audit-logging-for-all-operations: in-progress
   3-8-create-security-testing-and-penetration-test-suite: backlog
   epic-3-retrospective: optional
 

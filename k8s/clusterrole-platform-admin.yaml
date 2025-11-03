@@ -1,0 +1,24 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ai-agents-platform-admin
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  resourceNames: []
+  verbs: ["*"]
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "pods/exec", "configmaps", "secrets", "services"]
+  verbs: ["*"]
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets", "daemonsets"]
+  verbs: ["*"]
+- apiGroups: ["batch"]
+  resources: ["jobs", "cronjobs"]
+  verbs: ["*"]
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies"]
+  verbs: ["*"]
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources: ["roles", "rolebindings", "serviceaccounts"]
+  verbs: ["*"]

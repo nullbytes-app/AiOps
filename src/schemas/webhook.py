@@ -14,7 +14,7 @@ Implements strict validation per Epic 3 Story 3.4 security requirements:
 
 import re
 from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
 
@@ -85,6 +85,13 @@ class WebhookPayload(BaseModel):
         description="ISO 8601 timestamp of ticket creation with timezone",
         json_schema_extra={"example": "2025-11-01T12:00:00Z"},
     )
+    correlation_id: Optional[str] = Field(
+        None,
+        min_length=36,
+        max_length=36,
+        description="Optional request correlation ID for distributed tracing (UUID v4 format)",
+        json_schema_extra={"example": "550e8400-e29b-41d4-a716-446655440000"},
+    )
 
     # Strict validation: reject unknown fields (prevent parameter pollution)
     model_config = ConfigDict(
@@ -97,6 +104,7 @@ class WebhookPayload(BaseModel):
                 "description": "Server is slow and unresponsive",
                 "priority": "high",
                 "created_at": "2025-11-01T12:00:00Z",
+                "correlation_id": "550e8400-e29b-41d4-a716-446655440000",
             }
         },
     )
@@ -164,6 +172,31 @@ class WebhookPayload(BaseModel):
             raise ValueError(
                 "created_at must include timezone information "
                 "(e.g., '2025-11-01T12:00:00Z' or '2025-11-01T12:00:00+00:00')"
+            )
+        return v
+
+    @field_validator("correlation_id")
+    @classmethod
+    def validate_correlation_id_format(cls, v: Optional[str]) -> Optional[str]:
+        """
+        Validate correlation_id is in UUID v4 format (if provided).
+
+        Args:
+            v: Correlation ID value to validate (optional)
+
+        Returns:
+            Validated correlation ID or None
+
+        Raises:
+            ValueError: If correlation_id is not in UUID v4 format
+        """
+        if v is None:
+            return v
+        uuid_pattern = r"^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+        if not re.match(uuid_pattern, v, re.IGNORECASE):
+            raise ValueError(
+                "correlation_id must be in UUID v4 format "
+                "(e.g., '550e8400-e29b-41d4-a716-446655440000')"
             )
         return v
 

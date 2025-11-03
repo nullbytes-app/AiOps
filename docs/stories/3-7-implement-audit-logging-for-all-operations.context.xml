@@ -1,0 +1,345 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.7</storyId>
+    <title>Implement Audit Logging for All Operations</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-7-implement-audit-logging-for-all-operations.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>compliance officer</asA>
+    <iWant>all enhancement operations logged with tenant_id, user, timestamp, and status</iWant>
+    <soThat>I can audit access patterns, troubleshoot issues, and maintain 90-day compliance records</soThat>
+    <tasks>
+### Task 1: Enhance Logger Module with Audit Capabilities (AC1, AC2, AC4)
+- [ ] 1.1: Add correlation ID support and ISO-8601 timestamp to configure_logging() (AC1)
+- [ ] 1.2: Implement SensitiveDataFilter class with all regex patterns (AC2)
+- [ ] 1.3: Apply filter globally to all handlers in configure_logging() (AC2)
+- [ ] 1.4: Create AuditLogger wrapper class with operation-specific methods (AC1)
+- [ ] 1.5: Update log retention from 30 days to 90 days with NFR005 comment (AC4)
+- [ ] 1.6: Add LOG_FILE_ENABLED environment variable support (AC7)
+- [ ] 1.7: Write unit tests for SensitiveDataFilter (all patterns, nested fields) (AC2)
+- [ ] 1.8: Write unit tests for AuditLogger methods (format validation) (AC1)
+- [ ] 1.9: Write configuration validation test for 90-day retention (AC4)
+
+### Task 2: Update Schemas for Correlation ID (AC5)
+- [ ] 2.1: Add correlation_id: str field to EnhancementJob in src/schemas/job.py (AC5)
+- [ ] 2.2: Add correlation_id: Optional[str] = None to WebhookPayload in src/schemas/webhook.py (AC5)
+- [ ] 2.3: Add correlation_id: str to EnhancementState in src/workflows/state.py (AC5)
+- [ ] 2.4: Update Pydantic validators to enforce UUID format for correlation_id (AC5)
+- [ ] 2.5: Write unit tests for schema validation with correlation_id (AC5)
+
+### Task 3: Instrument Webhook Entry Point (AC3, AC5)
+- [ ] 3.1: Import uuid and AuditLogger in src/api/webhooks.py (AC3)
+- [ ] 3.2: Generate correlation ID in receive_webhook(): correlation_id = str(uuid.uuid4()) (AC5)
+- [ ] 3.3: Bind correlation ID to logger context: logger.bind(correlation_id=correlation_id) (AC3)
+- [ ] 3.4: Add audit log for webhook receipt with all required fields (AC3)
+- [ ] 3.5: Pass correlation ID to EnhancementJob when creating job payload (AC5)
+- [ ] 3.6: Add error logging for webhook validation failures (AC3)
+- [ ] 3.7: Write integration test for webhook logging with correlation ID (AC3, AC5)
+
+### Task 4: Instrument Job Queueing Service (AC3, AC5)
+- [ ] 4.1: Import AuditLogger in src/services/queue_service.py (AC3)
+- [ ] 4.2: Add audit logging to enqueue_enhancement() with correlation_id (AC3)
+- [ ] 4.3: Extract correlation_id from job payload and include in log context (AC5)
+- [ ] 4.4: Log queue push failures with error details (AC3)
+- [ ] 4.5: Write unit tests for queue service logging (mock Redis) (AC3)
+
+### Task 5: Instrument Celery Worker Tasks (AC3, AC5)
+- [ ] 5.1: Import AuditLogger and time in src/workers/tasks.py (AC3)
+- [ ] 5.2: Extract correlation ID from job payload in enhance_ticket() (AC5)
+- [ ] 5.3: Bind correlation ID, task_id, worker_id to logger context (AC3, AC5)
+- [ ] 5.4: Add audit log for enhancement start at task entry (AC3)
+- [ ] 5.5: Track start time: start_time = time.time() (AC3)
+- [ ] 5.6: Calculate duration in success path: duration_ms = (time.time() - start_time) * 1000 (AC3)
+- [ ] 5.7: Add audit log for enhancement completion with duration (AC3)
+- [ ] 5.8: Add audit log for enhancement failure in exception handler (AC3)
+- [ ] 5.9: Write integration tests for task logging (all paths: success, failure) (AC3)
+
+### Task 6: Instrument ServiceDesk API Client (AC3, AC5)
+- [ ] 6.1: Import AuditLogger in src/services/servicedesk_client.py (AC3)
+- [ ] 6.2: Add correlation_id parameter to all API methods (AC5)
+- [ ] 6.3: Add INFO logging for successful API calls with status codes (AC3)
+- [ ] 6.4: Add WARNING logging for retry attempts (AC3)
+- [ ] 6.5: Add ERROR logging for final API failures (AC3)
+- [ ] 6.6: Include correlation_id in all API logs (AC5)
+- [ ] 6.7: Write unit tests with mocked API responses (success, retry, failure) (AC3)
+
+### Task 7: Propagate Correlation ID Through Workflow (AC5)
+- [ ] 7.1: Update enhancement_workflow.py to accept correlation_id in state initialization (AC5)
+- [ ] 7.2: Pass correlation_id from state to all context gathering node functions (AC5)
+- [ ] 7.3: Pass correlation_id to ticket search service calls (AC5)
+- [ ] 7.4: Pass correlation_id to knowledge base search calls (AC5)
+- [ ] 7.5: Pass correlation_id to IP lookup calls (AC5)
+- [ ] 7.6: Pass correlation_id to LLM synthesis service (AC5)
+- [ ] 7.7: Pass correlation_id to ServiceDesk ticket update call (AC5)
+- [ ] 7.8: Bind correlation_id in workflow execution context (AC5)
+- [ ] 7.9: Write end-to-end workflow test tracing correlation ID through all nodes (AC5)
+
+### Task 8: Create Operations Documentation (AC6, AC7)
+- [ ] 8.1: Create docs/operations/ directory (AC6)
+- [ ] 8.2: Write log-queries.md with all basic query examples (AC6)
+- [ ] 8.3: Add advanced analysis queries to log-queries.md (AC6)
+- [ ] 8.4: Add log format schema reference table to log-queries.md (AC6)
+- [ ] 8.5: Write logging-infrastructure.md with architecture overview (AC7)
+- [ ] 8.6: Document Kubernetes log collection and aggregator setup (AC7)
+- [ ] 8.7: Add log retention policy and volume estimates (AC7)
+- [ ] 8.8: Document Fluentd/Fluent Bit configuration examples (AC7)
+- [ ] 8.9: Review documentation with team, test all query examples (AC6)
+
+### Task 9: Integration Testing (AC3, AC5)
+- [ ] 9.1: Write end-to-end test: webhook → queue → worker → completion (AC3, AC5)
+- [ ] 9.2: Verify correlation ID present in all log events across services (AC5)
+- [ ] 9.3: Verify sensitive data redacted in logs (API keys, passwords) (AC2)
+- [ ] 9.4: Verify log retention configuration in production mode (AC4)
+- [ ] 9.5: Test log query examples from documentation against test logs (AC6)
+- [ ] 9.6: Performance test: verify logging overhead less than 5ms per operation (AC3)
+- [ ] 9.7: Test Docker container log output to stdout only when LOG_FILE_ENABLED=false (AC7)
+
+### Task 10: Update Docker/Kubernetes Configuration (AC7)
+- [ ] 10.1: Add LOG_FILE_ENABLED=false to production Kubernetes deployments (AC7)
+- [ ] 10.2: Add PYTHONUNBUFFERED=1 to Docker image environment (AC7)
+- [ ] 10.3: Update Dockerfile to ensure stdout/stderr not buffered (AC7)
+- [ ] 10.4: Test container deployment with log output verification (AC7)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Structured Logging Configuration with Correlation IDs
+- Enhance src/utils/logger.py to support correlation ID binding via logger.bind(correlation_id=...)
+- Add correlation_id field to JSON log output (UUID v4 format)
+- Create AuditLogger wrapper class with operation-specific methods
+- Log format must include: timestamp (ISO-8601), level, message, tenant_id, ticket_id, correlation_id, operation, user, status, service, environment
+
+AC2: Sensitive Data Redaction Filter
+- Implement SensitiveDataFilter class as Loguru filter
+- Redact: API keys, passwords, SSN, email (partial), credit cards
+- Apply filter globally to all handlers
+
+AC3: Critical Operation Logging Instrumentation
+- Log webhook receipt, job queueing, enhancement start/success/failure, API calls
+- Include all required fields and correlation ID in every log entry
+
+AC4: Log Retention Update to 90 Days
+- Update src/utils/logger.py retention from "30 days" to "90 days" with NFR005 comment
+
+AC5: Correlation ID Propagation Across Async Workflow
+- Add correlation_id field to all schemas and state objects
+- Propagate through: Webhook → Job → Queue → Task → Workflow → API
+- Use logger.bind(correlation_id=...) for automatic inclusion
+
+AC6: Documentation of Log Query Examples
+- Create docs/operations/log-queries.md with kubectl/jq query examples
+- Include log format schema reference table
+
+AC7: Log Export to stdout for Kubernetes Aggregation
+- Add LOG_FILE_ENABLED environment variable
+- Ensure PYTHONUNBUFFERED=1 in Docker
+- Document logging infrastructure and aggregation strategy
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements (FR024, NFR005)</section>
+        <snippet>FR024: System shall log all enhancement operations with tenant ID, ticket ID, timestamp, and outcome. NFR005: Audit logs retained for 90 days with distributed tracing for debugging failed enhancements.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>ADR-005: Loguru for Logging</section>
+        <snippet>Loguru chosen for beginner-friendly API, JSON output support, automatic rotation, colorized console output, and easy exception tracking. Preferred over stdlib logging (verbose) and structlog (steeper learning curve).</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Logging Strategy (lines 734-774)</section>
+        <snippet>Structured JSON via Loguru with required fields: timestamp, level, message, tenant_id, ticket_id, correlation_id, service, environment. Production logs to stdout/stderr for Kubernetes aggregation. Sensitive data redaction using Loguru filters.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Error Handling Patterns (lines 700-732)</section>
+        <snippet>Error categories: transient (retry), permanent (fail fast), degradation (partial data). Error logging must include tenant_id, ticket_id, correlation_id, error type, stack trace. Use ERROR level for failures, WARNING for retries.</snippet>
+      </doc>
+      <doc>
+        <path>External: Dash0 - Production-Grade Python Logging with Loguru</path>
+        <title>Loguru Best Practices 2025</title>
+        <section>Structured Logging and Context</section>
+        <snippet>Use logger.bind() for contextual logging (correlation IDs, request context). Use contextualize() for block-scoped context. Implement custom JSON serializer for clean production logs. Use serialize=True for JSON output. Async logging with enqueue=True for performance.</snippet>
+      </doc>
+      <doc>
+        <path>External: Better Stack - Logging in Microservices</path>
+        <title>Microservices Logging Best Practices</title>
+        <section>Correlation IDs and Distributed Tracing</section>
+        <snippet>Generate unique correlation ID (UUID) at request entry. Propagate through all services via headers (X-Correlation-ID). Include in structured logs for cross-service tracing. Standardize log format (JSON with ISO 8601 timestamps). Centralize logs for unified querying.</snippet>
+      </doc>
+      <doc>
+        <path>External: GitHub Loguru README</path>
+        <title>Loguru Structured Logging</title>
+        <section>Structured Logging Features</section>
+        <snippet>Use bind() to attach context to logger. Use serialize=True for JSON output. Use filters for selective logging and data redaction. Use patch() for dynamic record enrichment. Context-local state with contextualize().</snippet>
+      </doc>
+    </docs>
+    <code>
+      <file>
+        <path>src/utils/logger.py</path>
+        <kind>utility</kind>
+        <symbol>configure_logging</symbol>
+        <lines>22-85</lines>
+        <reason>Existing logger configuration. Must be enhanced with correlation ID support, SensitiveDataFilter, AuditLogger class, and 90-day retention update.</reason>
+      </file>
+      <file>
+        <path>src/api/webhooks.py</path>
+        <kind>controller</kind>
+        <symbol>receive_webhook</symbol>
+        <lines>N/A</lines>
+        <reason>Webhook entry point where correlation ID must be generated and audit logging begins. First instrumentation point in the request lifecycle.</reason>
+      </file>
+      <file>
+        <path>src/services/queue_service.py</path>
+        <kind>service</kind>
+        <symbol>QueueService</symbol>
+        <lines>N/A</lines>
+        <reason>Queue service that enqueues enhancement jobs. Must log job queueing with correlation ID.</reason>
+      </file>
+      <file>
+        <path>src/workers/tasks.py</path>
+        <kind>worker</kind>
+        <symbol>enhance_ticket</symbol>
+        <lines>N/A</lines>
+        <reason>Celery worker task that processes enhancements. Must bind correlation ID, log start/success/failure, and track duration.</reason>
+      </file>
+      <file>
+        <path>src/schemas/job.py</path>
+        <kind>schema</kind>
+        <symbol>EnhancementJob</symbol>
+        <lines>N/A</lines>
+        <reason>Job schema that must include correlation_id field for propagation through async workflow.</reason>
+      </file>
+      <file>
+        <path>src/schemas/webhook.py</path>
+        <kind>schema</kind>
+        <symbol>WebhookPayload</symbol>
+        <lines>N/A</lines>
+        <reason>Webhook payload schema that must include optional correlation_id field.</reason>
+      </file>
+      <file>
+        <path>src/workflows/state.py</path>
+        <kind>workflow</kind>
+        <symbol>EnhancementState</symbol>
+        <lines>N/A</lines>
+        <reason>Workflow state dataclass that must include correlation_id for LangGraph workflow propagation.</reason>
+      </file>
+    </code>
+    <dependencies>
+      <python>
+        <package name="loguru" version="^0.7.2" ecosystem="pypi">Structured logging library with JSON serialization, rotation, and filtering capabilities</package>
+        <package name="pydantic" version="^2.0" ecosystem="pypi">Data validation for schema updates (correlation_id fields)</package>
+        <package name="uuid" version="stdlib" ecosystem="python">UUID v4 generation for correlation IDs</package>
+        <package name="pytest" version="^8.0" ecosystem="pypi">Testing framework for unit and integration tests</package>
+        <package name="pytest-asyncio" version="^0.23" ecosystem="pypi">Async test support for FastAPI and Celery integration tests</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- Must use Loguru library (ADR-005) - no standard logging or structlog
+- All logs must include tenant_id for RLS-aware auditing
+- Correlation IDs must be UUID v4 format
+- Sensitive data (API keys, passwords, PII) must be redacted
+- ISO-8601 timestamps with UTC timezone only
+- Log retention: 90 days per NFR005 compliance requirement
+- Production logs output to stdout/stderr for Kubernetes aggregation
+- Logging overhead must be under 5ms per operation (p95)
+- Must not break existing logger.info/error/warning calls
+- Backward compatible with current logger.bind() usage for worker context
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>AuditLogger</name>
+      <kind>Python class</kind>
+      <signature>
+class AuditLogger:
+    def audit_webhook_received(tenant_id, ticket_id, correlation_id, **extra)
+    def audit_enhancement_started(tenant_id, ticket_id, correlation_id, task_id, worker_id, **extra)
+    def audit_enhancement_completed(tenant_id, ticket_id, correlation_id, duration_ms, **extra)
+    def audit_enhancement_failed(tenant_id, ticket_id, correlation_id, error_type, error_message, **extra)
+    def audit_api_call(tenant_id, ticket_id, correlation_id, endpoint, method, status_code, **extra)
+      </signature>
+      <path>src/utils/logger.py</path>
+    </interface>
+    <interface>
+      <name>SensitiveDataFilter</name>
+      <kind>Loguru filter function</kind>
+      <signature>
+class SensitiveDataFilter:
+    def __call__(self, record) -> bool:
+        # Redact sensitive fields from record["message"] and record["extra"]
+        return True
+      </signature>
+      <path>src/utils/logger.py</path>
+    </interface>
+    <interface>
+      <name>EnhancementJob.correlation_id</name>
+      <kind>Pydantic field</kind>
+      <signature>correlation_id: str  # UUID v4 format</signature>
+      <path>src/schemas/job.py</path>
+    </interface>
+    <interface>
+      <name>WebhookPayload.correlation_id</name>
+      <kind>Pydantic field</kind>
+      <signature>correlation_id: Optional[str] = None  # UUID v4 format</signature>
+      <path>src/schemas/webhook.py</path>
+    </interface>
+    <interface>
+      <name>EnhancementState.correlation_id</name>
+      <kind>dataclass field</kind>
+      <signature>correlation_id: str  # Propagated through LangGraph workflow</signature>
+      <path>src/workflows/state.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+- Use pytest with pytest-asyncio for async FastAPI and Celery tests
+- Unit tests for pure functions (filters, validators, audit methods)
+- Integration tests for end-to-end flows (webhook → queue → worker → API)
+- Mock external dependencies (Redis, ServiceDesk API) in unit tests
+- Test files mirror source structure: tests/unit/test_logger.py, tests/integration/test_audit_logging.py
+- Coverage target: greater than 90% for new code
+- Performance tests: logging overhead less than 5ms per operation (p95)
+    </standards>
+    <locations>
+- tests/unit/test_logger.py (SensitiveDataFilter, AuditLogger, configure_logging)
+- tests/unit/test_schemas_correlation.py (schema validation with correlation_id)
+- tests/integration/test_audit_logging.py (end-to-end correlation ID tracing)
+- tests/integration/test_webhook_logging.py (webhook audit logging)
+- tests/integration/test_worker_logging.py (worker task audit logging)
+- tests/integration/test_api_client_logging.py (ServiceDesk API logging)
+    </locations>
+    <ideas>
+- Test correlation ID generation produces valid UUID v4 format
+- Test correlation ID propagates through entire async workflow (webhook → queue → worker → API)
+- Test SensitiveDataFilter redacts all pattern types (API keys, passwords, SSN, email, credit card)
+- Test SensitiveDataFilter processes nested extra fields recursively
+- Test AuditLogger methods produce correct JSON structure with all required fields
+- Test log retention configuration reads "90 days" in production mode
+- Test LOG_FILE_ENABLED=false disables file logging, only outputs to stdout
+- Test Docker container with PYTHONUNBUFFERED=1 outputs logs immediately
+- Test performance: logging overhead under 5ms per operation at p95
+- Test webhook logging includes correlation_id, tenant_id, ticket_id, operation="webhook_received"
+- Test worker logging includes task_id, worker_id, duration_ms
+- Test API call logging includes endpoint, method, status_code, retry attempts
+- Test sensitive data in log messages is redacted (mock API keys, passwords)
+- Test log query examples from docs/operations/log-queries.md against test logs
+- Test error scenarios: webhook validation failure, queue push failure, enhancement failure
+    </ideas>
+  </tests>
+</story-context>

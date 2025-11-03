@@ -18,9 +18,10 @@ from redis.exceptions import ConnectionError as RedisConnectionError, TimeoutErr
 from src.cache.redis_client import get_shared_redis, get_redis_client
 from src.schemas.job import EnhancementJob
 from src.utils.exceptions import QueueServiceError
-from src.utils.logger import logger as app_logger
+from src.utils.logger import logger as app_logger, AuditLogger
 
 logger = logging.getLogger(__name__)
+audit_logger = AuditLogger()
 
 # Queue naming convention: module:purpose
 ENHANCEMENT_QUEUE = "enhancement:queue"
@@ -101,6 +102,18 @@ class QueueService:
                 ENHANCEMENT_QUEUE_KEY, job_json
             )
 
+            # Log job queueing with audit logger for compliance
+            audit_logger.audit_api_call(
+                tenant_id=job.tenant_id,
+                ticket_id=job.ticket_id,
+                correlation_id=job.correlation_id,
+                endpoint="enhancement:queue",
+                method="lpush",
+                status_code=200,
+                queue_depth=queue_depth,
+                job_id=job.job_id,
+            )
+
             app_logger.info(
                 f"Job queued successfully: {job.job_id} "
                 f"(queue depth: {queue_depth})",
@@ -110,6 +123,7 @@ class QueueService:
                     "tenant_id": job.tenant_id,
                     "queue_key": ENHANCEMENT_QUEUE_KEY,
                     "queue_depth": queue_depth,
+                    "correlation_id": job.correlation_id,
                 },
             )
 
@@ -121,6 +135,19 @@ class QueueService:
                 f"Redis queue push failed for tenant {tenant_id}, "
                 f"ticket {ticket_id}: {type(e).__name__} - {str(e)}"
             )
+
+            # Log audit event for queue failure
+            audit_logger.audit_api_call(
+                tenant_id=tenant_id,
+                ticket_id=ticket_id,
+                correlation_id=getattr(job, "correlation_id", ""),
+                endpoint="enhancement:queue",
+                method="lpush",
+                status_code=500,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
+
             app_logger.error(
                 error_msg,
                 extra={
@@ -138,6 +165,19 @@ class QueueService:
                 f"Unexpected error queuing job for tenant {tenant_id}, "
                 f"ticket {ticket_id}: {type(e).__name__} - {str(e)}"
             )
+
+            # Log audit event for unexpected failure
+            audit_logger.audit_api_call(
+                tenant_id=tenant_id,
+                ticket_id=ticket_id,
+                correlation_id=getattr(job, "correlation_id", "") if 'job' in locals() else "",
+                endpoint="enhancement:queue",
+                method="lpush",
+                status_code=500,
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
+
             # Use string concatenation to avoid f-string formatting issues
             app_logger.error(
                 "Unexpected error queuing job for tenant %s, ticket %s: %s - %s",

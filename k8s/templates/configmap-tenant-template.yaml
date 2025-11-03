@@ -1,0 +1,15 @@
+# ConfigMap template for tenant-specific settings
+# Replace ${TENANT_ID}, ${TENANT_NAME}, ${NAMESPACE} before applying.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tenant-${TENANT_ID}-config
+  namespace: ${NAMESPACE}
+  labels:
+    app.kubernetes.io/name: tenant-config
+    app.kubernetes.io/tenant-id: ${TENANT_ID}
+    app.kubernetes.io/tenant-name: ${TENANT_NAME}
+data:
+  tenant_id: "${TENANT_ID}"
+  namespace: "${NAMESPACE}"
+

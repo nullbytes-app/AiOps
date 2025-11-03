@@ -1,0 +1,307 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3.6</storyId>
+    <title>Create Kubernetes Namespaces for Tenant Isolation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/3-6-create-kubernetes-namespaces-for-tenant-isolation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer</asA>
+    <iWant>each tenant deployed in separate Kubernetes namespace</iWant>
+    <soThat>compute resources are isolated and failures don't cascade across tenants</soThat>
+    <tasks>
+### Task 1: Create Namespace Provisioning Script (AC: 1, 6)
+- Create bash script: scripts/create-tenant-namespace.sh with tenant-id validation
+- Create Kubernetes manifest templates for namespace, deployments, services, network policies
+- Implement template variable substitution function
+- Apply generated manifests to cluster with wait for ready
+- Add validation and error handling
+
+### Task 2: Implement Network Isolation with Network Policies (AC: 3)
+- Define default deny-all ingress policy
+- Define allow-ingress-from-nginx policy
+- Define allow-egress-to-shared-services policy (PostgreSQL, Redis, DNS, external APIs)
+- Test network isolation between tenant namespaces
+
+### Task 3: Implement Resource Quotas and Limits (AC: 4)
+- Create ResourceQuota manifest template (CPU: 2-4 cores, Memory: 4-8Gi, Storage: 20Gi, Pods: 10)
+- Apply resource quotas to tenant namespaces automatically
+- Test quota enforcement
+
+### Task 4: Implement RBAC Policies for Tenant Isolation (AC: 5)
+- Create ServiceAccount, Role, and RoleBinding templates per tenant
+- Create ClusterRole and ClusterRoleBinding for platform operators
+- Configure tenant pods to use tenant ServiceAccount
+- Test RBAC isolation
+
+### Task 5: Create Documentation for Namespace Provisioning (AC: 6)
+- Create operator guide: docs/operations/tenant-namespace-provisioning.md
+- Document template variables and customization
+- Add example usage
+
+### Task 6: Create Test Environment with Two Tenant Namespaces (AC: 7)
+- Provision test tenant namespaces (test-tenant-a, test-tenant-b)
+- Create integration test suite: tests/integration/test_tenant_namespace_isolation.py
+- Run integration tests and verify 100% pass rate
+
+### Task 7: Update Existing K8s Manifests for Shared Services (AC: 2)
+- Review shared PostgreSQL deployment in database namespace
+- Review shared Redis deployment in database namespace
+- Create network policies for database namespace to allow tenant access
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. **Namespace Creation Script Accepts tenant_id Parameter**: Script at scripts/create-tenant-namespace.sh validates tenant_id format (^[a-z0-9-]+$), generates namespace name (ai-agents-{tenant-id}), checks idempotency, creates namespace with labels, returns appropriate exit codes.
+
+2. **Each Namespace Includes: Deployments, Services, Network Policies**: Tenant-specific manifests generated from templates (deployment-api, deployment-worker, service-api, networkpolicy, configmap) and applied to tenant namespace. Manifests reference shared PostgreSQL and Redis services.
+
+3. **Network Policies Prevent Cross-Namespace Communication**: Default deny-all ingress policy with explicit allows for ingress-nginx (port 8000), PostgreSQL egress (port 5432), Redis egress (port 6379), external APIs, and DNS. Block pod-to-pod cross-tenant communication.
+
+4. **Resource Quotas Set Per Namespace**: ResourceQuota with CPU (2-4 cores), Memory (4-8Gi), Storage (20Gi), Pods (max 10). Quotas enforce fairness and prevent resource hogging. Quota exceeded returns admission error.
+
+5. **RBAC Policies Restrict Tenant Namespaces to Authorized Operators**: ServiceAccount, Role, and RoleBinding per tenant. ClusterRole for platform operators. Tenant pods run with tenant ServiceAccount. RBAC prevents cross-tenant access.
+
+6. **Namespace Provisioning Documented and Automated**: Documentation at docs/operations/tenant-namespace-provisioning.md with prerequisites, script usage, validation, and rollback. Script generates manifests from templates and verifies readiness.
+
+7. **Test Environment Created with 2 Tenant Namespaces**: Test tenants (test-tenant-a, test-tenant-b) fully provisioned. Integration tests verify network isolation, resource quotas, RBAC, and independent webhook processing.
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents Decision Architecture</title>
+        <section>Orchestration & Secrets Management</section>
+        <snippet>Kubernetes 1.28+ for HPA autoscaling and production-grade orchestration. Kubernetes Secrets for native K8s integration with encryption at rest (Infisical K8s Guide 2025).</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Multi-Tenancy Requirements</section>
+        <snippet>FR018: Isolate client data using row-level security in PostgreSQL. FR019: Load tenant-specific configuration from ConfigMaps. FR020: Support different ServiceDesk Plus instances per tenant.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/3-6-create-kubernetes-namespaces-for-tenant-isolation.md</path>
+        <title>Story 3.6 Full Specification</title>
+        <section>Dev Notes - Architecture Patterns</section>
+        <snippet>Soft Multi-Tenancy with namespace per tenant for compute isolation, shared PostgreSQL/Redis with RLS for data isolation. Network policies provide L3/L4 firewall between namespaces. ResourceQuotas prevent resource hogging.</snippet>
+      </doc>
+      <doc>
+        <path>External: Google Cloud K8s Multi-Tenancy Best Practices</path>
+        <title>GKE Enterprise Multi-Tenancy Guide</title>
+        <section>Tenant Provisioning</section>
+        <snippet>Create namespaces for logical isolation. Use RBAC with Google Groups for tenant access. Define namespace admin, editor, viewer roles. Enforce resource quotas based on Pod count, CPU, memory requirements.</snippet>
+      </doc>
+      <doc>
+        <path>External: vCluster Multi-Tenant Isolation Guide</path>
+        <title>Best Practices for K8s Multi-Tenant Environments</title>
+        <section>Achieving Isolated Multi-Tenancy</section>
+        <snippet>Layer 1: Namespace Isolation (logical boundary). Layer 2: RBAC (prevent unauthorized access). Layer 3: Network Policies (block pod-to-pod cross-tenant). Layer 4: Resource Quotas (fair distribution, prevent noisy neighbor).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>k8s/deployment-api.yaml</path>
+        <kind>deployment</kind>
+        <symbol>API Deployment</symbol>
+        <lines>1-139</lines>
+        <reason>Existing single-namespace API deployment. Must be converted to template with {{TENANT_ID}} placeholders for per-tenant provisioning. Add serviceAccountName field.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/deployment-worker.yaml</path>
+        <kind>deployment</kind>
+        <symbol>Celery Worker Deployment</symbol>
+        <lines>N/A</lines>
+        <reason>Existing worker deployment. Must be templated for per-tenant namespaces and reference tenant-specific ServiceAccount.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/deployment-postgres.yaml</path>
+        <kind>statefulset</kind>
+        <symbol>PostgreSQL StatefulSet</symbol>
+        <lines>1-88</lines>
+        <reason>Shared PostgreSQL in ai-agents namespace. Add labels for network policy matching. Create network policy to allow ingress from all tenant namespaces.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/deployment-redis.yaml</path>
+        <kind>deployment</kind>
+        <symbol>Redis Deployment</symbol>
+        <lines>N/A</lines>
+        <reason>Shared Redis in ai-agents namespace. Add labels for network policy matching to allow tenant namespace access.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/namespace.yaml</path>
+        <kind>manifest</kind>
+        <symbol>Namespace Definition</symbol>
+        <lines>N/A</lines>
+        <reason>Existing single namespace manifest. Use as reference for template-based namespace creation with tenant labels.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>TenantConfig</symbol>
+        <lines>29-109</lines>
+        <reason>Tenant configuration model with tenant_id field. Use for tenant identification and namespace naming (e.g., ai-agents-{tenant_id}).</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/tenant.py</path>
+        <kind>schema</kind>
+        <symbol>TenantConfig Schemas</symbol>
+        <lines>27-131</lines>
+        <reason>Pydantic schemas for tenant config validation. Reference for tenant_id format validation in namespace provisioning script.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/complete-rls-setup.sh</path>
+        <kind>script</kind>
+        <symbol>RLS Setup Script</symbol>
+        <lines>N/A</lines>
+        <reason>Existing infrastructure automation script. Use as reference pattern for create-tenant-namespace.sh (bash scripting, idempotency, error handling).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.104.0"/>
+        <package name="pydantic" version=">=2.5.0"/>
+        <package name="sqlalchemy" version=">=2.0.23"/>
+        <package name="redis" version=">=5.0.1"/>
+        <package name="celery" version=">=5.3.4"/>
+      </python>
+      <container>
+        <image name="postgres" version="17-alpine"/>
+        <image name="redis" version="7.x"/>
+        <image name="python" version="3.12-slim"/>
+      </container>
+      <kubernetes>
+        <version>1.28+</version>
+        <resources>
+          <resource>Namespace</resource>
+          <resource>Deployment</resource>
+          <resource>Service</resource>
+          <resource>NetworkPolicy</resource>
+          <resource>ResourceQuota</resource>
+          <resource>ServiceAccount</resource>
+          <resource>Role</resource>
+          <resource>RoleBinding</resource>
+          <resource>ClusterRole</resource>
+          <resource>ClusterRoleBinding</resource>
+        </resources>
+      </kubernetes>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+**Development Constraints from Architecture:**
+- Use Kubernetes 1.28+ native resources only (no Helm, Kustomize)
+- Follow existing pattern: bash scripts for provisioning automation
+- Manifest templates in k8s/templates/ directory with {{PLACEHOLDER}} syntax
+- Generated manifests in k8s/generated/{tenant-id}/ (gitignored)
+- All scripts must be idempotent (safe to run multiple times)
+- Security-first: SecurityContext with runAsNonRoot, drop ALL capabilities
+- Resource requests/limits mandatory for all Pods
+- Probes (liveness, readiness, startup) required for all deployments
+
+**Multi-Tenancy Patterns from Story 3.5:**
+- Per-tenant secrets pattern established (webhook secrets per tenant)
+- Redis caching with 5-minute TTL for tenant configs
+- Defense-in-depth security model (7 layers including compute isolation)
+- Comprehensive testing (38 tests for Story 3.5, target 6+ for this story)
+
+**Namespace Isolation Strategy:**
+- Soft multi-tenancy: Shared PostgreSQL/Redis, isolated compute per tenant
+- Namespace naming: ai-agents-{tenant-id} (lowercase alphanumeric with hyphens)
+- Network policies: Default deny + explicit allow rules
+- Resource quotas: CPU 2-4 cores, Memory 4-8Gi, Storage 20Gi, Pods max 10
+- RBAC: ServiceAccount per tenant, ClusterRole for platform operators
+
+**Testing Requirements:**
+- Integration tests in tests/integration/ directory
+- Use pytest with pytest-asyncio for async operations
+- Target 100% pass rate for all 6+ integration tests
+- Test network isolation, resource quotas, RBAC, independent webhook processing
+  </constraints>
+
+  <interfaces>
+**Kubernetes APIs:**
+- kubectl CLI: Namespace, Deployment, Service, NetworkPolicy, ResourceQuota creation
+- kubectl wait: Verify Pod readiness after manifest apply
+- kubectl describe: Validate resource quota status
+
+**Existing Services to Reference:**
+- PostgreSQL Service: postgresql.ai-agents.svc.cluster.local:5432
+- Redis Service: redis.ai-agents.svc.cluster.local:6379
+- Ingress: ingress-nginx namespace for external traffic routing
+
+**Tenant Configuration API (Existing):**
+- src/database/models.py::TenantConfig - tenant_id field for namespace mapping
+- src/schemas/tenant.py - Tenant validation schemas
+
+**Script Interfaces to Create:**
+- create-tenant-namespace.sh --tenant-id=<tenant-id>
+  - Input: tenant_id (validated: ^[a-z0-9-]+$)
+  - Output: Namespace name, success/error message
+  - Exit codes: 0=success, 1=error
+  </interfaces>
+
+  <tests>
+    <standards>
+**Testing Framework:**
+- Pytest 7.4.3+ with pytest-asyncio for async tests
+- Test location: tests/integration/ for cross-component validation
+- Black code formatting, Ruff linting applied to test code
+- asyncio_mode = "auto" for automatic async test handling
+
+**Existing Test Patterns:**
+- Story 3.5 achieved 38 tests with comprehensive multi-tenant validation
+- tests/unit/test_row_level_security.py - RLS testing patterns
+- tests/unit/test_tenant_service.py - Tenant isolation testing
+- tests/integration/test_webhook_security.py - Security validation patterns
+
+**Test Standards for This Story:**
+- All 6+ integration tests must pass with 100% success rate
+- Network policy tests: Use kubectl exec to attempt cross-namespace connections (expect failure)
+- Resource quota tests: Create Pods exceeding quota, verify admission error
+- RBAC tests: Use kubectl auth can-i to verify ServiceAccount permissions
+- Webhook tests: Send webhooks to different tenant namespaces, verify independent processing
+    </standards>
+    <locations>
+tests/integration/test_tenant_namespace_isolation.py (to be created)
+tests/integration/ (existing integration test directory)
+tests/unit/ (existing unit test directory)
+k8s/generated/{tenant-id}/ (generated manifests for validation)
+    </locations>
+    <ideas>
+**Test Cases Mapped to Acceptance Criteria:**
+
+AC1 (Namespace Creation Script):
+- Test: Script validates tenant_id format (rejects invalid: uppercase, spaces, special chars)
+- Test: Script creates namespace with correct name (ai-agents-{tenant-id})
+- Test: Script is idempotent (run twice, namespace created once)
+- Test: Script returns exit code 0 on success, 1 on failure
+
+AC3 (Network Policies):
+- Test: Tenant A pod cannot curl Tenant B pod IP (connection timeout/refused)
+- Test: Tenant A pod can connect to PostgreSQL service (connection succeeds)
+- Test: Tenant A pod can connect to Redis service (connection succeeds)
+- Test: Tenant A pod can resolve DNS (nslookup succeeds)
+
+AC4 (Resource Quotas):
+- Test: Create deployment with resources within quota → succeeds
+- Test: Create deployment exceeding CPU quota → fails with admission error
+- Test: kubectl describe resourcequota shows current usage
+
+AC5 (RBAC):
+- Test: Tenant A ServiceAccount can list pods in Tenant A namespace
+- Test: Tenant A ServiceAccount cannot list pods in Tenant B namespace (403 Forbidden)
+- Test: kubectl auth can-i returns correct permissions
+
+AC7 (Integration):
+- Test: Send webhook to Tenant A → enhancement logged in Tenant A namespace
+- Test: Send webhook to Tenant B → enhancement logged independently in Tenant B namespace
+- Test: Both tenants process webhooks successfully without interference
+    </ideas>
+  </tests>
+</story-context>

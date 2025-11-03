@@ -22,7 +22,7 @@ from src.api.dependencies import get_tenant_db, get_tenant_config_dep
 from src.config import get_settings
 from src.schemas.tenant import TenantConfigInternal
 from src.utils.exceptions import QueueServiceError
-from src.utils.logger import logger
+from src.utils.logger import logger, AuditLogger
 from sqlalchemy.ext.asyncio import AsyncSession
 
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
@@ -93,20 +93,20 @@ async def receive_webhook(
     """
     # Generate unique job ID for correlation and tracking
     job_id = str(uuid.uuid4())
-    correlation_id = str(uuid.uuid4())
+    # Use provided correlation_id from payload if available, otherwise generate new one
+    correlation_id = payload.correlation_id or str(uuid.uuid4())
 
-    # Log webhook receipt with structured fields
-    logger.info(
-        f"Webhook received: ticket {payload.ticket_id} from tenant {payload.tenant_id}",
-        extra={
-            "event": payload.event,
-            "tenant_id": payload.tenant_id,
-            "ticket_id": payload.ticket_id,
-            "priority": payload.priority,
-            "description_length": len(payload.description),
-            "correlation_id": correlation_id,
-            "job_id": job_id,
-        },
+    # Bind correlation ID to logger context for all downstream operations
+    logger.bind(correlation_id=correlation_id)
+
+    # Log webhook receipt using AuditLogger for compliance tracking
+    AuditLogger.audit_webhook_received(
+        tenant_id=payload.tenant_id,
+        ticket_id=payload.ticket_id,
+        correlation_id=correlation_id,
+        event=payload.event,
+        priority=payload.priority,
+        description_length=len(payload.description),
     )
 
     # Queue job to Redis for asynchronous processing
@@ -121,6 +121,7 @@ async def receive_webhook(
             "description": payload.description,
             "priority": payload.priority,
             "timestamp": payload.created_at,
+            "correlation_id": correlation_id,  # Propagate correlation ID through job payload
             # Tenant-specific configuration (from tenant_config dependency)
             "servicedesk_url": tenant_config.servicedesk_url,
             "servicedesk_api_key": tenant_config.api_key,  # Decrypted by dependency

@@ -19,11 +19,16 @@ from celery.exceptions import SoftTimeLimitExceeded
 from loguru import logger
 from pydantic import ValidationError
 
+from src.utils.logger import AuditLogger
+
 from src.workers.celery_app import celery_app
 from src.schemas.job import EnhancementJob
 from src.database.models import EnhancementHistory
 from src.database.session import async_session_maker
 from src.database.tenant_context import set_db_tenant_context
+
+# Audit logger for compliance logging
+audit_logger = AuditLogger()
 
 # Prometheus metrics stubs (will be fully implemented in Story 4.1)
 # For now, we just define placeholders to satisfy Story 2.4 requirements
@@ -196,7 +201,6 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
 
     start_time = time()
     enhancement_id = None
-    correlation_id = str(uuid.uuid4())
     tenant_id = job_data.get("tenant_id", "unknown")
     context_gathered = {}
     llm_output = ""
@@ -206,6 +210,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         try:
             job = EnhancementJob.model_validate(job_data)
         except ValidationError as e:
+            correlation_id = job_data.get("correlation_id", str(uuid.uuid4()))
             logger.error(
                 "Task enhance_ticket validation failed",
                 extra={
@@ -217,6 +222,21 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                 },
             )
             raise
+
+        # Extract correlation ID from job (generated at webhook entry or provided)
+        correlation_id = job.correlation_id
+
+        # Bind correlation ID to logger for all subsequent logs in this task
+        logger.bind(correlation_id=correlation_id, task_id=self.request.id, worker_id=self.request.hostname)
+
+        # Log task start with audit logger for compliance
+        audit_logger.audit_enhancement_started(
+            tenant_id=job.tenant_id,
+            ticket_id=job.ticket_id,
+            correlation_id=correlation_id,
+            task_id=self.request.id,
+            worker_id=self.request.hostname,
+        )
 
         # Log task start with correlation ID
         logger.info(
@@ -566,13 +586,24 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as exc:
         processing_time_ms = int((time() - start_time) * 1000)
         attempt_number = self.request.retries
+        ticket_id = job_data.get("ticket_id") if isinstance(job_data, dict) else None
+
+        # Log enhancement failure with audit logger for compliance
+        audit_logger.audit_enhancement_failed(
+            tenant_id=tenant_id,
+            ticket_id=ticket_id,
+            correlation_id=correlation_id,
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            duration_ms=processing_time_ms,
+        )
 
         logger.error(
             f"Task enhance_ticket failed with error: {str(exc)}",
             extra={
                 "correlation_id": correlation_id,
                 "task_id": self.request.id,
-                "ticket_id": job_data.get("ticket_id") if isinstance(job_data, dict) else None,
+                "ticket_id": ticket_id,
                 "tenant_id": tenant_id,
                 "enhancement_id": enhancement_id,
                 "error_type": type(exc).__name__,
