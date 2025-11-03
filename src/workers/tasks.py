@@ -466,6 +466,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                     ticket_id=job.ticket_id,
                     enhancement=llm_output,
                     correlation_id=correlation_id,
+                    tenant_id=job.tenant_id,
                 )
 
                 # Task 4.2: Handle API update result
@@ -543,6 +544,14 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
                 "enhancement_id": enhancement_id,
                 "processing_time_ms": result["processing_time_ms"],
             },
+        )
+
+        # Log enhancement completion with audit logger for compliance
+        audit_logger.audit_enhancement_completed(
+            tenant_id=job.tenant_id,
+            ticket_id=job.ticket_id,
+            correlation_id=correlation_id,
+            duration_ms=result["processing_time_ms"],
         )
 
         return result

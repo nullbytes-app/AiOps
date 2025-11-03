@@ -17,7 +17,10 @@ from typing import Optional
 
 import httpx
 
+from src.utils.logger import AuditLogger
+
 logger = logging.getLogger(__name__)
+audit_logger = AuditLogger()
 
 # =============================================================================
 # RETRY CONFIGURATION CONSTANTS
@@ -193,7 +196,7 @@ def should_retry(status_code: Optional[int], exception: Optional[Exception]) -> 
 
 
 async def update_ticket_with_enhancement(
-    base_url: str, api_key: str, ticket_id: str, enhancement: str, correlation_id: str = None
+    base_url: str, api_key: str, ticket_id: str, enhancement: str, correlation_id: str = None, tenant_id: str = None
 ) -> bool:
     """
     Post an enhancement to a ticket in ServiceDesk Plus via API.
@@ -295,6 +298,15 @@ async def update_ticket_with_enhancement(
                             "correlation_id": correlation_id,
                             "status_code": response.status_code,
                         },
+                    )
+                    # Log API call success for audit trail (AC3, AC5)
+                    audit_logger.audit_api_call(
+                        tenant_id=tenant_id,
+                        ticket_id=ticket_id,
+                        correlation_id=correlation_id,
+                        endpoint="servicedesk/v3/requests",
+                        method="POST",
+                        status_code=response.status_code,
                     )
                     return True
 
