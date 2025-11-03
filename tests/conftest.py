@@ -26,7 +26,11 @@ def pytest_configure(config):
     os.environ.setdefault("AI_AGENTS_OPENROUTER_SITE_URL", "https://test.example.com")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_APP_NAME", "AI Agents Test Suite")
     # Set encryption key for tenant config encryption/decryption tests (Story 3.2 & 3.3)
-    os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", "gAAAAABlwXxk-k_Nz5mPqR-9jL2xF8vB3cZ1aQ_yH7mJ9dKwL-sA0pR1bC=")
+    # Note: Both ENCRYPTION_KEY and AI_AGENTS_ENCRYPTION_KEY are set for compatibility
+    # Must be a valid Fernet key (44 chars, base64 encoded)
+    encryption_key = "cQ6XaP2aIb5CiVkoKSYfLKEaRZNpqGVdkJCo6ia_buY="
+    os.environ.setdefault("ENCRYPTION_KEY", encryption_key)
+    os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", encryption_key)
     # Set individual secret fields for Story 3.3 tests (Kubernetes Secrets)
     os.environ.setdefault("AI_AGENTS_POSTGRES_PASSWORD", "test_postgres_password_min_12_chars")
     os.environ.setdefault("AI_AGENTS_REDIS_PASSWORD", "test_redis_password_min_12_chars")
@@ -54,7 +58,11 @@ def setup_test_env():
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_API_KEY", "test-servicedesk-api-key")
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_BASE_URL", "https://test.servicedesk.com")
     # Story 3.3: Kubernetes Secrets fields
-    os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", "gAAAAABlwXxk-k_Nz5mPqR-9jL2xF8vB3cZ1aQ_yH7mJ9dKwL-sA0pR1bC=")
+    # Note: Both ENCRYPTION_KEY and AI_AGENTS_ENCRYPTION_KEY are set for compatibility
+    # Must be a valid Fernet key (44 chars, base64 encoded)
+    encryption_key = "cQ6XaP2aIb5CiVkoKSYfLKEaRZNpqGVdkJCo6ia_buY="
+    os.environ.setdefault("ENCRYPTION_KEY", encryption_key)
+    os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", encryption_key)
     os.environ.setdefault("AI_AGENTS_POSTGRES_PASSWORD", "test_postgres_password_min_12_chars")
     os.environ.setdefault("AI_AGENTS_REDIS_PASSWORD", "test_redis_password_min_12_chars")
     os.environ.setdefault("AI_AGENTS_OPENAI_API_KEY", "sk-proj-test-openai-api-key-for-testing")
