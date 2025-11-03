@@ -5,13 +5,18 @@ This module initializes the FastAPI application and will include
 routers, middleware, and startup/shutdown event handlers in future stories.
 """
 
+import logging
+
 from fastapi import FastAPI, HTTPException, status
 
 from src.api import health, webhooks
 from src.api.admin import tenants as admin_tenants
-from src.config import settings
+from src.config import is_kubernetes_env, settings
 from src.cache.redis_client import check_redis_connection
 from src.database.connection import check_database_connection
+from src.utils.secrets import validate_secrets_at_startup
+
+logger = logging.getLogger(__name__)
 
 # Initialize FastAPI application
 app = FastAPI(
@@ -26,6 +31,26 @@ app = FastAPI(
 app.include_router(webhooks.router)
 app.include_router(health.router)
 app.include_router(admin_tenants.router)  # Admin tenant management endpoints
+
+
+@app.on_event("startup")
+async def startup_event() -> None:
+    """
+    Application startup event handler.
+
+    Validates that all required secrets are present and properly formatted
+    before the application accepts requests.
+
+    Raises:
+        EnvironmentError: If required secrets are missing or invalid
+    """
+    try:
+        await validate_secrets_at_startup()
+        env_type = "Kubernetes" if is_kubernetes_env() else "local development"
+        logger.info(f"Secrets validated successfully. Running in {env_type} environment")
+    except EnvironmentError as e:
+        logger.error(f"Secrets validation failed: {str(e)}")
+        raise
 
 
 @app.get("/")

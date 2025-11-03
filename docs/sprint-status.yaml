@@ -68,7 +68,7 @@ development_status:
   epic-3: backlog
   3-1-implement-row-level-security-in-postgresql: done
   3-2-create-tenant-configuration-management-system: done
-  3-3-implement-secrets-management-with-kubernetes-secrets: backlog
+  3-3-implement-secrets-management-with-kubernetes-secrets: review
   3-4-implement-input-validation-and-sanitization: backlog
   3-5-implement-webhook-signature-validation-with-multiple-tenants: backlog
   3-6-create-kubernetes-namespaces-for-tenant-isolation: backlog

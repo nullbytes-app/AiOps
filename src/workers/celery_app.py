@@ -16,11 +16,25 @@ Configuration Details:
     - Acknowledgement: Late (after task completion for reliability)
 """
 
+import logging
+
 from celery import Celery
 
 from src.config import settings
+from src.utils.secrets import validate_secrets
+
+logger = logging.getLogger(__name__)
+
+# Validate secrets before initializing Celery application
+try:
+    validate_secrets()
+    logger.info("Celery worker secrets validated successfully")
+except EnvironmentError as e:
+    logger.error(f"Celery worker secrets validation failed: {str(e)}")
+    raise
 
 # Initialize Celery application with Redis broker and backend
+# Redis connection uses secrets loaded from Kubernetes Secrets (production) or .env (development)
 celery_app = Celery(
     "ai_agents",
     broker=settings.celery_broker_url,

@@ -19,13 +19,18 @@ def pytest_configure(config):
     os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
     os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     os.environ.setdefault("AI_AGENTS_WEBHOOK_SECRET", "test-webhook-secret-minimum-32-chars-required-here")
+    os.environ.setdefault("AI_AGENTS_ADMIN_API_KEY", "test-admin-api-key-minimum-32-characters-required")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_API_KEY", "test-openrouter-api-key-sk-or-v1-valid-format")
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_API_KEY", "test-servicedesk-api-key")
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_BASE_URL", "https://test.servicedesk.com")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_SITE_URL", "https://test.example.com")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_APP_NAME", "AI Agents Test Suite")
-    # Set encryption key for tenant config encryption/decryption tests
-    os.environ.setdefault("ENCRYPTION_KEY", "PPKoFvf2uT-VU0paVYc_rO5F-zVz5YUonDBagL2h0wU=")
+    # Set encryption key for tenant config encryption/decryption tests (Story 3.2 & 3.3)
+    os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", "gAAAAABlwXxk-k_Nz5mPqR-9jL2xF8vB3cZ1aQ_yH7mJ9dKwL-sA0pR1bC=")
+    # Set individual secret fields for Story 3.3 tests (Kubernetes Secrets)
+    os.environ.setdefault("AI_AGENTS_POSTGRES_PASSWORD", "test_postgres_password_min_12_chars")
+    os.environ.setdefault("AI_AGENTS_REDIS_PASSWORD", "test_redis_password_min_12_chars")
+    os.environ.setdefault("AI_AGENTS_OPENAI_API_KEY", "sk-proj-test-openai-api-key-for-testing")
 
     # Only set additional environment if not already in CI/Docker environment
     if not os.environ.get("CI"):
@@ -44,9 +49,15 @@ def setup_test_env():
     os.environ.setdefault("AI_AGENTS_CELERY_BROKER_URL", "redis://localhost:6379/1")
     os.environ.setdefault("AI_AGENTS_CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     os.environ.setdefault("AI_AGENTS_WEBHOOK_SECRET", "test-webhook-secret-minimum-32-chars-required-here")
+    os.environ.setdefault("AI_AGENTS_ADMIN_API_KEY", "test-admin-api-key-minimum-32-characters-required")
     os.environ.setdefault("AI_AGENTS_OPENROUTER_API_KEY", "test-openrouter-api-key")
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_API_KEY", "test-servicedesk-api-key")
     os.environ.setdefault("AI_AGENTS_SERVICEDESK_BASE_URL", "https://test.servicedesk.com")
+    # Story 3.3: Kubernetes Secrets fields
+    os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", "gAAAAABlwXxk-k_Nz5mPqR-9jL2xF8vB3cZ1aQ_yH7mJ9dKwL-sA0pR1bC=")
+    os.environ.setdefault("AI_AGENTS_POSTGRES_PASSWORD", "test_postgres_password_min_12_chars")
+    os.environ.setdefault("AI_AGENTS_REDIS_PASSWORD", "test_redis_password_min_12_chars")
+    os.environ.setdefault("AI_AGENTS_OPENAI_API_KEY", "sk-proj-test-openai-api-key-for-testing")
 
     # Import config module AFTER environment variables are set
     from src import config

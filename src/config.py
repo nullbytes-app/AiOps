@@ -4,12 +4,26 @@ Application configuration management using Pydantic Settings.
 This module defines the central configuration class that loads settings from
 environment variables with the AI_AGENTS_ prefix. All application modules
 should import the settings instance from this module.
+
+Supports both local development (via .env file) and Kubernetes production
+(via mounted environment variables from Secrets).
 """
 
+import os
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def is_kubernetes_env() -> bool:
+    """
+    Detect if running in a Kubernetes environment.
+
+    Returns:
+        bool: True if running in Kubernetes (detected by KUBERNETES_SERVICE_HOST)
+    """
+    return bool(os.getenv("KUBERNETES_SERVICE_HOST"))
 
 
 class Settings(BaseSettings):
@@ -98,6 +112,22 @@ class Settings(BaseSettings):
     encryption_key: str = Field(
         ...,
         description="Encryption key for sensitive fields (Fernet symmetric key)",
+    )
+
+    # Secrets (Individual fields from Kubernetes Secrets / .env)
+    postgres_password: str = Field(
+        ...,
+        description="PostgreSQL database password (minimum 12 characters)",
+        min_length=12,
+    )
+    redis_password: str = Field(
+        ...,
+        description="Redis password (minimum 12 characters)",
+        min_length=12,
+    )
+    openai_api_key: str = Field(
+        ...,
+        description="OpenAI API key for GPT models (sk-proj-... or sk-...)",
     )
 
     # OpenRouter/LLM Configuration
