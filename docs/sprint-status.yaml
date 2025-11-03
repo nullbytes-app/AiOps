@@ -76,10 +76,10 @@ development_status:
   3-8-create-security-testing-and-penetration-test-suite: done
   epic-3-retrospective: optional
 
-  epic-4: backlog
+  epic-4: contexted
   4-1-implement-prometheus-metrics-instrumentation: done
   4-2-deploy-prometheus-server-and-configure-scraping: done
-  4-3-create-grafana-dashboards-for-real-time-monitoring: backlog
+  4-3-create-grafana-dashboards-for-real-time-monitoring: review
   4-4-configure-alerting-rules-in-prometheus: backlog
   4-5-integrate-alertmanager-for-alert-routing: backlog
   4-6-implement-distributed-tracing-with-opentelemetry: backlog

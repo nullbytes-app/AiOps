@@ -88,7 +88,7 @@ pip install -e ".[dev]"
 ```
 
 This installs:
-- Core dependencies (FastAPI, SQLAlchemy, Celery, Redis, etc.)
+- Core dependencies (FastAPI, SQLAlchemy, Celery, Redis, prometheus-client, etc.)
 - Development tools (pytest, black, ruff, mypy)
 
 ### 4. Configure Environment
@@ -1231,6 +1231,102 @@ The deployment guide includes:
 - Scaling and performance tuning
 - Monitoring and troubleshooting
 - Production readiness checklist
+
+## Monitoring & Metrics
+
+The AI Agents Platform includes comprehensive Prometheus metrics for operational observability.
+
+### Prometheus Metrics
+
+**Local Development (Docker Compose):**
+```bash
+# Access Prometheus UI
+http://localhost:9090
+
+# Access raw metrics endpoint
+http://localhost:8000/metrics
+```
+
+**Kubernetes Production:**
+```bash
+# Port-forward to Prometheus service
+kubectl port-forward svc/prometheus 9090:9090
+
+# Access Prometheus UI
+http://localhost:9090
+
+# Get metrics from FastAPI pods
+kubectl exec deployment/deployment-api -- curl http://localhost:8000/metrics
+```
+
+### Available Metrics
+
+The platform exposes the following Prometheus metrics:
+
+- **enhancement_requests_total** - Counter of enhancement requests by tenant and status
+- **enhancement_duration_seconds** - Histogram of processing latency (p50/p95/p99)
+- **enhancement_success_rate** - Gauge of current success rate percentage
+- **queue_depth** - Gauge of pending Redis queue jobs
+- **worker_active_count** - Gauge of active Celery workers
+
+### Documentation
+
+For detailed metrics documentation, PromQL queries, and alerting recommendations, see:
+- [Metrics Guide](docs/operations/metrics-guide.md) - Available metrics and sample PromQL queries
+- [Prometheus Setup Guide](docs/operations/prometheus-setup.md) - Deployment and configuration instructions
+
+### Grafana Dashboards
+
+Real-time visual dashboards for monitoring platform health and performance.
+
+**Local Development (Docker Compose):**
+```bash
+# Access Grafana UI
+http://localhost:3000
+
+# Default credentials
+Username: admin
+Password: admin
+```
+
+**Kubernetes Production:**
+```bash
+# Port-forward to Grafana service
+kubectl port-forward svc/grafana 3000:3000
+
+# Access Grafana UI
+http://localhost:3000
+```
+
+**Default Dashboard:** "AI Agents - System Health & Performance"
+- Success Rate (gauge, ≥95% = healthy)
+- Queue Depth (time series, shows pending jobs)
+- p95 Latency (time series, target ≤120 seconds)
+- Error Rate by Tenant (table, ≥5% = critical)
+- Active Celery Workers (stat, ≥1 = healthy)
+
+**Dashboard Configuration:**
+- Auto-refresh: 30 seconds
+- Time range selector: 1h, 6h, 24h, 7d lookback
+- Datasource: Prometheus (http://prometheus:9090)
+
+**Documentation:** See [Grafana Setup Guide](docs/operations/grafana-setup.md) for deployment, configuration, and troubleshooting.
+
+### Sample Queries
+
+```promql
+# p95 latency over last 5 minutes
+histogram_quantile(0.95, rate(enhancement_duration_seconds_bucket[5m]))
+
+# Error rate percentage
+rate(enhancement_requests_total{status="failure"}[5m]) / rate(enhancement_requests_total[5m]) * 100
+
+# Current queue depth
+queue_depth{queue_name="enhancement:queue"}
+
+# Success rate for specific tenant
+enhancement_success_rate{tenant_id="acme"}
+```
 
 ## Troubleshooting
 
