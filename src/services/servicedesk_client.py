@@ -228,7 +228,7 @@ async def update_ticket_with_enhancement(
         ...     "https://api.servicedesk.company.com",
         ...     "api-key-123",
         ...     "req-456",
-        ...     "## Similar Tickets\n- Previously reported",
+        ...     "## Similar Tickets\\n- Previously reported",
         ...     correlation_id="abc-123-def"
         ... )
         >>> if success:
@@ -327,7 +327,28 @@ async def update_ticket_with_enhancement(
             )
 
             if not should_retry(status_code, e):
+                # Log final API failure for audit trail (AC3, AC5)
+                audit_logger.audit_api_call(
+                    tenant_id=tenant_id,
+                    ticket_id=ticket_id,
+                    correlation_id=correlation_id,
+                    endpoint="servicedesk/v3/requests",
+                    method="POST",
+                    status_code=status_code,
+                    extra={"retry_exhausted": True, "final_status_code": status_code}
+                )
                 return False
+            
+            # Log retry attempt with warning level (AC3, AC5)
+            logger.warning(
+                f"ServiceDesk API retry attempt {attempt + 1}/{MAX_RETRIES} after HTTP {status_code}",
+                extra={
+                    "ticket_id": ticket_id,
+                    "correlation_id": correlation_id,
+                    "status_code": status_code,
+                    "attempt_number": attempt + 1,
+                },
+            )
 
         except (httpx.TimeoutException, asyncio.TimeoutError) as e:
             logger.warning(
@@ -341,6 +362,16 @@ async def update_ticket_with_enhancement(
             )
 
             if not should_retry(None, e):
+                # Log final API failure due to timeout (AC3, AC5)
+                audit_logger.audit_api_call(
+                    tenant_id=tenant_id,
+                    ticket_id=ticket_id,
+                    correlation_id=correlation_id,
+                    endpoint="servicedesk/v3/requests",
+                    method="POST",
+                    status_code=None,
+                    extra={"error_type": "TimeoutError", "retry_exhausted": True}
+                )
                 return False
 
         except (httpx.ConnectError, httpx.NetworkError) as e:
@@ -351,6 +382,16 @@ async def update_ticket_with_enhancement(
             )
 
             if not should_retry(None, e):
+                # Log final API failure due to network error (AC3, AC5)
+                audit_logger.audit_api_call(
+                    tenant_id=tenant_id,
+                    ticket_id=ticket_id,
+                    correlation_id=correlation_id,
+                    endpoint="servicedesk/v3/requests",
+                    method="POST",
+                    status_code=None,
+                    extra={"error_type": type(e).__name__, "retry_exhausted": True}
+                )
                 return False
 
         except Exception as e:
@@ -358,6 +399,16 @@ async def update_ticket_with_enhancement(
                 f"Unexpected error updating ticket: {str(e)}",
                 extra={"ticket_id": ticket_id, "correlation_id": correlation_id},
                 exc_info=True,
+            )
+            # Log unexpected error as final failure (AC3, AC5)
+            audit_logger.audit_api_call(
+                tenant_id=tenant_id,
+                ticket_id=ticket_id,
+                correlation_id=correlation_id,
+                endpoint="servicedesk/v3/requests",
+                method="POST",
+                status_code=None,
+                extra={"error_type": type(e).__name__, "error_message": str(e), "final_failure": True}
             )
             return False
 
@@ -378,6 +429,16 @@ async def update_ticket_with_enhancement(
             "correlation_id": correlation_id,
             "max_retries": MAX_RETRIES,
         },
+    )
+    # Log final failure after all retries exhausted (AC3, AC5)
+    audit_logger.audit_api_call(
+        tenant_id=tenant_id,
+        ticket_id=ticket_id,
+        correlation_id=correlation_id,
+        endpoint="servicedesk/v3/requests",
+        method="POST",
+        status_code=None,
+        extra={"error_type": "MaxRetriesExhausted", "max_retries": MAX_RETRIES}
     )
     return False
 

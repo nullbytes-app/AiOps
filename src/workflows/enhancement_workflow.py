@@ -576,6 +576,7 @@ async def execute_context_gathering(
     priority: Optional[str] = None,
     session: Optional[AsyncSession] = None,
     kb_config: Optional[Dict[str, str]] = None,
+    correlation_id: Optional[str] = None,
 ) -> WorkflowState:
     """
     Execute the context gathering workflow.
@@ -594,6 +595,7 @@ async def execute_context_gathering(
         priority: Optional ticket priority
         session: Optional AsyncSession for IP lookup database access
         kb_config: Optional dict with kb_base_url and kb_api_key
+        correlation_id: Optional correlation ID for distributed tracing (AC5)
 
     Returns:
         WorkflowState with aggregated results from all search nodes:
@@ -604,7 +606,11 @@ async def execute_context_gathering(
         - workflow_execution_time_ms: Total execution time
     """
     workflow_start_time = time.time()
-    correlation_id = str(uuid.uuid4())
+    
+    # Use provided correlation_id or generate a new one (AC5)
+    if not correlation_id:
+        import uuid
+        correlation_id = str(uuid.uuid4())
 
     logger.info(
         f"[{correlation_id}] Starting context gathering workflow",

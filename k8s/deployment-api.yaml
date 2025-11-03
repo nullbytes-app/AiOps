@@ -75,6 +75,10 @@ spec:
             secretKeyRef:
               name: app-secrets
               key: encryption-key
+        - name: LOG_FILE_ENABLED
+          value: "false"
+        - name: PYTHONUNBUFFERED
+          value: "1"
         resources:
           requests:
             cpu: 250m
