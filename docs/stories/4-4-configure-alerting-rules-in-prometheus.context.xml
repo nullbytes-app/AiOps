@@ -1,0 +1,590 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.4</storyId>
+    <title>Configure Alerting Rules in Prometheus</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-4-configure-alerting-rules-in-prometheus.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>SRE</asA>
+    <iWant>automated alerts for critical failures</iWant>
+    <soThat>I'm notified when the system degrades or fails</soThat>
+    <tasks>
+      <task id="1" title="Create Alert Rules File for Local Docker">
+        <subtask id="1.1">Create alert-rules.yml in project root</subtask>
+        <subtask id="1.2">Define alert rules group structure (enhancement_pipeline_alerts)</subtask>
+        <subtask id="1.3">Define EnhancementSuccessRateLow alert rule (expr, for, keep_firing_for, labels, annotations)</subtask>
+        <subtask id="1.4">Define QueueDepthHigh alert rule</subtask>
+        <subtask id="1.5">Define WorkerDown alert rule</subtask>
+        <subtask id="1.6">Define HighLatency alert rule with histogram_quantile expression</subtask>
+        <subtask id="1.7">Validate YAML syntax with yamllint</subtask>
+        <subtask id="1.8">Commit alert-rules.yml to version control</subtask>
+      </task>
+
+      <task id="2" title="Update Prometheus Config for Local Docker">
+        <subtask id="2.1">Open prometheus.yml in project root</subtask>
+        <subtask id="2.2">Add rule_files section referencing alert-rules.yml</subtask>
+        <subtask id="2.3">Verify evaluation_interval is set (15s)</subtask>
+        <subtask id="2.4">Validate Prometheus config with promtool</subtask>
+        <subtask id="2.5">Restart Prometheus to load alert rules</subtask>
+        <subtask id="2.6">Check Prometheus logs for config reload success</subtask>
+        <subtask id="2.7">Commit updated prometheus.yml</subtask>
+      </task>
+
+      <task id="3" title="Create Alert Rules ConfigMap for Kubernetes">
+        <subtask id="3.1">Create k8s/prometheus-alert-rules.yaml file</subtask>
+        <subtask id="3.2">Define ConfigMap resource with appropriate labels</subtask>
+        <subtask id="3.3">Add alert rules as multiline data field</subtask>
+        <subtask id="3.4">Copy all four alert rule definitions from alert-rules.yml</subtask>
+        <subtask id="3.5">Validate YAML syntax with kubectl dry-run</subtask>
+        <subtask id="3.6">Commit k8s/prometheus-alert-rules.yaml</subtask>
+      </task>
+
+      <task id="4" title="Update Prometheus Deployment for Kubernetes">
+        <subtask id="4.1">Open k8s/prometheus-deployment.yaml</subtask>
+        <subtask id="4.2">Add volume mount for alert rules in container spec</subtask>
+        <subtask id="4.3">Add volume definition referencing alert-rules ConfigMap</subtask>
+        <subtask id="4.4">Update k8s/prometheus-config.yaml to reference alert rules file</subtask>
+        <subtask id="4.5">Validate Kubernetes manifests</subtask>
+        <subtask id="4.6">Commit updated deployment and config files</subtask>
+      </task>
+
+      <task id="5" title="Deploy Alert Rules to Kubernetes">
+        <subtask id="5.1">Verify kubectl context</subtask>
+        <subtask id="5.2">Apply alert rules ConfigMap</subtask>
+        <subtask id="5.3">Verify ConfigMap created</subtask>
+        <subtask id="5.4">Apply updated Prometheus config</subtask>
+        <subtask id="5.5">Restart Prometheus deployment</subtask>
+        <subtask id="5.6">Wait for pod restart completion</subtask>
+        <subtask id="5.7">Check Prometheus pod logs for config reload</subtask>
+        <subtask id="5.8">Verify no configuration errors in logs</subtask>
+      </task>
+
+      <task id="6" title="Verify Alert Rules Loaded">
+        <subtask id="6.1">Access Prometheus UI (localhost:9090 or port-forward)</subtask>
+        <subtask id="6.2">Navigate to Alerts page</subtask>
+        <subtask id="6.3">Verify all four alert rules listed</subtask>
+        <subtask id="6.4">Verify alert states show Inactive or Pending (not Error)</subtask>
+        <subtask id="6.5">Expand each alert to verify PromQL, labels, annotations</subtask>
+        <subtask id="6.6">Click Graph link for each alert to verify metric visualization</subtask>
+        <subtask id="6.7">Take screenshot of Alerts page</subtask>
+      </task>
+
+      <task id="7" title="Test WorkerDown Alert">
+        <subtask id="7.1">Stop all Celery workers (docker-compose or kubectl scale)</subtask>
+        <subtask id="7.2">Verify worker_active_count metric drops to 0</subtask>
+        <subtask id="7.3">Wait 2 minutes for alert to fire</subtask>
+        <subtask id="7.4">Verify WorkerDown alert transitions to Firing state</subtask>
+        <subtask id="7.5">Verify alert labels (severity=critical) and annotations</subtask>
+        <subtask id="7.6">Take screenshot of firing alert</subtask>
+        <subtask id="7.7">Restart workers to resolve condition</subtask>
+        <subtask id="7.8">Verify alert resolves and keep_firing_for behavior</subtask>
+      </task>
+
+      <task id="8" title="Test QueueDepthHigh Alert">
+        <subtask id="8.1">Simulate high queue load (150+ jobs)</subtask>
+        <subtask id="8.2">Verify queue_depth metric exceeds 100</subtask>
+        <subtask id="8.3">Wait 5 minutes for alert to fire</subtask>
+        <subtask id="8.4">Verify QueueDepthHigh alert fires</subtask>
+        <subtask id="8.5">Verify annotations show correct queue depth value</subtask>
+        <subtask id="8.6">Take screenshot</subtask>
+        <subtask id="8.7">Start workers and drain queue to resolve</subtask>
+      </task>
+
+      <task id="9" title="Test EnhancementSuccessRateLow Alert">
+        <subtask id="9.1">Simulate enhancement failures (break API connection)</subtask>
+        <subtask id="9.2">Verify enhancement_success_rate drops below 95</subtask>
+        <subtask id="9.3">Wait 10 minutes for alert to fire</subtask>
+        <subtask id="9.4">Verify EnhancementSuccessRateLow alert fires</subtask>
+        <subtask id="9.5">Verify tenant_id label populated</subtask>
+        <subtask id="9.6">Take screenshot</subtask>
+        <subtask id="9.7">Fix API connection to resolve</subtask>
+      </task>
+
+      <task id="10" title="Test HighLatency Alert">
+        <subtask id="10.1">Simulate high latency (artificial delay in worker)</subtask>
+        <subtask id="10.2">Verify p95 latency exceeds 120 seconds</subtask>
+        <subtask id="10.3">Wait 5 minutes for alert to fire</subtask>
+        <subtask id="10.4">Verify HighLatency alert fires</subtask>
+        <subtask id="10.5">Verify annotation displays actual latency value</subtask>
+        <subtask id="10.6">Take screenshot</subtask>
+        <subtask id="10.7">Remove artificial delay to resolve</subtask>
+      </task>
+
+      <task id="11" title="Create Alert Runbooks Documentation">
+        <subtask id="11.1">Create docs/operations/alert-runbooks.md file</subtask>
+        <subtask id="11.2">Add document header and overview</subtask>
+        <subtask id="11.3">Create EnhancementSuccessRateLow runbook section with anchor</subtask>
+        <subtask id="11.4">Create QueueDepthHigh runbook section</subtask>
+        <subtask id="11.5">Create WorkerDown runbook section (critical severity)</subtask>
+        <subtask id="11.6">Create HighLatency runbook section</subtask>
+        <subtask id="11.7">Add General Alert Management section</subtask>
+        <subtask id="11.8">Review runbooks for completeness</subtask>
+        <subtask id="11.9">Commit alert-runbooks.md</subtask>
+      </task>
+
+      <task id="12" title="Create Prometheus Alerting Guide">
+        <subtask id="12.1">Create docs/operations/prometheus-alerting.md file</subtask>
+        <subtask id="12.2">Add Overview section (architecture, prerequisites)</subtask>
+        <subtask id="12.3">Add Alert Rules Configuration section</subtask>
+        <subtask id="12.4">Add Viewing Alerts section</subtask>
+        <subtask id="12.5">Add Testing Alerts section</subtask>
+        <subtask id="12.6">Add Alert Management section (silencing procedure)</subtask>
+        <subtask id="12.7">Add Troubleshooting section</subtask>
+        <subtask id="12.8">Add Next Steps section (Story 4.5, 4.6)</subtask>
+        <subtask id="12.9">Review documentation clarity</subtask>
+        <subtask id="12.10">Commit prometheus-alerting.md</subtask>
+      </task>
+
+      <task id="13" title="Update README with Alerting Documentation">
+        <subtask id="13.1">Open README.md in project root</subtask>
+        <subtask id="13.2">Find or update Monitoring section</subtask>
+        <subtask id="13.3">Add Prometheus Alerting subsection with links</subtask>
+        <subtask id="13.4">Add note about Story 4.5 (Alertmanager for notifications)</subtask>
+        <subtask id="13.5">Save and commit updated README.md</subtask>
+      </task>
+
+      <task id="14" title="End-to-End Validation">
+        <subtask id="14.1">Local Docker validation (all alerts loaded and functional)</subtask>
+        <subtask id="14.2">Kubernetes production validation (ConfigMap mounted, alerts loaded)</subtask>
+        <subtask id="14.3">Alert rule verification (expressions, labels, for clauses)</subtask>
+        <subtask id="14.4">Annotation verification (templates render correctly)</subtask>
+        <subtask id="14.5">Documentation verification (runbooks complete, anchors valid)</subtask>
+        <subtask id="14.6">Testing verification (2+ alerts tested, screenshots captured)</subtask>
+        <subtask id="14.7">Final checklist (all 7 ACs demonstrated)</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" title="Four Alert Rules Configured">
+      <description>Four alert rules configured in alert-rules.yml and prometheus-alert-rules ConfigMap</description>
+      <rules>
+        <rule name="EnhancementSuccessRateLow">
+          <condition>enhancement_success_rate &lt; 95 for 10 minutes</condition>
+          <promql>enhancement_success_rate &lt; 95</promql>
+          <for>10m</for>
+          <keep_firing_for>5m</keep_firing_for>
+          <severity>warning</severity>
+          <labels>severity=warning, component=enhancement-pipeline, tenant_id={{ $labels.tenant_id }}</labels>
+          <annotations>summary, description with troubleshooting context, runbook_url</annotations>
+        </rule>
+        <rule name="QueueDepthHigh">
+          <condition>queue_depth &gt; 100 for 5 minutes</condition>
+          <promql>queue_depth &gt; 100</promql>
+          <for>5m</for>
+          <keep_firing_for>3m</keep_firing_for>
+          <severity>warning</severity>
+          <labels>severity=warning, component=redis-queue</labels>
+        </rule>
+        <rule name="WorkerDown">
+          <condition>worker_active_count == 0 for 2 minutes</condition>
+          <promql>worker_active_count == 0</promql>
+          <for>2m</for>
+          <keep_firing_for>5m</keep_firing_for>
+          <severity>critical</severity>
+          <labels>severity=critical, component=celery-workers</labels>
+        </rule>
+        <rule name="HighLatency">
+          <condition>p95 latency &gt; 120 seconds for 5 minutes</condition>
+          <promql>histogram_quantile(0.95, rate(enhancement_duration_seconds_bucket[5m])) &gt; 120</promql>
+          <for>5m</for>
+          <keep_firing_for>3m</keep_firing_for>
+          <severity>warning</severity>
+          <labels>severity=warning, component=enhancement-pipeline, tenant_id={{ $labels.tenant_id }}</labels>
+        </rule>
+      </rules>
+      <verification>All four rules defined with correct PromQL expressions, for/keep_firing_for clauses, and YAML syntax validated</verification>
+    </criterion>
+
+    <criterion id="AC2" title="Alert Labels Include Severity and Tenant ID">
+      <description>All alerts include appropriate severity labels (critical/warning) and component labels. Tenant-specific alerts include tenant_id label.</description>
+      <severity_labels>
+        <critical>WorkerDown (immediate response required)</critical>
+        <warning>EnhancementSuccessRateLow, QueueDepthHigh, HighLatency (investigate soon)</warning>
+      </severity_labels>
+      <component_labels>
+        <label>component=enhancement-pipeline (EnhancementSuccessRateLow, HighLatency)</label>
+        <label>component=redis-queue (QueueDepthHigh)</label>
+        <label>component=celery-workers (WorkerDown)</label>
+      </component_labels>
+      <tenant_labels>
+        <label>EnhancementSuccessRateLow and HighLatency include tenant_id={{ $labels.tenant_id }}</label>
+        <label>QueueDepthHigh and WorkerDown are system-wide (no tenant_id)</label>
+      </tenant_labels>
+      <verification>Alert labels visible in Prometheus UI Alerts page and usable for filtering</verification>
+    </criterion>
+
+    <criterion id="AC3" title="Alert Annotations Provide Context and Troubleshooting Links">
+      <description>Each alert has summary, description, and runbook_url annotations with template variables</description>
+      <requirements>
+        <summary>Concise one-line description with {{ $value }} template showing current metric value</summary>
+        <description>Detailed explanation with troubleshooting steps, uses {{ $labels.tenant_id }} and {{ $value }} templates</description>
+        <runbook_url>Link to docs/operations/alert-runbooks.md with specific anchor for each alert</runbook_url>
+      </requirements>
+      <verification>Annotations visible in Prometheus UI, templates render correctly with actual values, runbook URLs are valid</verification>
+    </criterion>
+
+    <criterion id="AC4" title="Alerts Tested by Triggering Conditions">
+      <description>All four alerts tested by simulating failure conditions and verifying alert fires correctly</description>
+      <test_scenarios>
+        <scenario name="WorkerDown">Stop Celery workers, wait 2 min, verify alert fires, restart workers, verify resolution</scenario>
+        <scenario name="QueueDepthHigh">Enqueue 150+ jobs while workers stopped, wait 5 min, verify alert fires, drain queue</scenario>
+        <scenario name="EnhancementSuccessRateLow">Break ServiceDesk Plus API, process 20+ requests, wait 10 min, verify alert fires</scenario>
+        <scenario name="HighLatency">Add artificial 150s delay, process enhancements, wait 5 min, verify alert fires</scenario>
+      </test_scenarios>
+      <verification>Test results documented, screenshots captured, alert state transitions verified (Inactive→Pending→Firing→Resolved)</verification>
+    </criterion>
+
+    <criterion id="AC5" title="Alert History Viewable in Prometheus UI">
+      <description>Alert rules and their states are visible in Prometheus UI Alerts page</description>
+      <requirements>
+        <access>Navigate to http://localhost:9090/alerts (or via port-forward for K8s)</access>
+        <states>Inactive (green), Pending (yellow), Firing (red) states displayed</states>
+        <details>Expandable view showing Expression, Labels, Annotations, Value, Active Since timestamp</details>
+        <graph>Graph link shows time-series visualization of alert metric</graph>
+      </requirements>
+      <verification>All four alert rules visible, can expand to view details, real-time state updates working</verification>
+    </criterion>
+
+    <criterion id="AC6" title="Alert Silencing Procedure Documented">
+      <description>Documentation created explaining how to temporarily silence alerts for maintenance or known issues</description>
+      <documentation_location>docs/operations/prometheus-alerting.md under "Alert Management" section</documentation_location>
+      <content>
+        <silencing_methods>Temporary workaround via commenting alert rule and reloading config (Alertmanager in Story 4.5 provides native silencing)</silencing_methods>
+        <reload_commands>Docker: docker-compose restart prometheus or curl POST to /-/reload; K8s: kubectl rollout restart</reload_commands>
+        <best_practices>Document reason, set reminder, never silence critical alerts indefinitely</best_practices>
+      </content>
+      <verification>Documentation section exists, reload commands tested and working, warnings included</verification>
+    </criterion>
+
+    <criterion id="AC7" title="Runbooks Linked from Alert Annotations">
+      <description>Comprehensive runbook documentation created with troubleshooting guides for each alert</description>
+      <runbook_location>docs/operations/alert-runbooks.md</runbook_location>
+      <runbook_sections>
+        <section id="enhancementsuccessratelow">Symptom, common causes (API failures, LLM errors, DB issues), troubleshooting steps, resolution, escalation</section>
+        <section id="queuedepthhigh">Symptom, common causes (worker capacity, crashes, flood), troubleshooting steps, resolution, escalation at 500 jobs</section>
+        <section id="workerdown">Symptom, common causes (crash, OOM, Redis connection), troubleshooting steps, resolution, critical escalation</section>
+        <section id="highlatency">Symptom, common causes (slow APIs, LLM timeouts, DB queries), troubleshooting steps, resolution, escalation at 300s</section>
+      </runbook_sections>
+      <verification>All four runbooks exist with unique anchors matching runbook_url annotations, actionable commands included, escalation procedures defined</verification>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 4: Monitoring &amp; Operations - Story 4.4</title>
+        <section>Story 4.4: Configure Alerting Rules in Prometheus (Lines 860-876)</section>
+        <snippet>Story defines four alert rules: EnhancementSuccessRateLow (&lt;95% for 10min), QueueDepthHigh (&gt;100 jobs for 5min), WorkerDown (0 active workers), HighLatency (p95 &gt;120s for 5min). Alerts must include severity labels (warning/critical), tenant_id where applicable, annotations with context and runbook links. Prerequisites: Story 4.2 (Prometheus server running).</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements - Alerting and Observability</title>
+        <section>FR025: Critical Failure Alerting, NFR005: Observability</section>
+        <snippet>FR025: System shall alert on critical failures (agent down, queue backup, repeated errors). NFR005: System shall provide real-time visibility into agent operations through Prometheus metrics and Grafana dashboards, with audit logs retained for 90 days and distributed tracing for debugging failed enhancements.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/operations/prometheus-setup.md</path>
+        <title>Prometheus Setup Guide</title>
+        <section>Architecture and Configuration Patterns</section>
+        <snippet>Prometheus deployment patterns for local Docker and Kubernetes. Pull-based metrics with 15-second scrape interval, 30-day retention. ConfigMap-based configuration provisioning for K8s. Service discovery via Docker DNS (local) and Kubernetes API (production). Port-forward access pattern for K8s: kubectl port-forward svc/prometheus 9090:9090.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/operations/metrics-guide.md</path>
+        <title>Metrics Guide - Available Metrics for Alerting</title>
+        <section>Core Metrics Definitions</section>
+        <snippet>Five core metrics available for alerting: enhancement_requests_total (Counter with tenant_id, status labels), enhancement_duration_seconds (Histogram with buckets for p95 calculation), enhancement_success_rate (Gauge 0-100% with tenant_id), queue_depth (Gauge for Redis queue), worker_active_count (Gauge for Celery workers). PromQL examples included for p95 latency and error rate calculations.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Decision - Observability Stack</title>
+        <section>Technology Stack - Prometheus Alerting</section>
+        <snippet>Prometheus selected for alerting with latest version, pull-based metrics collection, industry-standard alerting rules. Project structure: k8s/prometheus-alert-rules.yaml for ConfigMap, prometheus.yml for local config. Alert rules use for clause to prevent flapping, keep_firing_for for stability, severity labels for routing.</snippet>
+      </doc>
+
+      <doc>
+        <path>external</path>
+        <title>Prometheus Official Documentation - Alerting Rules</title>
+        <section>Defining Alerting Rules (prometheus/prometheus)</section>
+        <snippet>Alert rules configured in YAML groups with name, rules array. Each rule has: alert name, expr (PromQL), for (wait duration before firing), keep_firing_for (prevent flapping), labels (severity, component), annotations (summary, description with templates). Template variables: {{ $labels.labelname }} for label access, {{ $value }} for metric value. Example: for: 10m waits 10 minutes before firing, keep_firing_for: 5m keeps alert active 5 minutes after condition clears.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/stories/4-1-implement-prometheus-metrics-instrumentation.md</path>
+        <title>Story 4.1 - Metrics Instrumentation Context</title>
+        <section>Metrics Implementation Reference</section>
+        <snippet>Metrics exposed at /metrics endpoint: enhancement_success_rate gauge, enhancement_requests_total counter, enhancement_duration_seconds histogram, queue_depth gauge, worker_active_count gauge. All metrics include tenant_id labels for multi-tenant filtering. Implemented in src/monitoring/metrics.py.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/stories/4-2-deploy-prometheus-server-and-configure-scraping.md</path>
+        <title>Story 4.2 - Prometheus Deployment Patterns</title>
+        <section>Infrastructure and Configuration</section>
+        <snippet>Prometheus server deployed on port 9090 (Docker) with 15-second scrape interval. ConfigMap pattern for K8s configuration. Volume mounts for config files in deployment. Configuration reload via docker-compose restart or kubectl rollout restart. Scraping FastAPI /metrics endpoint successfully.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/stories/4-3-create-grafana-dashboards-for-real-time-monitoring.md</path>
+        <title>Story 4.3 - Dashboard Thresholds Reference</title>
+        <section>Established Alert Thresholds</section>
+        <snippet>Grafana dashboard thresholds established: Success Rate gauge (green &gt;95%, yellow 90-95%, red &lt;90%), Queue Depth visual alert line at 100 jobs, p95 Latency target line at 120 seconds (SLA), Active Workers red if 0. These thresholds should match Prometheus alert rules for consistency.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>prometheus.yml</path>
+        <kind>config</kind>
+        <symbol>global.evaluation_interval</symbol>
+        <lines>1-41</lines>
+        <reason>Local Docker Prometheus configuration. Already has evaluation_interval: 15s for alert rule evaluation. Need to add rule_files section to reference alert-rules.yml file. Pattern established: scrape_interval and evaluation_interval both 15s.</reason>
+      </artifact>
+
+      <artifact>
+        <path>k8s/prometheus-config.yaml</path>
+        <kind>config</kind>
+        <symbol>ConfigMap prometheus-config</symbol>
+        <lines>1-103</lines>
+        <reason>Kubernetes Prometheus configuration ConfigMap. Contains prometheus.yml as data field. Need to add rule_files section to reference mounted alert rules. Pattern: ConfigMap-based config provisioning, uses volume mounts in deployment.</reason>
+      </artifact>
+
+      <artifact>
+        <path>k8s/prometheus-deployment.yaml</path>
+        <kind>config</kind>
+        <symbol>Deployment prometheus</symbol>
+        <lines>6-74</lines>
+        <reason>Prometheus Deployment with volume mounts. Currently mounts prometheus-config ConfigMap at /etc/prometheus. Need to add volume mount for alert-rules ConfigMap. Pattern: volumeMounts at /etc/prometheus, volumes reference ConfigMaps by name, web.enable-lifecycle flag enables config reload.</reason>
+      </artifact>
+
+      <artifact>
+        <path>src/monitoring/metrics.py</path>
+        <kind>module</kind>
+        <symbol>enhancement_success_rate, queue_depth, worker_active_count, enhancement_duration_seconds</symbol>
+        <lines>N/A</lines>
+        <reason>Metrics instrumentation from Story 4.1. Defines five core metrics available for alerting: enhancement_requests_total (Counter), enhancement_duration_seconds (Histogram for p95 calculation), enhancement_success_rate (Gauge 0-100%), queue_depth (Gauge), worker_active_count (Gauge). All metrics include tenant_id labels. No changes needed for this story.</reason>
+      </artifact>
+
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>config</kind>
+        <symbol>prometheus service</symbol>
+        <lines>N/A</lines>
+        <reason>Docker Compose configuration defining Prometheus service. Mounts prometheus.yml as config. May need to add volume mount for alert-rules.yml file. Reference only - verify volume mount pattern.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="prometheus-client" version=">=0.19.0" reason="Metrics instrumentation library (Story 4.1). No changes needed - alerting is Prometheus server feature, not Python library." />
+        <note>No new Python dependencies required for this story. Alert rules are Prometheus server configuration, not application code.</note>
+      </python>
+
+      <docker>
+        <image name="prom/prometheus" version="latest" reason="Prometheus server already deployed in Story 4.2. Supports alert rule evaluation natively. No version upgrade needed." />
+        <note>Alert rules feature included in all Prometheus versions. Using latest tag as per Story 4.2 deployment.</note>
+      </docker>
+
+      <kubernetes>
+        <resource type="ConfigMap" reason="Alert rules stored as ConfigMap (k8s/prometheus-alert-rules.yaml). Pattern established in Story 4.2 for prometheus-config." />
+        <note>No new K8s operators or controllers needed. Standard ConfigMap and volume mount pattern.</note>
+      </kubernetes>
+
+      <tools>
+        <tool name="yamllint" reason="Validate YAML syntax for alert-rules.yml file." />
+        <tool name="promtool" reason="Prometheus config validation tool (included in prom/prometheus image). Use for validating alert rule syntax." />
+        <tool name="kubectl" reason="Deploy ConfigMaps and manage K8s resources." />
+      </tools>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" type="consistency">
+      <rule>Alert thresholds MUST match Grafana dashboard thresholds from Story 4.3</rule>
+      <rationale>Ensures consistency between visual indicators and automated alerts. Success rate: 95%, Queue depth: 100, Latency: 120s, Workers: 0</rationale>
+    </constraint>
+
+    <constraint id="C2" type="architecture">
+      <rule>Alert rules are purely additive configuration - no changes to application code or metrics instrumentation</rule>
+      <rationale>Alerting is Prometheus server feature. Metrics already exposed in Story 4.1, no Python code changes needed.</rationale>
+    </constraint>
+
+    <constraint id="C3" type="reliability">
+      <rule>Use 'for' clause to prevent alert flapping from transient spikes (5-10 min for warnings, 2 min for critical)</rule>
+      <rationale>Balance between false positives (too short) and delayed detection (too long). Critical alerts need faster response.</rationale>
+    </constraint>
+
+    <constraint id="C4" type="reliability">
+      <rule>Use 'keep_firing_for' clause to prevent false resolutions during brief recoveries (3-5 min typical)</rule>
+      <rationale>Prevents alert flapping when condition briefly resolves then reoccurs. Improves alert stability.</rationale>
+    </constraint>
+
+    <constraint id="C5" type="operations">
+      <rule>Severity labels required: 'critical' for immediate action (WorkerDown), 'warning' for investigate soon (others)</rule>
+      <rationale>Enables routing priority in Story 4.5 Alertmanager integration. Critical goes to PagerDuty, warning to Slack.</rationale>
+    </constraint>
+
+    <constraint id="C6" type="multi-tenancy">
+      <rule>Tenant-specific alerts (EnhancementSuccessRateLow, HighLatency) MUST include tenant_id label from metrics</rule>
+      <rationale>Enables per-tenant alert routing and filtering. System-wide alerts (WorkerDown, QueueDepthHigh) have no tenant_id.</rationale>
+    </constraint>
+
+    <constraint id="C7" type="format">
+      <rule>Alert rules MUST follow Prometheus YAML format: groups with name, rules array with alert, expr, for, labels, annotations</rule>
+      <rationale>Prometheus parser requires exact YAML structure. Use yamllint and promtool for validation.</rationale>
+    </constraint>
+
+    <constraint id="C8" type="deployment">
+      <rule>Alert rule changes require Prometheus config reload (docker-compose restart or kubectl rollout restart)</rule>
+      <rationale>Prometheus reads rule files at startup and reload. Changes not applied until reload triggered.</rationale>
+    </constraint>
+
+    <constraint id="C9" type="documentation">
+      <rule>Every alert MUST have runbook annotation with anchor link to docs/operations/alert-runbooks.md</rule>
+      <rationale>On-call engineers need troubleshooting guidance. Runbooks provide symptom, causes, steps, escalation procedures.</rationale>
+    </constraint>
+
+    <constraint id="C10" type="testing">
+      <rule>Alert rules MUST be tested by triggering actual conditions in test environment before production deployment</rule>
+      <rationale>Validates PromQL expressions correct, for clauses appropriate, annotations render properly. Prevents production alert failures.</rationale>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Prometheus Metrics Endpoint</name>
+      <kind>REST endpoint</kind>
+      <signature>GET http://api:8000/metrics (Docker) or http://&lt;pod-ip&gt;:8000/metrics (K8s)</signature>
+      <path>src/monitoring/metrics.py (implementation from Story 4.1)</path>
+      <description>FastAPI endpoint exposing Prometheus metrics in exposition format. Provides time-series data for alert rule evaluation: enhancement_success_rate, queue_depth, worker_active_count, enhancement_duration_seconds_bucket. Already implemented - no changes needed.</description>
+    </interface>
+
+    <interface>
+      <name>Prometheus Alerts UI</name>
+      <kind>Web UI</kind>
+      <signature>http://localhost:9090/alerts (local) or kubectl port-forward svc/prometheus 9090:9090 then http://localhost:9090/alerts (K8s)</signature>
+      <path>Built-in Prometheus UI from Story 4.2</path>
+      <description>Prometheus web interface showing alert rules and their states (Inactive, Pending, Firing). Displays labels, annotations, PromQL expressions, and alert history. Used for verification and debugging.</description>
+    </interface>
+
+    <interface>
+      <name>Alert Rules YAML Format</name>
+      <kind>Configuration format</kind>
+      <signature>
+        groups:
+          - name: &lt;group_name&gt;
+            rules:
+              - alert: &lt;alert_name&gt;
+                expr: &lt;promql_expression&gt;
+                for: &lt;duration&gt;
+                keep_firing_for: &lt;duration&gt;
+                labels:
+                  &lt;label_key&gt;: &lt;label_value&gt;
+                annotations:
+                  &lt;annotation_key&gt;: &lt;annotation_value&gt;
+      </signature>
+      <path>alert-rules.yml (local), k8s/prometheus-alert-rules.yaml (K8s)</path>
+      <description>Prometheus alerting rules configuration format. Template variables supported: {{ $labels.labelname }}, {{ $value }}, {{ $externalLabels }}. Validated with promtool check rules command.</description>
+    </interface>
+
+    <interface>
+      <name>Kubernetes ConfigMap Volume Mount</name>
+      <kind>K8s resource mounting</kind>
+      <signature>
+        volumeMounts:
+          - name: alert-rules
+            mountPath: /etc/prometheus/alert-rules.yml
+            subPath: alert-rules.yml
+        volumes:
+          - name: alert-rules
+            configMap:
+              name: prometheus-alert-rules
+      </signature>
+      <path>k8s/prometheus-deployment.yaml</path>
+      <description>Pattern for mounting alert rules ConfigMap as file in Prometheus container. Uses subPath to mount specific key from ConfigMap. Alert rules file referenced in prometheus.yml rule_files section.</description>
+    </interface>
+
+    <interface>
+      <name>PromQL Alert Expressions</name>
+      <kind>Query language</kind>
+      <signature>Examples: enhancement_success_rate &lt; 95, queue_depth &gt; 100, worker_active_count == 0, histogram_quantile(0.95, rate(enhancement_duration_seconds_bucket[5m])) &gt; 120</signature>
+      <path>Prometheus query language for alert conditions</path>
+      <description>PromQL expressions evaluated by Prometheus every evaluation_interval (15s). Return instant vector for simple metrics, calculated values for aggregations (histogram_quantile for p95). Alert fires when expression returns non-empty result for 'for' duration.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Alert rules are infrastructure configuration, not application code, so traditional unit tests don't apply. Testing strategy focuses on manual validation and integration testing by triggering actual alert conditions in test environment. Standards: (1) All alert rules must be tested by simulating failure conditions before production deployment, (2) Alert state transitions must be verified (Inactive → Pending → Firing → Resolved), (3) Alert annotations must render correctly with template values populated, (4) Test results documented with screenshots and verification notes in story completion. Validation tools: yamllint for YAML syntax, promtool for Prometheus config validation, Prometheus UI for visual verification.</standards>
+
+    <locations>
+      <location>alert-rules.yml - Local Docker alert rules file (manual testing via triggering conditions)</location>
+      <location>k8s/prometheus-alert-rules.yaml - Kubernetes alert rules ConfigMap (manual testing via triggering conditions)</location>
+      <location>docs/operations/alert-runbooks.md - Runbook documentation (manual review for completeness)</location>
+      <location>Prometheus UI http://localhost:9090/alerts - Manual verification of alert rules loaded and state transitions</location>
+      <location>No automated test files - Infrastructure configuration tested manually</location>
+    </locations>
+
+    <ideas>
+      <test id="T1" maps_to="AC1,AC4">
+        <description>Validate alert-rules.yml YAML syntax and Prometheus configuration</description>
+        <approach>Use yamllint to check YAML syntax. Use promtool check rules alert-rules.yml to validate Prometheus alert rule format. Verify no syntax errors before deploying.</approach>
+      </test>
+
+      <test id="T2" maps_to="AC1,AC5">
+        <description>Verify all four alert rules loaded in Prometheus UI</description>
+        <approach>Navigate to http://localhost:9090/alerts. Verify EnhancementSuccessRateLow, QueueDepthHigh, WorkerDown, HighLatency all listed. Check alert states show Inactive or Pending (not Error). Expand each alert to verify PromQL expressions, labels, annotations present.</approach>
+      </test>
+
+      <test id="T3" maps_to="AC4">
+        <description>Test WorkerDown alert by stopping Celery workers</description>
+        <approach>Stop all Celery workers (docker-compose stop worker or kubectl scale deployment/celery-worker --replicas=0). Verify worker_active_count metric drops to 0 in Prometheus Graph. Wait 2 minutes for 'for' clause. Verify alert transitions from Inactive → Pending (after condition met) → Firing (after 2 min). Check alert labels (severity=critical, component=celery-workers). Verify annotations display correctly. Restart workers and verify alert resolves after keep_firing_for duration (5 min).</approach>
+      </test>
+
+      <test id="T4" maps_to="AC4">
+        <description>Test QueueDepthHigh alert by simulating high queue load</description>
+        <approach>Stop workers temporarily. Enqueue 150+ jobs to Redis (via webhook requests or manual redis-cli LPUSH). Verify queue_depth metric exceeds 100 in Prometheus. Wait 5 minutes for 'for' clause. Verify alert fires. Check annotations show correct queue depth value via {{ $value }} template. Restart workers, let queue drain below 100, verify alert resolves.</approach>
+      </test>
+
+      <test id="T5" maps_to="AC4">
+        <description>Test EnhancementSuccessRateLow alert by simulating failures</description>
+        <approach>Temporarily break ServiceDesk Plus API connection (invalid credentials in tenant config). Process 20+ enhancement requests to generate failures. Verify enhancement_success_rate metric drops below 95% in Prometheus. Wait 10 minutes for 'for' clause. Verify alert fires. Check tenant_id label populated from metric labels. Verify annotations display correctly. Fix API connection, wait for success rate to recover above 95%, verify alert resolves.</approach>
+      </test>
+
+      <test id="T6" maps_to="AC4">
+        <description>Test HighLatency alert by adding artificial delay</description>
+        <approach>Add artificial 150-second delay in worker enhancement processing (e.g., time.sleep(150) in process_enhancement function). Process multiple enhancements to generate latency data. Verify p95 latency exceeds 120 seconds using PromQL: histogram_quantile(0.95, rate(enhancement_duration_seconds_bucket[5m])) or Grafana dashboard. Wait 5 minutes for 'for' clause. Verify alert fires. Check annotation displays actual latency value via {{ $value }}s template. Remove artificial delay, verify alert resolves after latency drops below 120s.</approach>
+      </test>
+
+      <test id="T7" maps_to="AC2,AC3">
+        <description>Verify alert labels and annotations render correctly</description>
+        <approach>For each fired alert in Prometheus UI: Verify severity labels (critical for WorkerDown, warning for others). Verify component labels (enhancement-pipeline, redis-queue, celery-workers). Verify tenant_id label populated for EnhancementSuccessRateLow and HighLatency (from metric labels). Verify annotations: summary shows concise description, description includes troubleshooting context, runbook_url links to docs/operations/alert-runbooks.md with correct anchor. Verify template variables ({{ $value }}, {{ $labels.tenant_id }}) render with actual values (not literal strings).</approach>
+      </test>
+
+      <test id="T8" maps_to="AC7">
+        <description>Verify runbook documentation complete and accessible</description>
+        <approach>Open docs/operations/alert-runbooks.md. Verify all four runbook sections exist: #enhancementsuccessratelow, #queuedepthhigh, #workerdown, #highlatency. Verify each runbook includes: symptom description, common root causes (4-5 specific issues), numbered troubleshooting steps with exact commands, resolution guidance, escalation procedures. Verify anchor links in runbook_url annotations match section anchors in documentation. Test that clicking runbook URL in Prometheus alert leads to correct documentation section.</approach>
+      </test>
+
+      <test id="T9" maps_to="AC6">
+        <description>Test alert silencing procedure</description>
+        <approach>Follow documentation in docs/operations/prometheus-alerting.md Alert Management section. Test temporary silencing: Comment out one alert rule in alert-rules.yml. Reload Prometheus config (docker-compose restart prometheus or kubectl rollout restart deployment/prometheus). Verify alert disappears from Prometheus UI Alerts page. Re-enable alert rule, reload config, verify alert reappears. Document that this is temporary workaround until Story 4.5 Alertmanager provides native silencing UI.</approach>
+      </test>
+
+      <test id="T10" maps_to="AC1">
+        <description>Verify keep_firing_for behavior prevents alert flapping</description>
+        <approach>Trigger WorkerDown alert by stopping workers. Wait for alert to fire. Restart workers immediately (condition resolves). Observe that alert remains in Firing state for keep_firing_for duration (5 min) even though worker_active_count is no longer 0. Verify alert transitions to Resolved only after 5 minutes. This validates keep_firing_for prevents false resolutions during brief recoveries.</approach>
+      </test>
+
+      <test id="T11" maps_to="AC1,AC5">
+        <description>End-to-end validation in both Docker and Kubernetes environments</description>
+        <approach>Local Docker: Verify alert-rules.yml referenced in prometheus.yml rule_files section. Restart Prometheus. Access http://localhost:9090/alerts, verify all rules loaded. Trigger test alert, verify firing. Kubernetes: Verify ConfigMap prometheus-alert-rules created (kubectl get configmap). Verify Prometheus deployment has alert-rules volume mounted (kubectl describe pod -l app=prometheus). Port-forward to Prometheus (kubectl port-forward svc/prometheus 9090:9090). Access http://localhost:9090/alerts, verify all rules loaded. Trigger test alert in K8s environment, verify firing.</approach>
+      </test>
+    </ideas>
+  </tests>
+</story-context>

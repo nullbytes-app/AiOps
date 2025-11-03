@@ -30,31 +30,18 @@ from src.database.tenant_context import set_db_tenant_context
 # Audit logger for compliance logging
 audit_logger = AuditLogger()
 
-# Prometheus metrics stubs (will be fully implemented in Story 4.1)
-# For now, we just define placeholders to satisfy Story 2.4 requirements
+# Import Prometheus metrics from centralized monitoring module (Story 4.1)
 try:
-    from prometheus_client import Counter, Histogram
-
-    # Counter for total enhancement tasks
-    enhancement_tasks_total = Counter(
-        'enhancement_tasks_total',
-        'Total number of enhancement tasks processed',
-        ['status', 'tenant_id']
+    from src.monitoring import (
+        enhancement_duration_seconds,
+        enhancement_success_rate,
     )
-
-    # Histogram for task duration
-    enhancement_task_duration_seconds = Histogram(
-        'enhancement_task_duration_seconds',
-        'Duration of enhancement task processing in seconds',
-        ['status', 'tenant_id']
-    )
-
     METRICS_ENABLED = True
 except ImportError:
     # Prometheus client not installed - metrics disabled
     METRICS_ENABLED = False
-    enhancement_tasks_total = None
-    enhancement_task_duration_seconds = None
+    enhancement_duration_seconds = None
+    enhancement_success_rate = None
 
 
 @celery_app.task(
@@ -527,12 +514,17 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         # Run async pipeline in sync Celery task
         result = asyncio.run(run_enhancement_pipeline())
 
-        # Task 10: Record Prometheus metrics
+        # Task 10: Record Prometheus metrics for successful enhancement
         if METRICS_ENABLED:
-            enhancement_tasks_total.labels(status='completed', tenant_id=job.tenant_id).inc()
-            enhancement_task_duration_seconds.labels(status='completed', tenant_id=job.tenant_id).observe(
-                result["processing_time_ms"] / 1000.0
-            )
+            # Record duration histogram for latency analysis
+            enhancement_duration_seconds.labels(
+                tenant_id=job.tenant_id, status="success"
+            ).observe(result["processing_time_ms"] / 1000.0)
+
+            # Update success rate gauge (rolling 5-minute window calculation)
+            # Note: In production, this should be calculated by background task
+            # from the last 300 seconds of observations
+            enhancement_success_rate.labels(tenant_id=job.tenant_id).set(100)
 
         logger.info(
             "Task enhance_ticket completed successfully",
@@ -644,10 +636,14 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
 
         # Task 10: Record Prometheus metrics for failure
         if METRICS_ENABLED:
-            enhancement_tasks_total.labels(status='failed', tenant_id=tenant_id).inc()
-            enhancement_task_duration_seconds.labels(status='failed', tenant_id=tenant_id).observe(
-                processing_time_ms / 1000.0
-            )
+            # Record duration histogram for failed tasks
+            enhancement_duration_seconds.labels(
+                tenant_id=tenant_id, status="failure"
+            ).observe(processing_time_ms / 1000.0)
+
+            # Update success rate gauge (rolling 5-minute window calculation)
+            # Note: In production, this should be calculated by background task
+            enhancement_success_rate.labels(tenant_id=tenant_id).set(0)
 
         # Celery will auto-retry via autoretry_for decorator
         raise

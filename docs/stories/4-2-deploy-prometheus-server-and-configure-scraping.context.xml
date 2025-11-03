@@ -1,0 +1,356 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.2</storyId>
+    <title>Deploy Prometheus Server and Configure Scraping</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-2-deploy-prometheus-server-and-configure-scraping.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer</asA>
+    <iWant>Prometheus server deployed and scraping all application instances</iWant>
+    <soThat>metrics are collected and stored for querying</soThat>
+    <tasks>
+### Task 1: Create Local Prometheus Configuration File (AC1, AC3, AC4, AC5)
+- [ ] 1.1: Create `prometheus.yml` in project root directory
+- [ ] 1.2: Add global configuration block (scrape_interval: 15s, evaluation_interval: 15s)
+- [ ] 1.3: Add scrape_configs block for FastAPI service
+- [ ] 1.4: (Optional) Add scrape config for Celery workers if metrics exposed
+- [ ] 1.5: Validate YAML syntax
+- [ ] 1.6: Add comments explaining each configuration section
+- [ ] 1.7: Commit prometheus.yml to version control
+
+### Task 2: Add Prometheus Service to Docker Compose (AC1, AC5)
+- [ ] 2.1-2.7: Add Prometheus service definition with prom/prometheus:latest image, port 9090, volume mount, retention flag, and verify deployment
+
+### Task 3: Verify Local Prometheus Deployment and UI Access (AC1, AC6, AC8)
+- [ ] 3.1-3.11: Verify Prometheus UI at http://localhost:9090, check targets status, validate configuration, test health endpoints
+
+### Task 4: Create Kubernetes Prometheus ConfigMap (AC2, AC3, AC4, AC5)
+- [ ] 4.1-4.9: Create k8s/prometheus-config.yaml with Kubernetes service discovery and relabel_configs for prometheus.io/* annotations
+
+### Task 5: Create Kubernetes Prometheus Deployment (AC2, AC5, AC8)
+- [ ] 5.1-5.8: Create k8s/prometheus-deployment.yaml with Deployment, liveness/readiness probes, resource limits, and retention configuration
+
+### Task 6: Create Kubernetes Prometheus Service (AC2, AC6)
+- [ ] 6.1-6.5: Add Service resource to prometheus-deployment.yaml (ClusterIP type, port 9090)
+
+### Task 7: Deploy Prometheus to Kubernetes Cluster (AC2, AC6, AC8)
+- [ ] 7.1-7.12: Apply ConfigMap and Deployment, verify Pod running, port-forward for UI access
+
+### Task 8: Annotate FastAPI Deployment for Prometheus Scraping (AC3)
+- [ ] 8.1-8.8: Add prometheus.io/scrape, prometheus.io/port, prometheus.io/path annotations to FastAPI Deployment Pod template
+
+### Task 9: Verify Kubernetes Prometheus Scraping Targets (AC3, AC6)
+- [ ] 9.1-9.12: Verify all FastAPI pods discovered and showing "UP" status, test service discovery with pod scaling
+
+### Task 10: Document Sample PromQL Queries (AC7)
+- [ ] 10.1-10.9: Update docs/operations/metrics-guide.md with sample queries (p95 latency, error rate, queue depth, success rate, request rate)
+
+### Task 11: Test Sample PromQL Queries in Prometheus UI (AC7)
+- [ ] 11.1-11.12: Execute and verify all documented PromQL queries return valid data
+
+### Task 12: Create Prometheus Setup Documentation (AC2, AC6)
+- [ ] 12.1-12.9: Create docs/operations/prometheus-setup.md with deployment instructions for local and Kubernetes environments
+
+### Task 13: Update README with Prometheus Access Instructions (AC6)
+- [ ] 13.1-13.6: Add Prometheus UI access information to README.md Monitoring section
+
+### Task 14: End-to-End Validation and Verification (All ACs)
+- [ ] 14.1-14.7: Complete validation of local and Kubernetes deployments, verify all 8 acceptance criteria
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+### AC1: Prometheus Server Deployed in Local Docker Environment
+- Prometheus service added to docker-compose.yml with image prom/prometheus:latest
+- Prometheus container starts successfully and UI accessible at http://localhost:9090
+- Health check confirms running: curl http://localhost:9090/-/healthy returns "Prometheus Server is Healthy."
+
+### AC2: Prometheus Server Deployed in Kubernetes Cluster
+- Kubernetes manifests created: k8s/prometheus-deployment.yaml and k8s/prometheus-config.yaml
+- Deployment with 1 replica running, Service (ClusterIP) exposing port 9090
+- Prometheus UI accessible via port-forward
+
+### AC3: Scrape Configs Target All FastAPI and Celery Worker Pods
+- Local: prometheus.yml contains scrape config for fastapi:8000
+- Kubernetes: ConfigMap with kubernetes_sd_configs and relabel_configs for pod annotation discovery
+- FastAPI Deployment annotated with prometheus.io/scrape=true, prometheus.io/port=8000, prometheus.io/path=/metrics
+
+### AC4: Scrape Interval Set to 15 Seconds
+- prometheus.yml global config contains scrape_interval: 15s
+- Prometheus UI → Status → Configuration shows "scrape_interval: 15s"
+
+### AC5: Metrics Retention Configured for 30 Days
+- Command flag --storage.tsdb.retention.time=30d in both docker-compose and K8s deployments
+- Prometheus UI → Status → Runtime Information shows "Storage retention: 30d"
+
+### AC6: Prometheus UI Accessible and Showing Active Targets
+- Prometheus UI accessible at http://localhost:9090 (local) or via kubectl port-forward (K8s)
+- Status → Targets shows fastapi-app job (local) or kubernetes-pods job (K8s) with status "UP"
+
+### AC7: Sample PromQL Queries Documented and Tested
+- docs/operations/metrics-guide.md updated with sample queries: p95 latency, error rate, queue depth, success rate by tenant, request rate
+- All queries tested in Prometheus UI and return valid data
+
+### AC8: Prometheus Health Check Endpoint Returns 200 OK
+- Health endpoint accessible: curl http://localhost:9090/-/healthy returns 200 OK
+- Kubernetes liveness and readiness probes configured and passing
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 4 Story Definitions</title>
+        <section>Story 4.2 - Deploy Prometheus Server</section>
+        <snippet>Deploy Prometheus in Kubernetes/docker-compose, configure scrape targets for FastAPI and Celery workers, set 15s interval, configure 30-day retention, verify UI shows active targets, document PromQL queries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR022 - Prometheus Metrics</section>
+        <snippet>System shall expose Prometheus metrics (success rate, latency, queue depth, error counts) for operational visibility.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR005 - Observability</section>
+        <snippet>System shall provide real-time visibility into agent operations through Prometheus metrics and Grafana dashboards, with audit logs retained for 90 days and distributed tracing for debugging. Metrics retention: 30 days.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Technology Stack - Observability</section>
+        <snippet>Prometheus (industry standard, Kubernetes native, pull-based metrics model) and Grafana (rich visualization, Prometheus datasource) selected for Epic 4 monitoring infrastructure.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Project Structure</section>
+        <snippet>k8s/prometheus-config.yaml for Prometheus ConfigMap, k8s/ directory contains deployment manifests following established patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/4-1-implement-prometheus-metrics-instrumentation.md</path>
+        <title>Story 4.1 - Prometheus Metrics Instrumentation (Prerequisite)</title>
+        <section>Learnings and Infrastructure</section>
+        <snippet>Story 4.1 (status: review) exposed /metrics endpoint at src/main.py:36-40, defined five core metrics in src/monitoring/metrics.py with tenant_id labels. All metrics ready for Prometheus scraping. Docker Compose and Kubernetes manifests exist for adding Prometheus service.</snippet>
+      </doc>
+      <doc>
+        <path>https://github.com/prometheus/prometheus/blob/main/docs/configuration/configuration.md</path>
+        <title>Prometheus Kubernetes Service Discovery Documentation</title>
+        <section>kubernetes_sd_config - Pod Role</section>
+        <snippet>Pod role discovers all pods and exposes containers as targets. Uses __meta_kubernetes_pod_annotation_* labels for filtering. Relabel_configs extract prometheus.io/scrape, prometheus.io/port, prometheus.io/path annotations for dynamic target configuration.</snippet>
+      </doc>
+      <doc>
+        <path>https://github.com/prometheus/prometheus/blob/main/docs/storage.md</path>
+        <title>Prometheus Storage and Retention Documentation</title>
+        <section>TSDB Local Storage</section>
+        <snippet>Flag --storage.tsdb.retention.time sets retention period (units: y, w, d, h, m, s). Default 15d. TSDB stores ~1-2 bytes per sample. Expired blocks removed in background (up to 2 hours). Recommend setting retention to 80-85% of allocated disk space.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/main.py</path>
+        <kind>application</kind>
+        <symbol>metrics_app mount</symbol>
+        <lines>36-40</lines>
+        <reason>Story 4.1 already mounted /metrics endpoint using prometheus_client.make_asgi_app(). This is the target endpoint Prometheus will scrape. No application code changes needed for Story 4.2.</reason>
+      </artifact>
+      <artifact>
+        <path>src/monitoring/metrics.py</path>
+        <kind>metrics</kind>
+        <symbol>enhancement_requests_total, enhancement_duration_seconds, enhancement_success_rate, queue_depth, worker_active_count</symbol>
+        <lines>1-110</lines>
+        <reason>Five core metrics defined with tenant_id labels. All metrics follow Prometheus naming conventions. These metrics will be collected by Prometheus server and queried via PromQL.</reason>
+      </artifact>
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>infrastructure</kind>
+        <symbol>services: postgres, redis, api, worker</symbol>
+        <lines>1-94</lines>
+        <reason>Existing Docker Compose configuration with 4 services. Will add Prometheus service alongside these. FastAPI service (api) runs on port 8000 with service name for Docker DNS resolution (http://api:8000/metrics).</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/deployment-api.yaml</path>
+        <kind>kubernetes</kind>
+        <symbol>Deployment</symbol>
+        <lines>1-40</lines>
+        <reason>FastAPI Deployment manifest with app=api labels. Will add prometheus.io/* annotations to Pod template metadata for Prometheus service discovery in Kubernetes.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/</path>
+        <kind>directory</kind>
+        <symbol>deployment-api.yaml, deployment-worker.yaml, service-api.yaml, configmap.yaml, etc.</symbol>
+        <lines></lines>
+        <reason>Established Kubernetes manifest patterns from Story 1.6. Will follow same structure for prometheus-deployment.yaml and prometheus-config.yaml.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_metrics_endpoint.py</path>
+        <kind>test</kind>
+        <symbol>metrics endpoint integration tests</symbol>
+        <lines></lines>
+        <reason>Story 4.1 created integration tests for /metrics endpoint. Validates metrics endpoint is accessible and returns Prometheus text format. Prometheus will scrape this endpoint.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_monitoring_metrics.py</path>
+        <kind>test</kind>
+        <symbol>metrics unit tests</symbol>
+        <lines></lines>
+        <reason>Story 4.1 created unit tests for metrics definitions. All 39/39 tests passing, comprehensive coverage of five core metrics.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="prometheus-client" version=">=0.19.0" usage="Metrics instrumentation and /metrics endpoint exposition (already installed in Story 4.1)" />
+        <package name="fastapi" version=">=0.104.0" usage="FastAPI application serving /metrics endpoint" />
+        <package name="uvicorn" version=">=0.24.0" usage="ASGI server running FastAPI" />
+        <package name="celery" version=">=5.3.4" usage="Worker processes (potential future scrape target)" />
+        <package name="redis" version=">=5.0.1" usage="Message broker for queue_depth metric" />
+      </python>
+      <docker>
+        <image name="prom/prometheus" version="latest" usage="Prometheus server for metrics collection and storage" />
+        <image name="postgres" version="17-alpine" usage="PostgreSQL database (existing service)" />
+        <image name="redis" version="7-alpine" usage="Redis cache and message broker (existing service)" />
+      </docker>
+      <kubernetes>
+        <resource name="Deployment" usage="Prometheus server deployment" />
+        <resource name="ConfigMap" usage="Prometheus configuration (prometheus.yml)" />
+        <resource name="Service" usage="Prometheus ClusterIP service (port 9090)" />
+        <resource name="PersistentVolumeClaim" usage="Optional - Prometheus data persistence" />
+      </kubernetes>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+1. **No Application Code Changes**: Story 4.2 is purely infrastructure deployment. The /metrics endpoint was already exposed in Story 4.1 (src/main.py:36-40). Do not modify application code.
+
+2. **Docker Service Names**: In docker-compose, use Docker service name "api" not "localhost" for scraping (http://api:8000/metrics). Docker DNS resolves service names.
+
+3. **Kubernetes Service Discovery**: Use kubernetes_sd_configs with role: pod and relabel_configs to filter pods by annotation prometheus.io/scrape=true. Do not use static IPs or hostnames.
+
+4. **30-Day Retention Mandate**: Both local and Kubernetes deployments MUST include --storage.tsdb.retention.time=30d command flag. This is an NFR005 requirement.
+
+5. **15-Second Scrape Interval**: Global scrape_interval must be 15s to match Story 4.1 metrics design. Do not override at job level unless explicitly required.
+
+6. **Health Probes Required**: Kubernetes Deployment MUST include livenessProbe and readinessProbe using /-/healthy and /-/ready endpoints. Ensures pod health tracking.
+
+7. **Security - No Public Exposure**: Prometheus UI should not be publicly exposed without authentication. Use kubectl port-forward for access or implement authentication/authorization for production Ingress.
+
+8. **Multi-Tenant Labels**: All PromQL queries should demonstrate tenant_id filtering since metrics include tenant_id labels (e.g., enhancement_requests_total{tenant_id="acme"}).
+
+9. **File Structure Compliance**: Follow architecture.md patterns:
+   - K8s manifests in k8s/ directory
+   - Documentation in docs/operations/
+   - Root-level prometheus.yml for docker-compose
+
+10. **Testing Standards**: No automated tests for infrastructure deployment. Validation via:
+    - Prometheus UI (Status → Targets, Status → Configuration)
+    - Health endpoint curl tests (/-/healthy, /-/ready)
+    - PromQL query execution in Graph tab
+    - Manual end-to-end test (trigger webhook → verify metrics collected)
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>/metrics Endpoint (FastAPI)</name>
+      <kind>HTTP GET</kind>
+      <signature>GET http://api:8000/metrics (Docker) | GET http://&lt;pod-ip&gt;:8000/metrics (K8s)</signature>
+      <path>src/main.py:36-40</path>
+      <description>Prometheus metrics endpoint exposed by FastAPI application. Returns text/plain response in Prometheus exposition format. Already implemented in Story 4.1. Prometheus scrapes this endpoint every 15 seconds.</description>
+    </interface>
+    <interface>
+      <name>Prometheus Health Check</name>
+      <kind>HTTP GET</kind>
+      <signature>GET http://localhost:9090/-/healthy</signature>
+      <path>Prometheus built-in endpoint</path>
+      <description>Health check endpoint returning "Prometheus Server is Healthy." with 200 OK status. Used for Docker healthcheck and Kubernetes liveness probe.</description>
+    </interface>
+    <interface>
+      <name>Prometheus Readiness Check</name>
+      <kind>HTTP GET</kind>
+      <signature>GET http://localhost:9090/-/ready</signature>
+      <path>Prometheus built-in endpoint</path>
+      <description>Readiness check endpoint returning 200 OK when Prometheus is ready to serve traffic. Used for Kubernetes readiness probe.</description>
+    </interface>
+    <interface>
+      <name>Prometheus UI</name>
+      <kind>HTTP Web UI</kind>
+      <signature>http://localhost:9090 (local) | kubectl port-forward svc/prometheus 9090:9090 (K8s)</signature>
+      <path>Prometheus built-in UI</path>
+      <description>Web interface for querying metrics (Graph tab), viewing configuration (Status → Configuration), checking scrape targets (Status → Targets), and exploring TSDB status.</description>
+    </interface>
+    <interface>
+      <name>Kubernetes Service Discovery API</name>
+      <kind>Kubernetes API</kind>
+      <signature>kubernetes_sd_configs with role: pod</signature>
+      <path>k8s/prometheus-config.yaml</path>
+      <description>Prometheus uses Kubernetes API to discover pods dynamically. Filters by annotation prometheus.io/scrape=true. Extracts metrics_path and port from pod annotations.</description>
+    </interface>
+    <interface>
+      <name>PromQL Query Interface</name>
+      <kind>Query Language</kind>
+      <signature>histogram_quantile(), rate(), gauge value queries</signature>
+      <path>Prometheus UI → Graph tab</path>
+      <description>PromQL queries for metrics analysis. Examples: p95 latency (histogram_quantile), error rate (rate calculation), queue depth (gauge instant value), tenant filtering (label matcher).</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+No automated tests required for infrastructure deployment per architecture.md testing standards. Story 4.2 is validated through manual verification:
+
+1. **Local Docker Validation**: docker ps confirms Prometheus container running, curl health checks pass, UI accessible at localhost:9090, targets show "UP" status
+2. **Kubernetes Validation**: kubectl get pods shows Prometheus running, port-forward enables UI access, service discovery detects annotated pods, probes passing
+3. **Scraping Verification**: Prometheus UI Status → Targets shows fastapi-app (local) or kubernetes-pods (K8s) with green "UP" indicators, scrape timestamps update every 15s
+4. **Configuration Validation**: Status → Configuration displays scrape_interval: 15s and retention: 30d
+5. **PromQL Testing**: Execute sample queries in Graph tab, verify data returned (not "no data" errors)
+6. **End-to-End Test**: Trigger test webhook POST, wait 15s, query enhancement_requests_total, verify counter incremented
+
+Testing approach follows Story 1.6 (Kubernetes deployment) validation pattern: deployment verification via kubectl and UI rather than automated tests.
+    </standards>
+    <locations>
+tests/integration/test_metrics_endpoint.py - Story 4.1 integration test verifies /metrics endpoint accessibility (prerequisite validation)
+tests/unit/test_monitoring_metrics.py - Story 4.1 unit tests validate metrics definitions (39/39 passing)
+    </locations>
+    <ideas>
+### Test Idea 1: Verify Prometheus Scrapes FastAPI Metrics (Maps to AC1, AC3, AC6)
+**Test**: Start docker-compose, open Prometheus UI at localhost:9090, navigate to Status → Targets
+**Expected**: fastapi-app job listed with status "UP", endpoint http://api:8000/metrics, last scrape timestamp updating every 15 seconds
+**Validation**: Scrape health shows checkmark, no error messages in Health column
+
+### Test Idea 2: Validate Kubernetes Service Discovery (Maps to AC2, AC3, AC6)
+**Test**: Apply K8s manifests, port-forward to Prometheus, check Status → Targets
+**Expected**: kubernetes-pods job shows all FastAPI pods (one per replica), each with status "UP", pod IPs visible in endpoint addresses
+**Validation**: Scale FastAPI deployment to 2 replicas, verify Prometheus auto-discovers second pod within 30 seconds
+
+### Test Idea 3: Verify 30-Day Retention Configuration (Maps to AC5)
+**Test**: Open Prometheus UI → Status → Runtime Information
+**Expected**: "Storage retention" field displays "30d"
+**Validation**: Check command flags in docker-compose logs or kubectl describe pod, confirm --storage.tsdb.retention.time=30d present
+
+### Test Idea 4: Execute Sample PromQL Queries (Maps to AC7)
+**Test**: In Prometheus UI Graph tab, execute: histogram_quantile(0.95, rate(enhancement_duration_seconds_bucket[5m]))
+**Expected**: Query returns numeric value (p95 latency in seconds) or "no data" if no traffic
+**Validation**: Trigger test webhook, re-run query after 1 minute, verify metric value appears and is reasonable (e.g., 0.5-120 seconds range)
+
+### Test Idea 5: Validate Health Check Endpoints (Maps to AC8)
+**Test**: curl http://localhost:9090/-/healthy and curl http://localhost:9090/-/ready
+**Expected**: Both return 200 OK status with response body "Prometheus Server is Healthy." and HTTP/1.1 200 OK respectively
+**Validation**: In Kubernetes, check kubectl describe pod prometheus-*, verify liveness and readiness probes showing "Success" with no failures
+
+### Test Idea 6: End-to-End Metrics Collection (Maps to All ACs)
+**Test**:
+1. Start all services (docker-compose up -d or kubectl apply)
+2. Verify Prometheus running and scraping targets
+3. Send test webhook: curl -X POST http://localhost:8000/webhook/servicedesk -H "Content-Type: application/json" -d '{"ticket_id": "TEST-001", "tenant_id": "test-tenant"}'
+4. Wait 15 seconds (one scrape interval)
+5. Query Prometheus: enhancement_requests_total{status="queued"}
+**Expected**: Counter value increments from previous value (or shows 1 if first request)
+**Validation**: Repeat with multiple requests, verify counter increases proportionally, verify tenant_id label filtering works
+    </ideas>
+  </tests>
+</story-context>

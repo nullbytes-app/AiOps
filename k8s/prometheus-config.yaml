@@ -32,6 +32,13 @@ data:
     rule_files:
       - "/etc/prometheus/alert-rules.yml"
 
+    # Alertmanager configuration (Story 4.5)
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093  # Alertmanager service endpoint in Kubernetes cluster
+
     # Scrape configurations
     scrape_configs:
       # Kubernetes Pods - Service Discovery

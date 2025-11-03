@@ -1,0 +1,149 @@
+# Alertmanager Configuration
+# File: alertmanager.yml
+# Purpose: Routes and delivers alerts from Prometheus to notification channels
+# Generated for Story 4.5: Integrate Alertmanager for Alert Routing
+
+# Global configuration applied to all alerts
+global:
+  # Time to wait before resolving a resolved alert
+  resolve_timeout: 5m
+
+  # Slack webhook URL (loaded from environment variable or secret)
+  # Note: Webhook URLs are specified in receiver configurations below
+
+# The root route with all parameters, which are inherited by the child routes if they are not overwritten
+route:
+  # The receiver for alerts that don't match any child route
+  receiver: 'slack-default'
+
+  # Group alerts by these labels
+  # Group by tenant_id to isolate alerts per client
+  group_by: ['tenant_id', 'alertname']
+
+  # Time to wait before sending a notification for a group (gives time to collect similar alerts)
+  group_wait: 10s
+
+  # Time to wait before sending a notification about a new alert in a group after the initial one
+  group_interval: 15s
+
+  # How often to send the same notification for an alert (prevent alert fatigue)
+  repeat_interval: 4h
+
+  # Child routes - override receiver/grouping for specific alerts
+  routes:
+    # Critical alerts route to both Slack and PagerDuty
+    - match:
+        severity: critical
+      receiver: 'slack-pagerduty'
+      group_by: ['tenant_id', 'alertname']
+      group_wait: 10s
+      group_interval: 15s
+      repeat_interval: 4h
+      continue: false  # Don't continue to other child routes
+
+    # Warning alerts route to Slack only
+    - match:
+        severity: warning
+      receiver: 'slack-default'
+      group_by: ['tenant_id', 'alertname']
+      group_wait: 10s
+      group_interval: 15s
+      repeat_interval: 4h
+      continue: false
+
+# Receivers: Define notification channels for different alert types
+receivers:
+  # Default receiver for informational/warning alerts
+  - name: 'slack-default'
+    slack_configs:
+      # Webhook URL is injected via environment variable at runtime
+      # Replace SLACK_WEBHOOK_URL with actual webhook URL in docker-compose or Kubernetes
+      - api_url: 'https://hooks.slack.com/services/placeholder'
+        # Channel can be overridden here; if not specified, uses the channel in the webhook URL
+        title: '{{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        # Color: yellow for warnings
+        color: '#FFA500'
+        # Include alert labels in the message
+        fields:
+          - title: 'Severity'
+            value: '{{ .GroupLabels.severity }}'
+            short: true
+          - title: 'Tenant'
+            value: '{{ .GroupLabels.tenant_id }}'
+            short: true
+          - title: 'Alertname'
+            value: '{{ .GroupLabels.alertname }}'
+            short: false
+          - title: 'Instance'
+            value: '{{ .GroupLabels.instance }}'
+            short: true
+
+  # Receiver for critical alerts (Slack + PagerDuty)
+  - name: 'slack-pagerduty'
+    # Send to Slack
+    slack_configs:
+      - api_url: 'https://hooks.slack.com/services/placeholder'
+        title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+        text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        # Color: red for critical alerts
+        color: '#FF0000'
+        fields:
+          - title: 'Severity'
+            value: '{{ .GroupLabels.severity }}'
+            short: true
+          - title: 'Tenant'
+            value: '{{ .GroupLabels.tenant_id }}'
+            short: true
+          - title: 'Alertname'
+            value: '{{ .GroupLabels.alertname }}'
+            short: false
+          - title: 'Instance'
+            value: '{{ .GroupLabels.instance }}'
+            short: true
+
+    # Send to PagerDuty for critical incidents
+    pagerduty_configs:
+      - routing_key: 'placeholder-pagerduty-key'
+        description: '{{ .GroupLabels.alertname }} ({{ .GroupLabels.tenant_id }})'
+        details:
+          firing: '{{ template "pagerduty.default.instances" .Alerts.Firing }}'
+          resolved: '{{ template "pagerduty.default.instances" .Alerts.Resolved }}'
+          severity: 'critical'
+
+  # Email receiver for alerts (optional secondary channel)
+  - name: 'email'
+    email_configs:
+      - to: 'oncall@example.com'
+        from: 'alerts@ai-agents.local'
+        smarthost: 'smtp.example.com:587'
+        auth_username: ''
+        auth_password: ''
+        headers:
+          Subject: '[{{ .GroupLabels.severity | upper }}] {{ .GroupLabels.alertname }} - {{ .GroupLabels.tenant_id }}'
+        html: |
+          <html>
+            <head>
+              <style>
+                .alert-header { font-weight: bold; font-size: 18px; color: #CC0000; }
+                .alert-body { font-family: monospace; }
+                .alert-field { margin: 10px 0; }
+              </style>
+            </head>
+            <body>
+              <div class="alert-header">{{ .GroupLabels.alertname }}</div>
+              <div class="alert-body">
+                <div class="alert-field"><strong>Severity:</strong> {{ .GroupLabels.severity }}</div>
+                <div class="alert-field"><strong>Tenant:</strong> {{ .GroupLabels.tenant_id }}</div>
+                <div class="alert-field"><strong>Instance:</strong> {{ .GroupLabels.instance }}</div>
+                <div class="alert-field"><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</div>
+              </div>
+            </body>
+          </html>
+
+# Inhibition rules (optional): suppress certain alerts while others are firing
+# For now, empty - no inhibition rules defined
+inhibit_rules: []
+
+# Template files for notification formatting
+templates: []

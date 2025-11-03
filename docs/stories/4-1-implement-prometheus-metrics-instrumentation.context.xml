@@ -1,0 +1,391 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.1</storyId>
+    <title>Implement Prometheus Metrics Instrumentation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-1-implement-prometheus-metrics-instrumentation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an SRE (Site Reliability Engineer)</asA>
+    <iWant>application metrics exposed in Prometheus format</iWant>
+    <soThat>performance and health can be monitored in real-time</soThat>
+    <tasks>
+      <task id="1" title="Set Up Prometheus Client Library and Metrics Module">
+        <subtask>1.1: Add prometheus-client = "^0.19.0" to pyproject.toml dependencies</subtask>
+        <subtask>1.2: Install dependency locally: pip install prometheus-client or poetry add prometheus-client</subtask>
+        <subtask>1.3: Verify import works</subtask>
+        <subtask>1.4: Create src/monitoring/ directory</subtask>
+        <subtask>1.5: Create src/monitoring/__init__.py with module exports</subtask>
+        <subtask>1.6: Create src/monitoring/metrics.py skeleton file with imports and module docstring</subtask>
+        <subtask>1.7: Update README.md to include prometheus-client in dependencies list</subtask>
+      </task>
+      <task id="2" title="Implement Core Metrics Definitions">
+        <subtask>2.1: Define enhancement_requests_total Counter</subtask>
+        <subtask>2.2: Define enhancement_duration_seconds Histogram</subtask>
+        <subtask>2.3: Define enhancement_success_rate Gauge</subtask>
+        <subtask>2.4: Define queue_depth Gauge</subtask>
+        <subtask>2.5: Define worker_active_count Gauge</subtask>
+        <subtask>2.6: Export all metrics from src/monitoring/__init__.py</subtask>
+        <subtask>2.7: Add type hints to all metric definitions</subtask>
+      </task>
+      <task id="3" title="Mount /metrics Endpoint in FastAPI">
+        <subtask>3.1: Import make_asgi_app in src/main.py</subtask>
+        <subtask>3.2: Configure MultiProcessCollector for Gunicorn if needed</subtask>
+        <subtask>3.3: Create metrics ASGI app</subtask>
+        <subtask>3.4: Mount metrics endpoint at /metrics</subtask>
+        <subtask>3.5: Exclude /metrics from authentication middleware</subtask>
+        <subtask>3.6: Test locally with curl</subtask>
+        <subtask>3.7: Verify Content-Type header</subtask>
+      </task>
+      <task id="4" title="Instrument Webhook Endpoint">
+        <subtask>4.1-4.7: Instrument webhook endpoint with enhancement_requests_total counter for received/queued/rejected states</subtask>
+      </task>
+      <task id="5" title="Instrument Celery Enhancement Task">
+        <subtask>5.1-5.6: Instrument Celery task with duration histogram and success rate gauge</subtask>
+      </task>
+      <task id="6" title="Instrument Queue Depth Monitoring">
+        <subtask>6.1-6.6: Implement queue depth monitoring with queue_depth gauge</subtask>
+      </task>
+      <task id="7" title="Instrument Worker Count Monitoring">
+        <subtask>7.1-7.6: Implement worker count monitoring with worker_active_count gauge</subtask>
+      </task>
+      <task id="8" title="Configure Prometheus Server for Scraping">
+        <subtask>8.1-8.7: Configure Prometheus server in docker-compose.yml and Kubernetes</subtask>
+      </task>
+      <task id="9" title="Create Metrics Documentation">
+        <subtask>9.1-9.7: Create docs/operations/metrics-guide.md with comprehensive metrics documentation</subtask>
+      </task>
+      <task id="10" title="Implement Unit Tests for Metrics">
+        <subtask>10.1-10.8: Create tests/unit/test_metrics.py with comprehensive unit tests</subtask>
+      </task>
+      <task id="11" title="Implement Integration Tests for /metrics Endpoint">
+        <subtask>11.1-11.7: Create tests/integration/test_metrics_endpoint.py with integration tests</subtask>
+      </task>
+      <task id="12" title="End-to-End Validation and CI Integration">
+        <subtask>12.1-12.12: Complete end-to-end validation, coverage checks, and CI integration</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" title="Prometheus Client Library Integrated">
+      <requirement>prometheus-client library (v0.19.0+) added to pyproject.toml dependencies</requirement>
+      <requirement>Library installs successfully with pip install -e . or poetry install</requirement>
+      <requirement>Import statement works: from prometheus_client import Counter, Histogram, Gauge, make_asgi_app</requirement>
+      <requirement>No version conflicts with existing dependencies</requirement>
+      <requirement>Library documented in README.md dependencies section</requirement>
+    </criterion>
+    <criterion id="AC2" title="Metrics Endpoint Exposed at /metrics">
+      <requirement>/metrics endpoint accessible via HTTP GET request</requirement>
+      <requirement>Endpoint returns Prometheus text format (Content-Type: text/plain; version=0.0.4)</requirement>
+      <requirement>Endpoint mounted in src/main.py using make_asgi_app()</requirement>
+      <requirement>For production: Uses MultiProcessCollector with shared registry</requirement>
+      <requirement>Endpoint returns 200 OK status when accessed</requirement>
+      <requirement>Endpoint excluded from authentication middleware</requirement>
+      <requirement>Health check: curl http://localhost:8000/metrics returns metric data</requirement>
+    </criterion>
+    <criterion id="AC3" title="Key Metrics Implemented and Instrumented">
+      <metric name="enhancement_requests_total" type="Counter">
+        <description>Total number of enhancement requests received via webhook</description>
+        <labels>tenant_id, status (received/queued/rejected)</labels>
+        <instrumented_in>src/api/webhooks.py on webhook receipt</instrumented_in>
+      </metric>
+      <metric name="enhancement_duration_seconds" type="Histogram">
+        <description>Time taken to complete ticket enhancement (webhook to ticket update)</description>
+        <labels>tenant_id, status (success/failure)</labels>
+        <buckets>Default Prometheus buckets</buckets>
+        <instrumented_in>src/workers/tasks.py (enhance_ticket Celery task)</instrumented_in>
+        <provides>p50, p95, p99 latency via Prometheus queries</provides>
+      </metric>
+      <metric name="enhancement_success_rate" type="Gauge">
+        <description>Current enhancement success rate percentage (rolling 5-minute window)</description>
+        <labels>tenant_id</labels>
+        <calculation>(successful_enhancements / total_enhancements) * 100</calculation>
+        <updated_in>src/workers/tasks.py after each enhancement completion</updated_in>
+      </metric>
+      <metric name="queue_depth" type="Gauge">
+        <description>Current number of pending enhancement jobs in Redis queue</description>
+        <labels>queue_name (e.g., "enhancement:queue")</labels>
+        <updated_in>src/services/queue_service.py on queue operations</updated_in>
+        <polling>Every 15 seconds via background task or on-demand</polling>
+      </metric>
+      <metric name="worker_active_count" type="Gauge">
+        <description>Number of currently active Celery workers processing enhancements</description>
+        <labels>worker_type ("celery_enhancement")</labels>
+        <updated_via>Celery inspect() API or custom worker heartbeat mechanism</updated_via>
+      </metric>
+      <requirement>All metrics include HELP annotation (description)</requirement>
+      <requirement>All metrics include TYPE annotation (counter/histogram/gauge)</requirement>
+      <requirement>Proper Prometheus naming conventions (snake_case, _total suffix for counters, _seconds for durations)</requirement>
+    </criterion>
+    <criterion id="AC4" title="Metrics Labeled by tenant_id, status, operation_type">
+      <requirement>All enhancement-related metrics include tenant_id label for multi-tenant observability</requirement>
+      <requirement>Status labels use consistent values: "success", "failure", "pending", "queued", "rejected"</requirement>
+      <requirement>Operation type labels identify metric source: "webhook", "context_gathering", "llm_synthesis", "ticket_update"</requirement>
+      <requirement>Labels validated to NOT contain sensitive data (no API keys, passwords, PII)</requirement>
+      <requirement>Label cardinality kept reasonable (&lt;100 unique tenants expected, &lt;10 statuses)</requirement>
+      <example>enhancement_requests_total{tenant_id="acme", status="success"}</example>
+    </criterion>
+    <criterion id="AC5" title="Metrics Scraped Successfully by Prometheus Server">
+      <requirement>Prometheus server configured in docker-compose.yml (local dev) or Kubernetes (production)</requirement>
+      <requirement>Prometheus scrape configuration targets FastAPI /metrics endpoint</requirement>
+      <requirement>Scrape interval: 15 seconds (configurable)</requirement>
+      <requirement>Metrics appear in Prometheus UI (http://localhost:9090) after scraping</requirement>
+      <requirement>Sample PromQL queries work: rate(enhancement_requests_total[5m]), histogram_quantile(0.95, enhancement_duration_seconds_bucket), queue_depth{queue_name="enhancement:queue"}</requirement>
+      <requirement>No scrape errors in Prometheus logs</requirement>
+    </criterion>
+    <criterion id="AC6" title="Metrics Documented with Descriptions and Use Cases">
+      <requirement>Documentation file created: docs/operations/metrics-guide.md</requirement>
+      <requirement>Each metric documented with: Name and type, Description (HELP text), Labels and their meanings, Example values, PromQL query examples, Use cases</requirement>
+      <requirement>Metric naming conventions explained</requirement>
+      <requirement>Troubleshooting guide included</requirement>
+      <requirement>Integration with Story 4.2 (Prometheus server) and Story 4.3 (Grafana dashboards) noted</requirement>
+    </criterion>
+    <criterion id="AC7" title="Unit Tests Verify Metric Incrementation">
+      <requirement>Test file created: tests/unit/test_metrics.py</requirement>
+      <requirement>Tests cover: Counter incrementation, Histogram observation, Gauge setting, Label application, Registry access</requirement>
+      <requirement>Integration test file created: tests/integration/test_metrics_endpoint.py</requirement>
+      <requirement>Integration tests verify: /metrics endpoint returns 200 OK, Response contains expected metric names and HELP/TYPE annotations, Metrics format parseable by Prometheus, Multiprocess mode aggregates metrics correctly</requirement>
+      <requirement>All tests pass in CI pipeline</requirement>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 4 - Monitoring & Operations</title>
+        <section>Story 4.1 - Lines 803-817</section>
+        <snippet>Prometheus metrics instrumentation requirements: prometheus_client library, /metrics endpoint, 5 key metrics (enhancement_requests_total, enhancement_duration_seconds, enhancement_success_rate, queue_depth, worker_active_count), tenant_id labeling, Prometheus scraping configuration</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture - Technology Stack</title>
+        <section>Observability - Lines 90-93</section>
+        <snippet>Observability stack: Loguru for logging, Prometheus Client for metrics instrumentation, OpenTelemetry for future distributed tracing. Production server: Gunicorn + Uvicorn workers (lines 104)</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture - Project Structure</title>
+        <section>Lines 107-234</section>
+        <snippet>Project structure defines src/monitoring/ directory for Prometheus metrics definitions. Follows snake_case naming, PascalCase for classes, requires type hints and Black formatting.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR022, NFR005</section>
+        <snippet>FR022: Expose Prometheus metrics for success rate, latency, queue depth, error counts. NFR005: Real-time visibility into agent operations with 90-day retention.</snippet>
+      </doc>
+      <doc>
+        <path>https://github.com/prometheus/client_python/blob/master/docs/content/exporting/http/asgi.md</path>
+        <title>Prometheus Python Client - ASGI Integration</title>
+        <section>Official Documentation - 2025</section>
+        <snippet>Use make_asgi_app() to create ASGI application for metrics endpoint. Supports Accept-Encoding:gzip compression by default. Can be mounted in FastAPI with app.mount("/metrics", make_asgi_app())</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/workers/tasks.py</path>
+        <kind>service</kind>
+        <symbol>enhancement_tasks_total, enhancement_task_duration_seconds</symbol>
+        <lines>38-50</lines>
+        <reason>Existing Prometheus metrics already defined: Counter for total tasks and Histogram for duration. Story should consolidate these into src/monitoring/metrics.py and add missing metrics (success_rate, queue_depth, worker_count)</reason>
+      </artifact>
+      <artifact>
+        <path>src/monitoring/__init__.py</path>
+        <kind>module</kind>
+        <symbol>N/A</symbol>
+        <lines>1</lines>
+        <reason>Monitoring module exists but is empty. Story will populate with metric exports</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/webhooks.py</path>
+        <kind>controller</kind>
+        <symbol>receive_webhook, store_resolved_ticket</symbol>
+        <lines>N/A</lines>
+        <reason>Webhook endpoints where enhancement_requests_total counter should be incremented on request receipt</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/tasks.py</path>
+        <kind>worker</kind>
+        <symbol>enhance_ticket</symbol>
+        <lines>N/A</lines>
+        <reason>Main Celery task for enhancement processing. Should be instrumented with duration histogram and success rate gauge</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/queue_service.py</path>
+        <kind>service</kind>
+        <symbol>QueueService, get_queue_depth, push_to_queue, pop_from_queue</symbol>
+        <lines>N/A</lines>
+        <reason>Queue service with get_queue_depth function already available. Should update queue_depth Gauge metric when called</reason>
+      </artifact>
+      <artifact>
+        <path>src/main.py</path>
+        <kind>application</kind>
+        <symbol>app</symbol>
+        <lines>N/A</lines>
+        <reason>FastAPI application entry point. Need to mount /metrics ASGI endpoint here using make_asgi_app()</reason>
+      </artifact>
+      <artifact>
+        <path>src/utils/logger.py</path>
+        <kind>utility</kind>
+        <symbol>AuditLogger</symbol>
+        <lines>N/A</lines>
+        <reason>Correlation ID pattern available for tracing metric operations. Can log metric incrementation with correlation_id</reason>
+      </artifact>
+      <artifact>
+        <path>tests/conftest.py</path>
+        <kind>test</kind>
+        <symbol>pytest fixtures</symbol>
+        <lines>N/A</lines>
+        <reason>Global pytest fixtures for mocking. Can add metric registry fixtures here for testing</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="prometheus-client" version="^0.19.0" status="TO_ADD">Official Prometheus Python client for metrics instrumentation</package>
+        <package name="fastapi" version=">=0.104.0" status="EXISTING">Web framework - will mount /metrics endpoint</package>
+        <package name="celery" version=">=5.3.4" status="EXISTING">Worker framework - tasks will be instrumented with metrics</package>
+        <package name="redis" version=">=5.0.1" status="EXISTING">Queue backend - queue depth metric source</package>
+        <package name="pytest" version=">=7.4.3" status="EXISTING">Testing framework for metrics tests</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>Use prometheus-client library (v0.19.0+) - official Python client recommended in architecture</constraint>
+    <constraint>All metrics MUST include tenant_id label for multi-tenant observability (aligns with Story 3.7 audit logging pattern)</constraint>
+    <constraint>Metric names follow Prometheus conventions: snake_case, _total suffix for Counters, _seconds for durations</constraint>
+    <constraint>Labels must NOT contain sensitive data (no API keys, passwords, PII) - validated by SensitiveDataFilter pattern</constraint>
+    <constraint>Keep label cardinality reasonable: &lt;100 unique tenants, &lt;10 status values (Prometheus best practice)</constraint>
+    <constraint>Use MultiProcessCollector for Gunicorn production deployment to aggregate metrics across worker processes</constraint>
+    <constraint>Metrics endpoint /metrics must be excluded from authentication middleware (public scraping)</constraint>
+    <constraint>All code must have type hints (Mypy compliance), Black formatting, Google-style docstrings</constraint>
+    <constraint>Unit tests required with >80% coverage for src/monitoring/ module</constraint>
+    <constraint>Integration tests must verify /metrics endpoint returns valid Prometheus format</constraint>
+    <constraint>Consolidate existing metrics (enhancement_tasks_total, enhancement_task_duration_seconds) from tasks.py into centralized src/monitoring/metrics.py</constraint>
+    <constraint>Story is purely additive - no breaking changes to existing enhancement pipeline</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>GET /metrics</name>
+      <kind>HTTP REST endpoint</kind>
+      <signature>GET /metrics -> text/plain; version=0.0.4</signature>
+      <path>src/main.py (mounted via make_asgi_app())</path>
+      <description>Prometheus metrics exposition endpoint. Returns all registered metrics in Prometheus text format. Scraped by Prometheus server every 15 seconds.</description>
+    </interface>
+    <interface>
+      <name>prometheus_client.Counter</name>
+      <kind>Prometheus metric class</kind>
+      <signature>Counter(name: str, documentation: str, labelnames: List[str])</signature>
+      <path>src/monitoring/metrics.py</path>
+      <description>Counter metric for cumulative values (enhancement_requests_total). Use .labels(**labels).inc() to increment.</description>
+    </interface>
+    <interface>
+      <name>prometheus_client.Histogram</name>
+      <kind>Prometheus metric class</kind>
+      <signature>Histogram(name: str, documentation: str, labelnames: List[str], buckets: Optional[List[float]])</signature>
+      <path>src/monitoring/metrics.py</path>
+      <description>Histogram metric for duration measurements (enhancement_duration_seconds). Use .labels(**labels).observe(value) to record.</description>
+    </interface>
+    <interface>
+      <name>prometheus_client.Gauge</name>
+      <kind>Prometheus metric class</kind>
+      <signature>Gauge(name: str, documentation: str, labelnames: List[str])</signature>
+      <path>src/monitoring/metrics.py</path>
+      <description>Gauge metric for point-in-time values (queue_depth, worker_count, success_rate). Use .labels(**labels).set(value) to update.</description>
+    </interface>
+    <interface>
+      <name>QueueService.get_queue_depth</name>
+      <kind>Python function</kind>
+      <signature>async def get_queue_depth() -> int</signature>
+      <path>src/services/queue_service.py</path>
+      <description>Returns current queue depth from Redis. Should trigger queue_depth.set() when called.</description>
+    </interface>
+    <interface>
+      <name>celery_app.control.inspect().active()</name>
+      <kind>Celery API</kind>
+      <signature>inspect().active() -> Dict[str, List]</signature>
+      <path>src/workers/celery_app.py</path>
+      <description>Returns active workers and their tasks. Use to count active workers for worker_active_count metric.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Testing framework: Pytest with pytest-asyncio for async tests. Mock-based unit tests using fixtures from tests/conftest.py. Integration tests use real FastAPI TestClient for HTTP endpoint testing. Code coverage target: >80% for src/monitoring/ module measured with pytest-cov. Type checking with Mypy, linting with Ruff, formatting with Black. CI/CD integration via .github/workflows/ci.yml runs all tests on PR. Existing patterns: Mock fixtures for Redis, PostgreSQL, external APIs (see tests/security/conftest.py, tests/integration/test_celery_tasks.py). Testing standards align with Story 2.12 and Story 3.8 patterns.
+    </standards>
+    <locations>
+      <location>tests/unit/test_metrics.py (NEW - unit tests for metric definitions)</location>
+      <location>tests/integration/test_metrics_endpoint.py (NEW - /metrics endpoint integration tests)</location>
+      <location>tests/conftest.py (MODIFY - add metric registry fixtures)</location>
+      <location>tests/unit/ (unit test directory)</location>
+      <location>tests/integration/ (integration test directory)</location>
+    </locations>
+    <ideas>
+      <test_idea ac_ref="AC1">
+        <id>T1</id>
+        <description>Test prometheus-client imports successfully</description>
+        <approach>Unit test: Import Counter, Histogram, Gauge, make_asgi_app and verify no ImportError</approach>
+      </test_idea>
+      <test_idea ac_ref="AC2">
+        <id>T2</id>
+        <description>Test /metrics endpoint returns 200 OK</description>
+        <approach>Integration test: Use FastAPI TestClient to GET /metrics, assert status_code == 200</approach>
+      </test_idea>
+      <test_idea ac_ref="AC2">
+        <id>T3</id>
+        <description>Test /metrics endpoint returns correct Content-Type</description>
+        <approach>Integration test: Assert response headers contain "text/plain; version=0.0.4"</approach>
+      </test_idea>
+      <test_idea ac_ref="AC3">
+        <id>T4</id>
+        <description>Test Counter incrementation</description>
+        <approach>Unit test: Create test registry, define Counter, call .labels(tenant_id="test").inc(), verify value increases</approach>
+      </test_idea>
+      <test_idea ac_ref="AC3">
+        <id>T5</id>
+        <description>Test Histogram observation</description>
+        <approach>Unit test: Define Histogram, call .labels(tenant_id="test").observe(5.2), verify bucket counts updated</approach>
+      </test_idea>
+      <test_idea ac_ref="AC3">
+        <id>T6</id>
+        <description>Test Gauge set operation</description>
+        <approach>Unit test: Define Gauge, call .labels(queue_name="test").set(42), verify value equals 42</approach>
+      </test_idea>
+      <test_idea ac_ref="AC3">
+        <id>T7</id>
+        <description>Test all 5 metrics are registered</description>
+        <approach>Integration test: GET /metrics and verify response contains: enhancement_requests_total, enhancement_duration_seconds, enhancement_success_rate, queue_depth, worker_active_count</approach>
+      </test_idea>
+      <test_idea ac_ref="AC4">
+        <id>T8</id>
+        <description>Test metrics include tenant_id label</description>
+        <approach>Unit test: Increment metric with tenant_id="acme", verify label appears in metric output</approach>
+      </test_idea>
+      <test_idea ac_ref="AC4">
+        <id>T9</id>
+        <description>Test status labels use consistent values</description>
+        <approach>Unit test: Increment counters with status="success", "failure", "queued", verify labels match expected values</approach>
+      </test_idea>
+      <test_idea ac_ref="AC5">
+        <id>T10</id>
+        <description>Test metrics format is Prometheus-parseable</description>
+        <approach>Integration test: GET /metrics response, use prometheus_client parser to validate format correctness</approach>
+      </test_idea>
+      <test_idea ac_ref="AC7">
+        <id>T11</id>
+        <description>Test HELP and TYPE annotations present</description>
+        <approach>Integration test: Verify /metrics response contains "# HELP" and "# TYPE" lines for each metric</approach>
+      </test_idea>
+      <test_idea ac_ref="AC7">
+        <id>T12</id>
+        <description>Test multiprocess mode aggregates correctly</description>
+        <approach>Integration test: If using Gunicorn, verify MultiProcessCollector aggregates metrics from multiple workers</approach>
+      </test_idea>
+    </ideas>
+  </tests>
+</story-context>

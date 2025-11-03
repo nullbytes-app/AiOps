@@ -144,6 +144,34 @@ jobs:
           path: htmlcov/
           retention-days: 30
 
+      # Step 12: Run security tests (Story 3.8 - AC1, AC2, AC3, AC4)
+      # Reason: Automated security testing for OWASP Top 10 vulnerabilities
+      # Security tests validate tenant isolation, input validation, webhook signatures
+      # Tests must pass (exit code 0) to block merge on failures
+      - name: Run security tests
+        run: |
+          pytest tests/security/ -v --tb=short
+        continue-on-error: false
+
+      # Step 13: Dependency scanning with safety (Story 3.8 - AC5)
+      # Reason: Identifies known vulnerabilities in Python dependencies
+      # Blocks merge on CRITICAL or HIGH severity vulnerabilities
+      # Scans against Python Packaging Advisory Database
+      - name: Run dependency scanning (safety)
+        run: |
+          pip install safety
+          safety check -r requirements.txt --json
+        continue-on-error: false
+
+      # Step 14: Dependency scanning with pip-audit (Story 3.8 - AC5)
+      # Reason: Additional supply chain security scanning tool
+      # Detects CVEs and provides remediation guidance
+      - name: Run dependency scanning (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit
+        continue-on-error: false
+
   # Job 2: Docker image build and push
   # Depends on lint-and-test job passing (sequential execution)
   # Only pushes images on main branch (not on PRs)

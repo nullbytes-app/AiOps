@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="story-4.3-grafana-dashboards" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.3</storyId>
+    <title>Create Grafana Dashboards for Real-Time Monitoring</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-3-create-grafana-dashboards-for-real-time-monitoring.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>As an operations engineer</asA>
+    <iWant>visual dashboards showing system health and performance</iWant>
+    <soThat>I can monitor the platform without running queries manually</soThat>
+    <tasks>
+      <task id="1">Create Prometheus Datasource ConfigMap (AC3) - k8s/grafana-datasource.yaml with Prometheus URL http://prometheus:9090</task>
+      <task id="2">Create Main Dashboard ConfigMap (AC4, AC5, AC6) - k8s/grafana-dashboard.yaml with 5 panels: Success Rate (gauge), Queue Depth (time series), p95 Latency (time series), Error Rate by Tenant (table), Active Workers (stat)</task>
+      <task id="3">Create Grafana Deployment Manifest (AC2) - k8s/grafana-deployment.yaml with 1 replica, 200m CPU, 512Mi memory limits, health probes, ConfigMap mounts</task>
+      <task id="4">Create Grafana Service Manifest (AC2) - ClusterIP service on port 3000 in k8s/grafana-deployment.yaml</task>
+      <task id="5">Add Grafana Service to Docker Compose (AC1) - docker-compose.yml with grafana/grafana:latest image, port 3000, environment variables, health checks, volume mounts</task>
+      <task id="6">Verify Local Grafana Deployment (AC1, AC3) - Access http://localhost:3000, login with admin/admin, verify Prometheus datasource connected</task>
+      <task id="7">Verify Local Dashboard Deployment (AC4) - Confirm all 5 panels display data, time range selector works, auto-refresh every 30 seconds</task>
+      <task id="8">Deploy Grafana to Kubernetes Cluster (AC2) - Apply k8s/grafana-datasource.yaml, k8s/grafana-dashboard.yaml, k8s/grafana-deployment.yaml, verify pod status and ConfigMaps</task>
+      <task id="9">Verify Kubernetes Grafana Deployment (AC2, AC3) - Port-forward to svc/grafana, verify datasource and dashboard auto-provisioned, test connection</task>
+      <task id="10">Export Dashboard as JSON (AC7) - Export dashboard JSON from UI, save to k8s/grafana-dashboard.yaml ConfigMap data, commit to version control</task>
+      <task id="11">Verify Dashboard Refresh Interval (AC5) - Confirm 30-second auto-refresh interval, test manual refresh, verify persistence across page reloads</task>
+      <task id="12">Verify Time Range Selector (AC6) - Test 1h, 6h, 24h, 7d options, verify all panels update with selected range, test custom date range</task>
+      <task id="13">Verify Authentication (AC8) - Confirm login required, test incorrect password, verify logout, ensure unauthenticated users cannot access dashboard</task>
+      <task id="14">Create Grafana Setup Documentation (AC2, AC3, AC6) - docs/operations/grafana-setup.md with deployment steps, dashboard guide, troubleshooting, performance optimization</task>
+      <task id="15">Update README with Grafana Access Instructions - Add Monitoring section with Grafana UI URLs, default dashboard reference, metrics guide link</task>
+      <task id="16">End-to-End Validation (All ACs) - Full local Docker and Kubernetes validation, verify all 8 acceptance criteria working end-to-end</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1" title="Grafana Deployed in Local Docker Environment">
+      <description>Grafana service added to docker-compose.yml and accessible at http://localhost:3000 with health checks passing</description>
+      <verifications>
+        <verification>docker-compose up grafana starts successfully</verification>
+        <verification>Grafana UI accessible at http://localhost:3000</verification>
+        <verification>curl http://localhost:3000/api/health returns 200 OK with status</verification>
+        <verification>docker-compose logs grafana shows no errors</verification>
+        <verification>Grafana container connected to Docker network (can reach prometheus:9090)</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC2" title="Grafana Deployed in Kubernetes Cluster">
+      <description>Kubernetes manifests (datasource ConfigMap, dashboard ConfigMap, Deployment, Service) created and deployed successfully</description>
+      <verifications>
+        <verification>kubectl apply -f k8s/grafana-*.yaml succeeds without errors</verification>
+        <verification>kubectl get pods -l app=grafana shows Running status, 1/1 Ready</verification>
+        <verification>kubectl port-forward svc/grafana 3000:3000 works and UI accessible</verification>
+        <verification>kubectl get service grafana exists and shows ClusterIP</verification>
+        <verification>kubectl get configmap | grep grafana shows datasource and dashboard ConfigMaps</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC3" title="Prometheus Datasource Connected">
+      <description>Grafana automatically discovers and connects to Prometheus server with successful data source test</description>
+      <verifications>
+        <verification>Local Docker: Configuration → Data Sources shows Prometheus with green "Data source is working" message</verification>
+        <verification>Kubernetes: Configuration → Data Sources shows Prometheus auto-provisioned from ConfigMap</verification>
+        <verification>Datasource URL set to http://prometheus:9090</verification>
+        <verification>Test query to Prometheus returns metrics successfully</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC4" title="Main Dashboard Created with Five Panels">
+      <description>Dashboard displays 5 panels with correct PromQL queries, visualizations, and thresholds for success rate, queue depth, latency, error rate by tenant, and active workers</description>
+      <verifications>
+        <verification>Panel 1: Success Rate gauge showing percentage (0-100%) with color thresholds (Green >95%, Yellow 90-95%, Red &lt;90%)</verification>
+        <verification>Panel 2: Queue Depth time series graph with area fill, y-axis labeled with job count</verification>
+        <verification>Panel 3: p95 Latency time series with target line at 120s, formatted in seconds</verification>
+        <verification>Panel 4: Error Rate by Tenant table with sortable columns, conditional formatting (Red >5%, Yellow 1-5%, Green &lt;1%)</verification>
+        <verification>Panel 5: Active Workers stat panel showing large number display, green when >0 active workers</verification>
+        <verification>Dashboard title: "AI Agents - System Health & Performance"</verification>
+        <verification>Dashboard description visible explaining real-time monitoring purpose</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC5" title="Auto-Refresh Every 30 Seconds">
+      <description>Dashboard configured to automatically refresh all panels every 30 seconds with visual refresh indicator</description>
+      <verifications>
+        <verification>Dashboard refresh interval set to 30 seconds in JSON configuration</verification>
+        <verification>Refresh button displays countdown timer in dashboard header</verification>
+        <verification>Observing dashboard for 2-3 minutes shows panels updating every 30 seconds</verification>
+        <verification>Dashboard retains 30-second refresh setting across browser page reloads</verification>
+        <verification>Custom refresh interval options available (10s, 1m, 5m, etc.) via dropdown</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC6" title="Time Range Selector with 1h/6h/24h/7d Options">
+      <description>Dashboard header contains time range selector with relative time options and custom date picker supporting multiple view windows</description>
+      <verifications>
+        <verification>Time range selector visible in dashboard header (top-right)</verification>
+        <verification>Relative time options available: "Last 1 hour", "Last 6 hours", "Last 24 hours", "Last 7 days"</verification>
+        <verification>Custom absolute time range picker available</verification>
+        <verification>Changing time range updates all panels automatically with appropriate PromQL time windows</verification>
+        <verification>Time range selection persisted when dashboard refreshed</verification>
+        <verification>Historical data displays correctly for 7-day lookback (confirms Prometheus 30-day retention sufficient)</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC7" title="Dashboard Exported as JSON and Version-Controlled">
+      <description>Dashboard JSON exported from Grafana UI, includes all panel definitions and metadata, committed to version control in k8s/grafana-dashboard.yaml</description>
+      <verifications>
+        <verification>Dashboard JSON exports from Grafana UI (Share → Export dashboard)</verification>
+        <verification>JSON includes panel queries, visualizations, thresholds, datasource references, metadata</verification>
+        <verification>JSON valid and can be re-imported on new Grafana instances</verification>
+        <verification>Dashboard JSON committed to k8s/grafana-dashboard.yaml as ConfigMap data</verification>
+        <verification>Version control tracks dashboard changes over time</verification>
+      </verifications>
+    </criterion>
+
+    <criterion id="AC8" title="Dashboard Accessible with Authentication">
+      <description>Grafana requires login authentication before accessing dashboards; default credentials changed in production recommended</description>
+      <verifications>
+        <verification>Navigating to Grafana UI without login redirects to login page</verification>
+        <verification>Login with incorrect password fails with error message</verification>
+        <verification>Login with correct admin/admin (or configured) credentials succeeds</verification>
+        <verification>Logging out redirects to login page and clears session</verification>
+        <verification>Direct dashboard URL access requires authentication before loading</verification>
+        <verification>Grafana UI not publicly exposed (port-forward or localhost-only for Docker)</verification>
+      </verifications>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/operations/prometheus-setup.md</path>
+        <title>Prometheus Setup Guide</title>
+        <section>Overview, Architecture, Local Deployment, Kubernetes Deployment</section>
+        <snippet>Prometheus server deployed on port 9090 (local Docker) or via port-forward (K8s), scraping FastAPI /metrics at 15-second intervals. Includes 30-day retention for 7-day dashboard views. Story 4.3 builds Grafana datasource to query this Prometheus instance.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/metrics-guide.md</path>
+        <title>Metrics Guide</title>
+        <section>Available Metrics, Sample PromQL Queries, Multi-Tenant Filtering, Alerting Recommendations</section>
+        <snippet>Five core metrics available: enhancement_requests_total (Counter), enhancement_duration_seconds (Histogram with buckets for p95 calculations), enhancement_success_rate (Gauge %), queue_depth (Gauge), worker_active_count (Gauge). All metrics include tenant_id labels for multi-tenant observability. PromQL queries documented for p95 latency, error rate, queue depth, per-tenant filtering.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/4-1-implement-prometheus-metrics-instrumentation.md</path>
+        <title>Story 4.1 - Prometheus Metrics Instrumentation</title>
+        <section>Technical Context, Metrics Implementation</section>
+        <snippet>Story 4.1 prerequisite: Five metrics exposed via /metrics endpoint at src/monitoring/metrics.py. Histogram buckets defined for latency distribution (0.005-10.0 seconds). Multi-tenant labels (tenant_id) in all metrics. Metrics ready for Grafana dashboard visualization in Story 4.3.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/4-2-deploy-prometheus-server-and-configure-scraping.md</path>
+        <title>Story 4.2 - Deploy Prometheus Server and Configure Scraping</title>
+        <section>Infrastructure, Learnings, Docker Compose, Kubernetes Deployment</section>
+        <snippet>Story 4.2 prerequisite: Prometheus server running and healthy, scraping metrics at 15-second intervals. Docker Compose setup established for local development. Kubernetes deployment patterns (ConfigMap-based configuration) established. Story 4.3 adds Grafana service to same docker-compose.yml and creates similar K8s manifests for dashboard provisioning.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Design Document</title>
+        <section>Technology Stack (Line 51), Project Structure (Lines 107-234), Observability</section>
+        <snippet>Architecture specifies: Grafana latest version for rich visualization and Prometheus datasource support, k8s/grafana-dashboard.yaml for Kubernetes ConfigMap-based dashboard provisioning, Docker Compose for local development, MSP-friendly multi-tenant dashboards with tenant_id filtering. NFR005 (Observability): Real-time visibility into agent operations satisfied by visual Grafana dashboards with 30-second auto-refresh.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR023 (Grafana dashboards), NFR005 (Observability), NFR006 (UI response time)</section>
+        <snippet>FR023: Grafana dashboards for operational monitoring - Story 4.3 implements this requirement with 5-panel main dashboard. NFR005: Real-time visibility into agent operations - visual dashboard with 30-second refresh, 7-day lookback, and tenant-specific filtering satisfies this. NFR006: Sub-second UI response time - Grafana optimized for fast panel interactions.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>src/monitoring/metrics.py</path>
+        <kind>module</kind>
+        <symbol>enhancement_requests_total, enhancement_duration_seconds, enhancement_success_rate, queue_depth, worker_active_count</symbol>
+        <lines>1-109</lines>
+        <reason>Defines all five Prometheus metrics exposed at /metrics endpoint. Story 4.3 dashboard panels query these metrics via PromQL. Labels (tenant_id, status) support multi-tenant dashboard filtering.</reason>
+      </artifact>
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>config</kind>
+        <symbol>prometheus service definition</symbol>
+        <lines>100-150 (estimated)</lines>
+        <reason>Story 4.2 established Prometheus service in docker-compose.yml. Story 4.3 adds Grafana service alongside it. Both services connected to same Docker network for service discovery (prometheus:9090).</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/prometheus-config.yaml</path>
+        <kind>kubernetes</kind>
+        <symbol>prometheus ConfigMap with scrape_configs</symbol>
+        <reason>Story 4.2 created ConfigMap with Prometheus configuration. Story 4.3 reuses same pattern to create k8s/grafana-datasource.yaml and k8s/grafana-dashboard.yaml ConfigMaps for dashboard provisioning.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/prometheus-deployment.yaml</path>
+        <kind>kubernetes</kind>
+        <symbol>prometheus Deployment, Service, ServiceAccount, RBAC</symbol>
+        <reason>Story 4.2 established Kubernetes deployment patterns. Story 4.3 follows same structure for Grafana Deployment, Service, and uses ConfigMap-based provisioning (analogous pattern for datasource and dashboard configs).</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_metrics_endpoint.py</path>
+        <kind>test</kind>
+        <symbol>Test cases for /metrics endpoint health checks</symbol>
+        <reason>Integration tests verify metrics endpoint accessibility and response format. Story 4.3 dashboard depends on healthy /metrics endpoint. Existing tests validate prerequisite for dashboard data collection.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_monitoring_metrics.py</path>
+        <kind>test</kind>
+        <symbol>Unit tests for metric instrumentation (counters, gauges, histograms)</symbol>
+        <reason>Unit tests verify metric definitions and label structures. Story 4.3 dashboard queries depend on correct metric names and labels (especially tenant_id for multi-tenant filtering).</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <ecosystem name="Docker">
+        <package name="grafana/grafana" version="latest">Official Grafana image for both local Docker and Kubernetes deployments</package>
+        <package name="docker-compose" version="3.8+">Docker Compose version requirement for service networking and volume management</package>
+      </ecosystem>
+      <ecosystem name="Kubernetes">
+        <package name="kubectl" version="1.27+">Required for applying manifests and managing Grafana resources in production</package>
+        <package name="Prometheus Service" version="from Story 4.2">Kubernetes Service discovery target for Grafana datasource configuration</package>
+      </ecosystem>
+      <ecosystem name="Prometheus">
+        <package name="prometheus" version="from Story 4.2">Datasource for Grafana, must be running with metrics endpoint accessible</package>
+        <package name="prometheus_client" version="0.19.0+">FastAPI application exposes metrics via this library (Story 4.1 prerequisite)</package>
+      </ecosystem>
+      <ecosystem name="Python">
+        <package name="prometheus-client" version=">=0.19.0">Listed in pyproject.toml dependencies, used by application for metrics exposure</package>
+      </ecosystem>
+      <ecosystem name="Configuration">
+        <package name="prometheus.yml">Local Docker Prometheus configuration (Story 4.2) defines scrape targets for Grafana datasource</package>
+        <package name="k8s/prometheus-*.yaml">Kubernetes ConfigMaps and Deployments from Story 4.2 provide Prometheus service for datasource</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" category="Architecture">Grafana datasource must use internal service name http://prometheus:9090 for K8s service discovery (not localhost or IP addresses). Local Docker uses Docker service name "prometheus" for network discovery.</constraint>
+    <constraint id="C2" category="Security">Grafana UI not exposed publicly without authentication. Local Docker: localhost-only access. Kubernetes: Use port-forward for testing, Ingress with auth for production access.</constraint>
+    <constraint id="C3" category="Configuration">Dashboard provisioning follows Kubernetes ConfigMap best practice (Story 4.2 pattern). Dashboard JSON stored as ConfigMap data, mounted at /etc/grafana/provisioning/dashboards/. Edit only via files/ConfigMaps, not UI (unless allowUiUpdates: true configured).</constraint>
+    <constraint id="C4" category="Performance">Auto-refresh interval set to 30 seconds balances data freshness vs. Prometheus load. Prometheus 15-second scrape interval provides data resolution. Grafana 30-second refresh adds slight additional load but acceptable for operational visibility.</constraint>
+    <constraint id="C5" category="Data Retention">Prometheus 30-day retention (Story 4.2) supports 7-day dashboard lookback window. Dashboard time range selector supports 1h/6h/24h/7d views within this retention window.</constraint>
+    <constraint id="C6" category="Multi-Tenant">All metrics include tenant_id labels (Story 4.1). Dashboard Error Rate by Tenant panel demonstrates filtering capability. Future dashboards can use dashboard variables to filter by tenant_id dynamically.</constraint>
+    <constraint id="C7" category="Image Versioning">Grafana image set to "latest" in docker-compose.yml and K8s Deployment. Production deployments should pin to specific version (e.g., grafana/grafana:12.0) for repeatability.</constraint>
+    <constraint id="C8" category="Documentation">Deployment docs (grafana-setup.md) must reference Story 4.2 Prometheus setup and Story 4.1 metrics guide. Dashboard troubleshooting should cover: datasource connection issues, empty panels (check Prometheus data), login failures, port-forward connectivity.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Prometheus HTTP API</name>
+      <kind>REST API</kind>
+      <signature>GET http://prometheus:9090/api/v1/query (for instant queries), GET http://prometheus:9090/api/v1/query_range (for time series queries)</signature>
+      <path>External service (not in codebase)</path>
+      <notes>Grafana queries Prometheus API for metric data. PromQL expressions in dashboard panels translate to HTTP requests. Example: Panel query "enhancement_success_rate" → GET /api/v1/query?query=enhancement_success_rate</notes>
+    </interface>
+    <interface>
+      <name>Grafana Dashboard JSON Schema</name>
+      <kind>File format / ConfigMap data</kind>
+      <signature>JSON structure with dashboard, panels, targets, field configs, thresholds</signature>
+      <path>k8s/grafana-dashboard.yaml (ConfigMap data field)</path>
+      <notes>Dashboard JSON defines all UI components: panel type, visualization, PromQL queries, color thresholds, refresh intervals. ConfigMap mount injects this JSON into Grafana provisioning directory. Grafana reads and auto-provisions dashboard on startup.</notes>
+    </interface>
+    <interface>
+      <name>Grafana Datasource Provisioning</name>
+      <kind>YAML Configuration</kind>
+      <signature>apiVersion: 1, datasources: [{name, type, url, access, jsonData, secureJsonData}]</signature>
+      <path>k8s/grafana-datasource.yaml (ConfigMap) or environment variable GF_PROVISIONING_DATASOURCES_PATH</path>
+      <notes>Datasource configuration stored as ConfigMap, mounted to /etc/grafana/provisioning/datasources/. Grafana automatically discovers and creates Prometheus datasource on startup using this configuration.</notes>
+    </interface>
+    <interface>
+      <name>Metrics Endpoint</name>
+      <kind>HTTP endpoint</kind>
+      <signature>GET http://api:8000/metrics (local Docker) or http://{pod-ip}:8000/metrics (Kubernetes)</signature>
+      <path>src/main.py (FastAPI app), exposed by prometheus_client middleware</path>
+      <notes>Prometheus scrapes this endpoint every 15 seconds to collect metrics. Grafana queries Prometheus database for the collected metrics. Endpoint health affects entire monitoring pipeline.</notes>
+    </interface>
+    <interface>
+      <name>Docker Service Discovery</name>
+      <kind>Docker network DNS</kind>
+      <signature>Service name resolution: prometheus:9090 → Prometheus container IP on Docker network</signature>
+      <path>Docker Compose network</path>
+      <notes>Local Docker environment: Grafana and Prometheus services on same docker-compose network. Grafana datasource configured to use DNS name "prometheus:9090" (not IP). Service discovery automatic.</notes>
+    </interface>
+    <interface>
+      <name>Kubernetes Service Discovery</name>
+      <kind>Kubernetes Service DNS</kind>
+      <signature>Service name: prometheus, port: 9090, DNS name: prometheus.default.svc.cluster.local</signature>
+      <path>k8s/prometheus-deployment.yaml (Service resource)</path>
+      <notes>Kubernetes environment: Grafana pod resolves "prometheus:9090" via Kubernetes DNS. Grafana datasource ConfigMap references Prometheus service by name. Automatic service discovery within cluster.</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Unit tests use pytest with asyncio support (pytest-asyncio). Tests located in tests/unit/ and tests/integration/. Metrics are tested for proper definition and label structure. HTTP health checks verify endpoint accessibility. Integration tests validate end-to-end metric collection via Prometheus scraping.
+    </standards>
+    <locations>
+      tests/unit/test_monitoring_metrics.py - Unit tests for metric definitions (counters, gauges, histograms, labels)
+      tests/integration/test_metrics_endpoint.py - Integration tests for /metrics endpoint health and response format
+      tests/conftest.py - Pytest configuration and fixtures for database, async operations
+    </locations>
+    <ideas>
+      <idea acId="AC1">Test local Docker deployment: Verify docker-compose up -d grafana succeeds, container is running, health check passes, UI accessible at http://localhost:3000. Test docker-compose logs grafana shows no errors. Unit test: Mock health endpoint, verify response structure.</idea>
+      <idea acId="AC2">Test Kubernetes deployment: Verify kubectl apply -f k8s/grafana-*.yaml succeeds, Deployment/Service/ConfigMaps created, Pod running and ready, port-forward works. Integration test: Query Prometheus through Grafana datasource to verify connectivity chain.</idea>
+      <idea acId="AC3">Test Prometheus datasource: Verify datasource shows "Data source is working" in UI, test query returns metrics, datasource URL is correct. Unit test: Mock Prometheus API responses, verify Grafana correctly parses responses.</idea>
+      <idea acId="AC4">Test dashboard panels: Verify all 5 panels render without errors, PromQL queries execute successfully, correct visualization types applied (gauge, time-series, table, stat), thresholds and colors display correctly. Integration test: Run actual PromQL queries against test Prometheus instance, verify returned data matches expected format.</idea>
+      <idea acId="AC5">Test auto-refresh: Verify refresh interval is 30 seconds in JSON config, panels update every 30s when observing dashboard over time. Unit test: Parse dashboard JSON, verify refresh field set correctly. Manual test: Monitor dashboard for 2-3 minutes, observe panel value changes at 30s intervals.</idea>
+      <idea acId="AC6">Test time range selector: Verify dropdown options available (1h, 6h, 24h, 7d), changing range updates all panels, historical data displays correctly. Unit test: Verify JSON includes time range configuration. Integration test: Query Prometheus with different time windows, confirm panel queries adjust time ranges correctly.</idea>
+      <idea acId="AC7">Test dashboard export: Verify JSON export from UI includes all panel definitions, queries, metadata. Unit test: Parse exported JSON, validate against Grafana dashboard schema. Verify JSON re-imports successfully on new Grafana instance.</idea>
+      <idea acId="AC8">Test authentication: Verify login required before dashboard access, incorrect password fails, correct password succeeds, logout works, direct dashboard URLs require auth. Unit test: Mock Grafana auth endpoints, verify response codes. Manual test: Test login flow in UI.</idea>
+    </ideas>
+  </tests>
+</story-context>

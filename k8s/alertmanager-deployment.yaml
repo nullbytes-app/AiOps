@@ -1,0 +1,306 @@
+# Alertmanager Deployment and Service
+# Kubernetes Production Environment
+# Generated for Story 4.5 - Integrate Alertmanager for Alert Routing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: alertmanager
+  namespace: default
+  labels:
+    app: alertmanager
+    component: monitoring
+spec:
+  replicas: 1  # Single replica for simplicity; scale as needed for HA
+  selector:
+    matchLabels:
+      app: alertmanager
+  template:
+    metadata:
+      labels:
+        app: alertmanager
+        component: monitoring
+    spec:
+      serviceAccountName: default  # Can use default account for non-RBAC scenarios
+      containers:
+        - name: alertmanager
+          image: prom/alertmanager:latest
+          args:
+            - '--config.file=/etc/alertmanager/alertmanager.yml'
+            - '--storage.path=/alertmanager'
+            - '--log.level=info'
+          ports:
+            - name: web
+              containerPort: 9093
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: alertmanager-config
+              mountPath: /etc/alertmanager
+              readOnly: true
+            - name: alertmanager-data
+              mountPath: /alertmanager
+          livenessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /-/healthy
+              port: 9093
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          env:
+            # Load sensitive credentials from Kubernetes Secrets
+            - name: SLACK_WEBHOOK_URL
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: slack-webhook-url
+                  optional: true
+            - name: PAGERDUTY_INTEGRATION_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: pagerduty-integration-key
+                  optional: true
+            - name: SMTP_SMARTHOST
+              valueFrom:
+                configMapKeyRef:
+                  name: alertmanager-config
+                  key: smtp-smarthost
+                  optional: true
+            - name: SMTP_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: smtp-username
+                  optional: true
+            - name: SMTP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: alertmanager-secrets
+                  key: smtp-password
+                  optional: true
+            - name: EMAIL_FROM
+              valueFrom:
+                configMapKeyRef:
+                  name: alertmanager-config
+                  key: email-from
+                  optional: true
+            - name: EMAIL_RECIPIENT
+              valueFrom:
+                configMapKeyRef:
+                  name: alertmanager-config
+                  key: email-recipient
+                  optional: true
+      volumes:
+        - name: alertmanager-config
+          configMap:
+            name: alertmanager-config
+        - name: alertmanager-data
+          emptyDir: {}  # Use PersistentVolumeClaim for production data persistence
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: alertmanager
+  namespace: default
+  labels:
+    app: alertmanager
+    component: monitoring
+spec:
+  type: ClusterIP  # Internal access only; use LoadBalancer or Ingress for external access
+  selector:
+    app: alertmanager
+  ports:
+    - name: web
+      port: 9093
+      targetPort: 9093
+      protocol: TCP
+
+---
+# Kubernetes Secret for sensitive configuration (Webhook URLs, API Keys, SMTP Credentials)
+# NOTE: This manifest serves as a TEMPLATE. DO NOT commit actual secrets to git.
+# Create the secret using kubectl with actual credential values:
+#   kubectl create secret generic alertmanager-secrets \
+#     --from-literal=slack-webhook-url="https://hooks.slack.com/services/..." \
+#     --from-literal=pagerduty-integration-key="..." \
+#     --from-literal=smtp-username="..." \
+#     --from-literal=smtp-password="..."
+apiVersion: v1
+kind: Secret
+metadata:
+  name: alertmanager-secrets
+  namespace: default
+  labels:
+    app: alertmanager
+type: Opaque
+data:
+  # Base64-encoded placeholder values - REPLACE WITH ACTUAL CREDENTIALS
+  slack-webhook-url: aHR0cHM6Ly9ob29rcy5zbGFjay5jb20vc2VydmljZXMvVDAwMDAwMDAwL0IwMDAwMDAwMC9YWFHFVFVYWFHFVFVYWA==  # https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
+  pagerduty-integration-key: cGFnZXJkdXR5LWludGVncmF0aW9uLWtleS1wbGFjZWhvbGRlcg==  # Replace with real key
+  smtp-username: c210cC11c2VybmFtZS1wbGFjZWhvbGRlcg==  # smtp-username-placeholder
+  smtp-password: c210cC1wYXNzd29yZC1wbGFjZWhvbGRlcg==  # smtp-password-placeholder
+
+---
+# Kubernetes ConfigMap for alertmanager configuration and non-sensitive settings
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alertmanager-config
+  namespace: default
+  labels:
+    app: alertmanager
+    component: monitoring
+data:
+  alertmanager.yml: |
+    # Alertmanager Configuration
+    # Routes and delivers alerts from Prometheus to notification channels
+
+    # Global configuration applied to all alerts
+    global:
+      resolve_timeout: 5m
+
+    # The root route with all parameters, which are inherited by the child routes if they are not overwritten
+    route:
+      receiver: 'slack-default'
+      group_by: ['tenant_id', 'alertname']
+      group_wait: 10s
+      group_interval: 15s
+      repeat_interval: 4h
+      routes:
+        # Critical alerts route to both Slack and PagerDuty
+        - match:
+            severity: critical
+          receiver: 'slack-pagerduty'
+          group_by: ['tenant_id', 'alertname']
+          group_wait: 10s
+          group_interval: 15s
+          repeat_interval: 4h
+          continue: false
+
+        # Warning alerts route to Slack only
+        - match:
+            severity: warning
+          receiver: 'slack-default'
+          group_by: ['tenant_id', 'alertname']
+          group_wait: 10s
+          group_interval: 15s
+          repeat_interval: 4h
+          continue: false
+
+    # Receivers: Define notification channels for different alert types
+    receivers:
+      # Default receiver for informational/warning alerts
+      - name: 'slack-default'
+        slack_configs:
+          - api_url: "$SLACK_WEBHOOK_URL"
+            title: '{{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+            color: '#FFA500'
+            fields:
+              - title: 'Severity'
+                value: '{{ .GroupLabels.severity }}'
+                short: true
+              - title: 'Tenant'
+                value: '{{ .GroupLabels.tenant_id }}'
+                short: true
+              - title: 'Alertname'
+                value: '{{ .GroupLabels.alertname }}'
+                short: false
+              - title: 'Instance'
+                value: '{{ .GroupLabels.instance }}'
+                short: true
+            actions:
+              - type: 'button'
+                text: 'View in Prometheus'
+                url: 'http://prometheus:9090/graph'
+
+      # Receiver for critical alerts (Slack + PagerDuty)
+      - name: 'slack-pagerduty'
+        slack_configs:
+          - api_url: "$SLACK_WEBHOOK_URL"
+            title: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+            text: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+            color: '#FF0000'
+            fields:
+              - title: 'Severity'
+                value: '{{ .GroupLabels.severity }}'
+                short: true
+              - title: 'Tenant'
+                value: '{{ .GroupLabels.tenant_id }}'
+                short: true
+              - title: 'Alertname'
+                value: '{{ .GroupLabels.alertname }}'
+                short: false
+              - title: 'Instance'
+                value: '{{ .GroupLabels.instance }}'
+                short: true
+            actions:
+              - type: 'button'
+                text: 'View in Prometheus'
+                url: 'http://prometheus:9090/graph'
+
+        pagerduty_configs:
+          - routing_key: "$PAGERDUTY_INTEGRATION_KEY"
+            description: '{{ .GroupLabels.alertname }} ({{ .GroupLabels.tenant_id }})'
+            details:
+              firing: '{{ template "pagerduty.default.instances" .Alerts.Firing }}'
+              resolved: '{{ template "pagerduty.default.instances" .Alerts.Resolved }}'
+              severity: 'critical'
+
+      # Email receiver for alerts (optional secondary channel)
+      - name: 'email'
+        email_configs:
+          - to: "$EMAIL_RECIPIENT"
+            from: "$EMAIL_FROM"
+            smarthost: "$SMTP_SMARTHOST"
+            auth_username: "$SMTP_USERNAME"
+            auth_password: "$SMTP_PASSWORD"
+            headers:
+              Subject: '[{{ .GroupLabels.severity | upper }}] {{ .GroupLabels.alertname }} - {{ .GroupLabels.tenant_id }}'
+            html: |
+              <html>
+                <head>
+                  <style>
+                    .alert-header { font-weight: bold; font-size: 18px; color: #CC0000; }
+                    .alert-body { font-family: monospace; }
+                    .alert-field { margin: 10px 0; }
+                  </style>
+                </head>
+                <body>
+                  <div class="alert-header">{{ .GroupLabels.alertname }}</div>
+                  <div class="alert-body">
+                    <div class="alert-field"><strong>Severity:</strong> {{ .GroupLabels.severity }}</div>
+                    <div class="alert-field"><strong>Tenant:</strong> {{ .GroupLabels.tenant_id }}</div>
+                    <div class="alert-field"><strong>Instance:</strong> {{ .GroupLabels.instance }}</div>
+                    <div class="alert-field"><strong>Summary:</strong> {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}</div>
+                  </div>
+                </body>
+              </html>
+
+    # Inhibition rules (optional): suppress certain alerts while others are firing
+    inhibit_rules: []
+
+    # Template files for notification formatting
+    templates: []
+
+  # SMTP Configuration (non-sensitive part)
+  smtp-smarthost: "smtp.example.com:587"
+  email-from: "alerts@ai-agents.local"
+  email-recipient: "oncall@example.com"

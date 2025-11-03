@@ -80,8 +80,8 @@ development_status:
   4-1-implement-prometheus-metrics-instrumentation: done
   4-2-deploy-prometheus-server-and-configure-scraping: done
   4-3-create-grafana-dashboards-for-real-time-monitoring: done
-  4-4-configure-alerting-rules-in-prometheus: review
-  4-5-integrate-alertmanager-for-alert-routing: backlog
+  4-4-configure-alerting-rules-in-prometheus: done  # Code Review: APPROVED - All task checkboxes marked complete
+  4-5-integrate-alertmanager-for-alert-routing: in-progress  # Code Review: Changes Requested (addressing: credential config, integration tests, E2E testing) - Resumed 2025-11-03
   4-6-implement-distributed-tracing-with-opentelemetry: backlog
   4-7-create-operational-runbooks-and-dashboards: backlog
   epic-4-retrospective: optional

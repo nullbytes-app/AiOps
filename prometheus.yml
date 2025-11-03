@@ -14,6 +14,14 @@ global:
 rule_files:
   - "alert-rules.yml"
 
+# Alertmanager configuration (Story 4.5)
+# Routes fired alerts to notification channels (Slack, PagerDuty, Email)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - 'alertmanager:9093'  # Alertmanager service endpoint in Docker Compose
+
 # Scrape configurations
 scrape_configs:
   # FastAPI Application - Enhancement Service

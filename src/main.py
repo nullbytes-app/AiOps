@@ -8,6 +8,7 @@ routers, middleware, and startup/shutdown event handlers in future stories.
 import logging
 
 from fastapi import FastAPI, HTTPException, status
+from prometheus_client import make_asgi_app
 
 from src.api import health, webhooks
 from src.api.admin import tenants as admin_tenants
@@ -31,6 +32,12 @@ app = FastAPI(
 app.include_router(webhooks.router)
 app.include_router(health.router)
 app.include_router(admin_tenants.router)  # Admin tenant management endpoints
+
+# Mount Prometheus metrics endpoint at /metrics
+# Returns metrics in Prometheus text format (text/plain; version=0.0.4)
+# Public endpoint - no authentication required for Prometheus scraping
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 
 @app.on_event("startup")

@@ -15,6 +15,7 @@ from pydantic import ValidationError
 from src.schemas.webhook import WebhookPayload, ResolvedTicketWebhook, WebhookResponse
 from src.services.webhook_validator import validate_webhook_signature, validate_signature
 from src.services.queue_service import QueueService, get_queue_service
+from src.monitoring import enhancement_requests_total
 from src.services.ticket_storage_service import store_webhook_resolved_ticket
 from src.services.tenant_service import TenantService
 from src.database.session import get_async_session
@@ -99,6 +100,11 @@ async def receive_webhook(
     # Bind correlation ID to logger context for all downstream operations
     logger.bind(correlation_id=correlation_id)
 
+    # Increment Prometheus metric for received webhook
+    enhancement_requests_total.labels(
+        tenant_id=payload.tenant_id, status="received"
+    ).inc()
+
     # Log webhook receipt using AuditLogger for compliance tracking
     AuditLogger.audit_webhook_received(
         tenant_id=payload.tenant_id,
@@ -133,6 +139,11 @@ async def receive_webhook(
             job_data, tenant_id=payload.tenant_id, ticket_id=payload.ticket_id
         )
 
+        # Increment Prometheus metric for successfully queued job
+        enhancement_requests_total.labels(
+            tenant_id=payload.tenant_id, status="queued"
+        ).inc()
+
         logger.info(
             f"Job queued successfully: {queued_job_id}",
             extra={
@@ -152,6 +163,11 @@ async def receive_webhook(
 
     except QueueServiceError as e:
         # Queue push failed - return 503 Service Unavailable
+        # Increment Prometheus metric for rejected job
+        enhancement_requests_total.labels(
+            tenant_id=payload.tenant_id, status="rejected"
+        ).inc()
+
         logger.error(
             f"Failed to queue job: {str(e)}",
             extra={

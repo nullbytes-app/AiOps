@@ -1,0 +1,567 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>4.5</storyId>
+    <title>Integrate Alertmanager for Alert Routing</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/4-5-integrate-alertmanager-for-alert-routing.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an on-call engineer</asA>
+    <iWant>alerts delivered to Slack/PagerDuty/Email</iWant>
+    <soThat>I'm notified immediately when action is needed</soThat>
+    <tasks>
+      <!-- Task 1: Deploy Alertmanager Service -->
+      - Deploy Alertmanager as Kubernetes pod or docker-compose container
+      - Create k8s/alertmanager-deployment.yaml with resource limits and health checks
+      - Add Alertmanager service to docker-compose.yml for local development
+      - Mount ConfigMap/volume for alertmanager.yml configuration
+
+      <!-- Task 2: Create Alertmanager Configuration -->
+      - Create alertmanager.yml with receivers, routing, grouping rules
+      - Define global config (group_wait: 10s, group_interval: 15s, repeat_interval: 4h)
+      - Create route tree: root route (group by tenant_id), critical route (Slack+PagerDuty), warning route (Slack only)
+
+      <!-- Task 3: Configure Slack Integration -->
+      - Set up Slack Incoming Webhook for alert delivery
+      - Create slack_configs in alertmanager.yml with webhook_url and message template
+      - Test alert delivery to Slack channel
+
+      <!-- Task 4: Configure PagerDuty Integration -->
+      - Configure PagerDuty integration key for critical alerts
+      - Add pagerduty_configs to alertmanager.yml with severity mapping
+      - Test critical alert triggers PagerDuty incident
+
+      <!-- Task 5: Configure Email Integration (Optional) -->
+      - Configure SMTP settings for email alerts
+      - Create email receiver with recipient addresses
+      - Test warning-level alert sends email
+
+      <!-- Task 6: Configure Alert Grouping and Routing -->
+      - Implement alert grouping by tenant_id with 5-minute window
+      - Test routing tree: warning → Slack only, critical → Slack + PagerDuty
+
+      <!-- Task 7: Test Alert Delivery End-to-End -->
+      - Trigger EnhancementSuccessRateLow (warning) → verify Slack-only
+      - Trigger WorkerDown (critical) → verify Slack + PagerDuty + email
+      - Test alert resolution notifications when condition clears
+
+      <!-- Task 8: Integrate Alertmanager with Prometheus -->
+      - Update prometheus.yml with alerting: section pointing to Alertmanager endpoint
+      - Verify Prometheus sends fired alerts to Alertmanager
+
+      <!-- Task 9: Documentation and Configuration Management -->
+      - Document Alertmanager architecture and alert rules
+      - Create runbooks for common alerts (EnhancementSuccessRateLow, QueueDepthHigh, WorkerDown, HighLatency)
+      - Commit configuration to git with secrets template
+
+      <!-- Task 10: Validation and Readiness -->
+      - Verify Alertmanager health check (/-/healthy returns 200 OK)
+      - Verify alert firing latency &lt;5 seconds
+      - Validate grouping reduces notification spam
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <!-- AC1: Alertmanager Deployment -->
+    <criterion id="AC1">
+      <description>Alertmanager deployed as pod in Kubernetes cluster or container in docker-compose for local development</description>
+      <verification>kubectl get pods shows alertmanager pod running OR docker-compose ps shows alertmanager service</verification>
+    </criterion>
+
+    <!-- AC2: Alertmanager Configuration -->
+    <criterion id="AC2">
+      <description>Config file defines receivers, routing rules, and notification channels</description>
+      <verification>alertmanager.yml contains global config, receivers (slack-default, slack-pagerduty, email), and route tree</verification>
+    </criterion>
+
+    <!-- AC3: Slack Integration -->
+    <criterion id="AC3">
+      <description>Slack incoming webhook configured; test alert successfully delivered to Slack channel</description>
+      <verification>Send test alert → verify message appears in configured Slack channel within 15 seconds</verification>
+    </criterion>
+
+    <!-- AC4: Email Integration -->
+    <criterion id="AC4">
+      <description>SMTP settings configured; test alert successfully delivered to configured email address</description>
+      <verification>Send test alert → verify email received at configured address</verification>
+    </criterion>
+
+    <!-- AC5: PagerDuty Integration -->
+    <criterion id="AC5">
+      <description>PagerDuty integration key configured; test alert successfully triggers PagerDuty incident</description>
+      <verification>Send critical test alert → verify PagerDuty incident created with correct severity</verification>
+    </criterion>
+
+    <!-- AC6: Alert Routing Rules -->
+    <criterion id="AC6">
+      <description>Critical alerts → Slack + PagerDuty; Warning alerts → Slack only; Routing rules correctly select receivers based on severity and tenant</description>
+      <verification>Test EnhancementSuccessRateLow (warning) → Slack only; Test WorkerDown (critical) → Slack + PagerDuty</verification>
+    </criterion>
+
+    <!-- AC7: Alert Grouping -->
+    <criterion id="AC7">
+      <description>Alerts grouped by tenant_id with 5-minute grouping window; multiple identical alerts don't spam notifications</description>
+      <verification>Send 3 identical alerts within 1 minute → receive 1 grouped notification</verification>
+    </criterion>
+
+    <!-- AC8: Test Alert Delivery -->
+    <criterion id="AC8">
+      <description>Send test alert from Prometheus → verify receipt in Slack, email, and PagerDuty</description>
+      <verification>Manually trigger test alert or reduce metrics below thresholds → verify all channels receive notification</verification>
+    </criterion>
+
+    <!-- AC9: Alert Resolution Notifications -->
+    <criterion id="AC9">
+      <description>When alert clears in Prometheus, resolution notification sent to channels (optional but recommended)</description>
+      <verification>Trigger alert, then restore normal conditions → verify resolution message sent to Slack</verification>
+    </criterion>
+
+    <!-- AC10: Prometheus Integration -->
+    <criterion id="AC10">
+      <description>Prometheus configured to send alerts to Alertmanager endpoint; alerting: section in prometheus.yml includes Alertmanager targets</description>
+      <verification>Check prometheus.yml contains alerting.alertmanagers with http://alertmanager:9093 target; Prometheus Status → Alerts page shows Alertmanager as healthy</verification>
+    </criterion>
+
+    <!-- AC11: Configuration Documentation -->
+    <criterion id="AC11">
+      <description>Alertmanager YAML configuration documented with comments explaining receivers, routes, and grouping</description>
+      <verification>alertmanager.yml contains inline comments for each section; README or docs/ contains architecture diagram</verification>
+    </criterion>
+
+    <!-- AC12: Version Control -->
+    <criterion id="AC12">
+      <description>All configuration files committed to git with clear comments about required secrets</description>
+      <verification>git log shows commit with alertmanager.yml, alertmanager-secrets.template.yaml, and updated prometheus.yml</verification>
+    </criterion>
+
+    <!-- AC13: Readiness -->
+    <criterion id="AC13">
+      <description>Alertmanager health check endpoint (/-/healthy) returns 200 OK; demonstrates service is ready for alerts</description>
+      <verification>curl http://alertmanager:9093/-/healthy returns "Alertmanager is Healthy."</verification>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Epic Context -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 4: Monitoring & Operations - Story 4.5</title>
+        <section>Epic 4 - Story 4.5 (lines 879-894)</section>
+        <snippet>Story defines alert routing with Alertmanager: critical alerts → Slack + PagerDuty, warning → Slack only. Alert grouping by tenant with 5-minute window prevents notification spam. Prerequisites: Story 4.4 (alert rules configured in Prometheus).</snippet>
+      </doc>
+
+      <!-- Prometheus Alerting Documentation -->
+      <doc>
+        <path>docs/operations/prometheus-alerting.md</path>
+        <title>Prometheus Alerting Configuration Guide</title>
+        <section>Alerting Architecture & Alert Rules</section>
+        <snippet>Documents alerting system architecture: Prometheus evaluates rules every 15s, transitions through Inactive→Pending→Firing states. Story 4.4 configured 4 alert rules: EnhancementSuccessRateLow, QueueDepthHigh, WorkerDown, HighLatency. Each alert has severity label (warning/critical), for duration, and keep_firing_for settings. Story 4.5 adds Alertmanager delivery layer.</snippet>
+      </doc>
+
+      <!-- Alert Runbooks -->
+      <doc>
+        <path>docs/operations/alert-runbooks.md</path>
+        <title>Alert Runbooks - AI Agents Platform</title>
+        <section>Runbooks for All Alerts</section>
+        <snippet>Comprehensive troubleshooting runbooks for all 4 alerts: EnhancementSuccessRateLow (check API credentials, restart workers), QueueDepthHigh (scale workers, monitor drain rate), WorkerDown (critical - restart immediately, check Redis), HighLatency (check external API performance, optimize context gathering). Each includes symptoms, root causes, resolution steps, escalation procedures.</snippet>
+      </doc>
+
+      <!-- Prometheus Setup Guide -->
+      <doc>
+        <path>docs/operations/prometheus-setup.md</path>
+        <title>Prometheus Setup Guide</title>
+        <section>Local Docker & Kubernetes Deployment</section>
+        <snippet>Documents Prometheus deployment in both docker-compose (local) and Kubernetes (production). Configuration uses prometheus.yml for scrape config, 15s scrape interval, 30-day retention. Kubernetes uses service discovery with annotations. Health check: /-/healthy endpoint. Story 4.5 must update prometheus.yml with alerting.alertmanagers section pointing to Alertmanager endpoint.</snippet>
+      </doc>
+
+      <!-- Architecture - Observability -->
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture - Observability Stack</title>
+        <section>Technology Stack - Observability</section>
+        <snippet>Architecture defines observability stack: Prometheus (metrics collection, industry standard), Grafana (dashboards and alerting), OpenTelemetry (future distributed tracing). Multi-tenant platform prioritizes observability for production operations. Prometheus chosen for Kubernetes-native integration, pull-based scraping model, and Grafana datasource compatibility.</snippet>
+      </doc>
+
+      <!-- PRD Requirements -->
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR025, NFR005 - Alerting Requirements</section>
+        <snippet>FR025: System shall alert on critical failures (agent down, queue backup, repeated errors). NFR005: Real-time visibility into agent operations with comprehensive observability and alerting. Story 4.5 fulfills FR025 delivery mechanism (Slack/PagerDuty/Email notifications) and completes NFR005 alert notification requirement.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Existing Prometheus Configuration (Local Docker) -->
+      <artifact>
+        <path>prometheus.yml</path>
+        <kind>configuration</kind>
+        <symbol>prometheus_config</symbol>
+        <lines>1-45</lines>
+        <reason>Existing Prometheus config file - must add alerting.alertmanagers section to send alerts to Alertmanager. Currently has global config (scrape_interval: 15s, evaluation_interval: 15s), rule_files reference to alert-rules.yml, and scrape_configs for fastapi-app job.</reason>
+      </artifact>
+
+      <!-- Existing Alert Rules (Story 4.4) -->
+      <artifact>
+        <path>alert-rules.yml</path>
+        <kind>configuration</kind>
+        <symbol>enhancement_pipeline_alerts</symbol>
+        <lines>1-58</lines>
+        <reason>Alert rules from Story 4.4 - defines 4 alerts that will be routed by Alertmanager: EnhancementSuccessRateLow (warning), QueueDepthHigh (warning), WorkerDown (critical), HighLatency (warning). Each has severity label for routing decisions.</reason>
+      </artifact>
+
+      <!-- Docker Compose Service Definitions -->
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>configuration</kind>
+        <symbol>prometheus_service</symbol>
+        <lines>92-115</lines>
+        <reason>Prometheus service definition in docker-compose - must add alertmanager service alongside Prometheus. Prometheus mounts prometheus.yml and alert-rules.yml as volumes. New alertmanager service will need similar structure with alertmanager.yml volume mount.</reason>
+      </artifact>
+
+      <!-- Kubernetes Prometheus Config ConfigMap -->
+      <artifact>
+        <path>k8s/prometheus-config.yaml</path>
+        <kind>configuration</kind>
+        <symbol>prometheus_config_configmap</symbol>
+        <lines>1-107</lines>
+        <reason>Kubernetes Prometheus ConfigMap - must update prometheus.yml section to add alerting.alertmanagers configuration. Uses Kubernetes service discovery for pod scraping. Alertmanager will be added as a Kubernetes service endpoint.</reason>
+      </artifact>
+
+      <!-- Kubernetes Prometheus Deployment -->
+      <artifact>
+        <path>k8s/prometheus-deployment.yaml</path>
+        <kind>deployment</kind>
+        <symbol>prometheus_deployment</symbol>
+        <lines>1-100</lines>
+        <reason>Prometheus Deployment manifest - pattern to follow for creating alertmanager-deployment.yaml. Uses ConfigMap volume mounts, health probes (/-/healthy, /-/ready), resource limits, and ServiceAccount for RBAC. Story 4.5 will create parallel alertmanager-deployment.yaml following same structure.</reason>
+      </artifact>
+
+      <!-- Monitoring Metrics Module -->
+      <artifact>
+        <path>src/monitoring/metrics.py</path>
+        <kind>module</kind>
+        <symbol>metrics_definitions</symbol>
+        <lines>1-110</lines>
+        <reason>Defines all Prometheus metrics exposed at /metrics endpoint: enhancement_requests_total (Counter), enhancement_duration_seconds (Histogram), enhancement_success_rate (Gauge), queue_depth (Gauge), worker_active_count (Gauge). These metrics are queried by alert rules configured in alert-rules.yml. No changes needed for Story 4.5.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="docker">
+        <package name="prom/alertmanager" version="latest">Official Alertmanager Docker image for alert routing and notification delivery</package>
+      </ecosystem>
+
+      <ecosystem name="kubernetes">
+        <package name="prom/alertmanager" version="latest">Alertmanager container image for Kubernetes deployment</package>
+      </ecosystem>
+
+      <ecosystem name="external_services">
+        <package name="Slack Incoming Webhooks">Webhook URL for Slack channel notifications (requires setup in Slack workspace)</package>
+        <package name="PagerDuty Integration API">Integration key for PagerDuty incident creation (requires PagerDuty account)</package>
+        <package name="SMTP Email Server">SMTP server credentials for email alert delivery (optional secondary channel)</package>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Security Constraints -->
+    - Alertmanager configuration MUST NOT contain hardcoded webhook URLs, API keys, or SMTP passwords
+    - All sensitive credentials (Slack webhook URL, PagerDuty integration key, SMTP password) MUST be stored as Kubernetes Secrets or environment variables
+    - Secrets template file (alertmanager-secrets.template.yaml) should use placeholder values for documentation
+
+    <!-- Configuration Constraints -->
+    - Alertmanager configuration must follow YAML format consistent with existing monitoring config files
+    - Alert routing rules must match the severity labels from Story 4.4: "warning" and "critical"
+    - Alert grouping must use tenant_id label to isolate alerts by client
+    - Configuration files must be version-controlled in git (excluding secrets)
+
+    <!-- File Structure Constraints -->
+    - Local development: alertmanager.yml in project root (alongside prometheus.yml and alert-rules.yml)
+    - Kubernetes: k8s/alertmanager-config.yaml (ConfigMap) and k8s/alertmanager-deployment.yaml (Deployment + Service)
+    - Follow naming convention: alertmanager (service name), ai-agents-alertmanager (container name for Docker)
+
+    <!-- Integration Constraints -->
+    - Prometheus config must reference Alertmanager endpoint in alerting.alertmanagers section
+    - Alertmanager service must be accessible at http://alertmanager:9093 (Docker) or http://alertmanager.default.svc.cluster.local:9093 (K8s)
+    - Alert rules from Story 4.4 must not be modified - Alertmanager receives alerts as-is from Prometheus
+
+    <!-- Testing Constraints -->
+    - All three notification channels (Slack, email, PagerDuty) must be tested with real or simulated alerts
+    - Alert grouping behavior must be validated: send 3 identical alerts, receive 1 notification
+    - Alert routing must be validated: warning → Slack only, critical → Slack + PagerDuty
+
+    <!-- Documentation Constraints -->
+    - Runbooks for alerts must be updated to reference Alertmanager UI
+    - Configuration files must include inline comments explaining each section
+    - Required secrets must be documented in README with setup instructions
+  </constraints>
+
+  <interfaces>
+    <!-- Prometheus → Alertmanager Interface -->
+    <interface>
+      <name>Prometheus Alerting Configuration</name>
+      <kind>Configuration</kind>
+      <signature>
+        # In prometheus.yml
+        alerting:
+          alertmanagers:
+            - static_configs:
+                - targets: ['alertmanager:9093']
+      </signature>
+      <path>prometheus.yml (line ~16, after evaluation_interval)</path>
+      <description>Prometheus sends fired alerts to Alertmanager via HTTP POST to /api/v1/alerts endpoint. Must configure alertmanagers target list in prometheus.yml.</description>
+    </interface>
+
+    <!-- Alertmanager → Slack Interface -->
+    <interface>
+      <name>Slack Incoming Webhook</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        POST https://hooks.slack.com/services/T.../B.../XXX
+        Content-Type: application/json
+
+        {
+          "text": "Alert: EnhancementSuccessRateLow",
+          "attachments": [{
+            "color": "warning",
+            "fields": [...]
+          }]
+        }
+      </signature>
+      <path>alertmanager.yml - slack_configs section</path>
+      <description>Alertmanager sends alert notifications to Slack channel via incoming webhook. Webhook URL must be stored as secret. Message template customizable with alert details.</description>
+    </interface>
+
+    <!-- Alertmanager → PagerDuty Interface -->
+    <interface>
+      <name>PagerDuty Events API v2</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        POST https://events.pagerduty.com/v2/enqueue
+        Content-Type: application/json
+
+        {
+          "routing_key": "INTEGRATION_KEY",
+          "event_action": "trigger",
+          "payload": {
+            "summary": "WorkerDown alert",
+            "severity": "critical",
+            "source": "prometheus"
+          }
+        }
+      </signature>
+      <path>alertmanager.yml - pagerduty_configs section</path>
+      <description>Alertmanager creates PagerDuty incidents via Events API. Integration key required. Supports severity mapping (warning → info, critical → critical).</description>
+    </interface>
+
+    <!-- Alertmanager → Email Interface -->
+    <interface>
+      <name>SMTP Email Delivery</name>
+      <kind>SMTP protocol</kind>
+      <signature>
+        SMTP server: smtp.example.com:587
+        Auth: username + password
+        From: alerts@example.com
+        To: oncall@example.com
+        Subject: [ALERT] EnhancementSuccessRateLow
+        Body: HTML formatted alert details
+      </signature>
+      <path>alertmanager.yml - email_configs section</path>
+      <description>Alertmanager sends email notifications via SMTP server. Requires SMTP credentials stored as secrets. Supports HTML templates for alert formatting.</description>
+    </interface>
+
+    <!-- Alertmanager Health Check Interface -->
+    <interface>
+      <name>Alertmanager Health Endpoint</name>
+      <kind>HTTP GET endpoint</kind>
+      <signature>
+        GET http://alertmanager:9093/-/healthy
+        Response: 200 OK
+        Body: "Alertmanager is Healthy."
+      </signature>
+      <path>Health probe in deployment manifests</path>
+      <description>Health check endpoint for liveness and readiness probes. Returns 200 when Alertmanager is operational and configuration loaded successfully.</description>
+    </interface>
+
+    <!-- Alertmanager Configuration Interface -->
+    <interface>
+      <name>Alertmanager Configuration Structure</name>
+      <kind>YAML configuration</kind>
+      <signature>
+        global:
+          resolve_timeout: 5m
+        route:
+          receiver: 'default-receiver'
+          group_by: ['tenant_id', 'alertname']
+          group_wait: 10s
+          group_interval: 15s
+          repeat_interval: 4h
+          routes:
+            - match:
+                severity: critical
+              receiver: 'slack-pagerduty'
+        receivers:
+          - name: 'slack-default'
+            slack_configs: [...]
+          - name: 'slack-pagerduty'
+            slack_configs: [...]
+            pagerduty_configs: [...]
+      </signature>
+      <path>alertmanager.yml</path>
+      <description>Alertmanager configuration defines routing tree, receivers (notification channels), grouping rules, and timing parameters. Must follow official Alertmanager v0.26+ configuration schema.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Testing follows established patterns from Story 4.1 (Prometheus metrics) and Story 4.4 (alert rules):
+
+      **Framework:** Pytest with pytest-asyncio for async tests
+
+      **Unit Tests:**
+      - Test individual functions and configuration validation
+      - Mock external API calls (Slack, PagerDuty, SMTP)
+      - Validate YAML configuration syntax and structure
+      - Test alert routing logic with different severity labels
+      - Pattern: tests/unit/test_alertmanager_*.py
+
+      **Integration Tests:**
+      - Test end-to-end alert delivery to notification channels
+      - Verify Alertmanager health endpoints (/-/healthy, /-/ready)
+      - Test Prometheus → Alertmanager integration (alerts received)
+      - Test alert grouping behavior (send multiple identical alerts)
+      - Test alert resolution notifications
+      - Pattern: tests/integration/test_alertmanager_*.py
+
+      **Testing Conventions:**
+      - Test classes organized by feature (e.g., TestAlertRouting, TestSlackNotifications)
+      - AC references in test docstrings (e.g., "AC3: Slack webhook configured")
+      - Use pytest fixtures for setup (Alertmanager config, mock webhooks)
+      - Parametrize tests for multiple alert types/severities
+      - Use TestClient for FastAPI endpoint tests
+
+      **Configuration Tests:**
+      - Validate alertmanager.yml syntax with YAML parser
+      - Test ConfigMap/volume mount structure for Kubernetes
+      - Verify prometheus.yml alerting section correctness
+
+      **Security Tests:**
+      - Verify secrets are not hardcoded in configuration files
+      - Test that webhook URLs/API keys are loaded from environment variables
+      - Validate SMTP credentials are encrypted
+    </standards>
+    <locations>
+      **Unit Tests:** tests/unit/
+      - test_alertmanager_config.py - YAML configuration validation
+      - test_alertmanager_routing.py - Alert routing logic (warning → Slack, critical → Slack+PagerDuty)
+      - test_alertmanager_grouping.py - Alert grouping by tenant_id
+
+      **Integration Tests:** tests/integration/
+      - test_alertmanager_deployment.py - Alertmanager service health checks
+      - test_alertmanager_slack_integration.py - End-to-end Slack notification delivery
+      - test_alertmanager_pagerduty_integration.py - PagerDuty incident creation
+      - test_alertmanager_email_integration.py - SMTP email delivery
+      - test_prometheus_alertmanager_integration.py - Prometheus sends alerts to Alertmanager
+
+      **Security Tests:** tests/security/
+      - test_alertmanager_secrets.py - Verify no hardcoded credentials
+
+      **Configuration Tests:** tests/unit/
+      - test_k8s_alertmanager_manifests.py - Kubernetes manifest YAML syntax validation
+    </locations>
+    <ideas>
+      <!-- AC1: Alertmanager Deployment -->
+      <test_idea ac="AC1">
+        <description>Test Alertmanager pod/container is running and healthy</description>
+        <approach>Integration test: kubectl get pods (K8s) or docker ps (Docker) shows alertmanager running with status "Running"/"Up". Health check endpoint /-/healthy returns 200 OK.</approach>
+      </test_idea>
+
+      <!-- AC2: Alertmanager Configuration -->
+      <test_idea ac="AC2">
+        <description>Test alertmanager.yml configuration is valid and loaded</description>
+        <approach>Unit test: Parse alertmanager.yml with YAML parser, validate structure (global, route, receivers). Integration test: Check Alertmanager logs for "Completed loading of configuration file".</approach>
+      </test_idea>
+
+      <!-- AC3: Slack Integration -->
+      <test_idea ac="AC3">
+        <description>Test Slack webhook receives alert notification</description>
+        <approach>Integration test: Mock Slack webhook endpoint, trigger EnhancementSuccessRateLow alert (warning), verify POST request received within 15 seconds with correct payload (alert name, severity, message). Verify Prometheus-style template variables are rendered.</approach>
+      </test_idea>
+
+      <!-- AC4: Email Integration -->
+      <test_idea ac="AC4">
+        <description>Test SMTP email delivery for alerts</description>
+        <approach>Integration test: Configure test SMTP server (e.g., MailHog), trigger test alert, verify email received at configured address with subject line containing alert name. Validate HTML template rendering.</approach>
+      </test_idea>
+
+      <!-- AC5: PagerDuty Integration -->
+      <test_idea ac="AC5">
+        <description>Test PagerDuty incident creation for critical alerts</description>
+        <approach>Integration test: Mock PagerDuty Events API v2 endpoint, trigger WorkerDown alert (critical), verify POST to /v2/enqueue with routing_key, event_action="trigger", correct severity mapping (critical → critical).</approach>
+      </test_idea>
+
+      <!-- AC6: Alert Routing Rules -->
+      <test_idea ac="AC6">
+        <description>Test alert routing based on severity labels</description>
+        <approach>Integration test: Trigger EnhancementSuccessRateLow (warning) → verify Slack-only. Trigger WorkerDown (critical) → verify Slack + PagerDuty both receive notifications. Mock both endpoints and verify POST requests.</approach>
+      </test_idea>
+
+      <!-- AC7: Alert Grouping -->
+      <test_idea ac="AC7">
+        <description>Test alert grouping prevents notification spam</description>
+        <approach>Integration test: Send 3 identical alerts (same alertname, tenant_id) within 1 minute. Verify only 1 grouped notification sent to Slack. Check Alertmanager UI shows grouped count. Validate group_wait: 10s and group_interval: 15s behavior.</approach>
+      </test_idea>
+
+      <!-- AC8: Test Alert Delivery -->
+      <test_idea ac="AC8">
+        <description>Test end-to-end alert delivery from Prometheus to all channels</description>
+        <approach>Integration test: Manually trigger test alert (e.g., reduce success rate metric below 95%), wait for Prometheus to fire alert (10 min + evaluation interval), verify Alertmanager receives it, verify delivery to all configured channels (Slack, email, PagerDuty).</approach>
+      </test_idea>
+
+      <!-- AC9: Alert Resolution Notifications -->
+      <test_idea ac="AC9">
+        <description>Test alert resolution notifications when condition clears</description>
+        <approach>Integration test: Trigger WorkerDown alert (stop workers), verify alert fires. Restart workers, wait for alert to resolve in Prometheus. Verify Alertmanager sends resolution notification to Slack with resolved status.</approach>
+      </test_idea>
+
+      <!-- AC10: Prometheus Integration -->
+      <test_idea ac="AC10">
+        <description>Test Prometheus sends fired alerts to Alertmanager</description>
+        <approach>Unit test: Validate prometheus.yml contains alerting.alertmanagers section with correct target. Integration test: Check Prometheus Status → Alerts page shows Alertmanager as healthy target. Trigger alert, verify it appears in Alertmanager UI.</approach>
+      </test_idea>
+
+      <!-- AC11: Configuration Documentation -->
+      <test_idea ac="AC11">
+        <description>Test configuration files contain inline comments</description>
+        <approach>Unit test: Parse alertmanager.yml, verify each section (global, route, receivers) has preceding comment lines explaining purpose. Check that runbook URLs are included in alert annotations.</approach>
+      </test_idea>
+
+      <!-- AC12: Version Control -->
+      <test_idea ac="AC12">
+        <description>Test all configuration files are committed to git</description>
+        <approach>CI test: git ls-files includes alertmanager.yml, alertmanager-secrets.template.yaml, updated prometheus.yml. Verify secrets template uses placeholder values (not real credentials).</approach>
+      </test_idea>
+
+      <!-- AC13: Readiness -->
+      <test_idea ac="AC13">
+        <description>Test Alertmanager health check endpoints</description>
+        <approach>Integration test: curl http://alertmanager:9093/-/healthy returns "Alertmanager is Healthy." with 200 OK. Test /-/ready endpoint also returns 200 when service is ready.</approach>
+      </test_idea>
+
+      <!-- Performance Test -->
+      <test_idea ac="Performance">
+        <description>Test alert firing latency is &lt;5 seconds</description>
+        <approach>Performance test: Trigger alert in Prometheus, measure time until notification received in Slack. Latency should be: Prometheus evaluation (15s) + Alertmanager processing (&lt;1s) + HTTP delivery (&lt;2s) = ~15-20s total (where &lt;5s is the Alertmanager-specific portion).</approach>
+      </test_idea>
+
+      <!-- Failure Test -->
+      <test_idea ac="Failure Handling">
+        <description>Test Alertmanager handles notification channel failures gracefully</description>
+        <approach>Negative test: Simulate Slack webhook failure (return 500), verify Alertmanager logs error but continues processing. Verify retry behavior and eventual success on recovery.</approach>
+      </test_idea>
+    </ideas>
+  </tests>
+</story-context>
