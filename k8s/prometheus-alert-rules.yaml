@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-alert-rules
+  namespace: default
+  labels:
+    app: prometheus
+    component: alert-rules
+data:
+  alert-rules.yml: |
+    groups:
+      - name: enhancement_pipeline_alerts
+        interval: 15s
+        rules:
+          # Alert 1: Enhancement Success Rate Low
+          - alert: EnhancementSuccessRateLow
+            expr: enhancement_success_rate < 95
+            for: 10m
+            keep_firing_for: 5m
+            labels:
+              severity: warning
+              component: enhancement-pipeline
+              tenant_id: "{{ $labels.tenant_id }}"
+            annotations:
+              summary: "Enhancement success rate below 95% (current: {{ $value }}%)"
+              description: "Enhancement pipeline success rate has been below 95% for the last 10 minutes. Current value: {{ $value }}%. Check worker logs and recent failures to identify root cause (API errors, rate limits, invalid configs)."
+              runbook_url: "docs/operations/alert-runbooks.md#enhancementsuccessratelow"
+
+          # Alert 2: Queue Depth High
+          - alert: QueueDepthHigh
+            expr: queue_depth > 100
+            for: 5m
+            keep_firing_for: 3m
+            labels:
+              severity: warning
+              component: redis-queue
+            annotations:
+              summary: "Redis queue depth exceeds 100 jobs (current: {{ $value }})"
+              description: "Enhancement job queue has {{ $value }} pending jobs, indicating workers may be overloaded or failing. Check worker health and scale if needed. Monitor queue drain rate in Grafana."
+              runbook_url: "docs/operations/alert-runbooks.md#queuedepthhigh"
+
+          # Alert 3: Worker Down
+          - alert: WorkerDown
+            expr: worker_active_count == 0
+            for: 2m
+            keep_firing_for: 5m
+            labels:
+              severity: critical
+              component: celery-workers
+            annotations:
+              summary: "No active Celery workers detected"
+              description: "All Celery workers are down. Enhancement processing is halted. Check worker pods/containers immediately for crashes or resource issues."
+              runbook_url: "docs/operations/alert-runbooks.md#workerdown"
+
+          # Alert 4: High Latency
+          - alert: HighLatency
+            expr: histogram_quantile(0.95, rate(enhancement_duration_seconds_bucket[5m])) > 120
+            for: 5m
+            keep_firing_for: 3m
+            labels:
+              severity: warning
+              component: enhancement-pipeline
+              tenant_id: "{{ $labels.tenant_id }}"
+            annotations:
+              summary: "p95 enhancement latency exceeds 120 seconds (current: {{ $value }}s)"
+              description: "95th percentile enhancement processing latency is {{ $value }} seconds, exceeding the 120-second SLA. Check for slow external API calls (ServiceDesk Plus, OpenAI) or LLM timeouts."
+              runbook_url: "docs/operations/alert-runbooks.md#highlatency"

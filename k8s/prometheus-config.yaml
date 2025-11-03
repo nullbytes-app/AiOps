@@ -1,0 +1,106 @@
+# Prometheus Configuration ConfigMap
+# Kubernetes Production Environment
+# Generated for Story 4.2 - Deploy Prometheus Server and Configure Scraping
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: default
+  labels:
+    app: prometheus
+    component: monitoring
+metadata:
+  annotations:
+    description: "Prometheus configuration for AI Agents Platform monitoring"
+data:
+  prometheus.yml: |
+    # Global configuration
+    global:
+      # How frequently to scrape targets by default
+      scrape_interval: 15s
+
+      # How frequently to evaluate alerting rules
+      evaluation_interval: 15s
+
+      # External labels to attach to all time series
+      external_labels:
+        cluster: 'ai-agents-prod'
+        environment: 'production'
+
+    # Alert rules configuration
+    rule_files:
+      - "/etc/prometheus/alert-rules.yml"
+
+    # Scrape configurations
+    scrape_configs:
+      # Kubernetes Pods - Service Discovery
+      # Discovers all pods in the cluster and filters by annotations
+      - job_name: 'kubernetes-pods'
+
+        # Kubernetes service discovery configuration
+        kubernetes_sd_configs:
+          - role: pod  # Discover pods dynamically
+
+        # Relabel configurations to filter and configure discovered targets
+        relabel_configs:
+          # Only scrape pods with annotation prometheus.io/scrape=true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+
+          # Extract metrics path from prometheus.io/path annotation (default: /metrics)
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+
+          # Extract port from prometheus.io/port annotation
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: ${1}:${2}
+            target_label: __address__
+
+          # Add pod name as label
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+
+          # Add pod namespace as label
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+
+          # Add pod IP as label
+          - source_labels: [__meta_kubernetes_pod_ip]
+            action: replace
+            target_label: kubernetes_pod_ip
+
+          # Add service name as label (if pod belongs to a service)
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: service
+
+      # Optional: Kubernetes Service Endpoints
+      # Alternative discovery method using services instead of pods
+      # - job_name: 'kubernetes-services'
+      #   kubernetes_sd_configs:
+      #     - role: endpoints
+      #   relabel_configs:
+      #     - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]
+      #       action: keep
+      #       regex: true
+      #     - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]
+      #       action: replace
+      #       target_label: __metrics_path__
+      #       regex: (.+)
+      #     - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]
+      #       action: replace
+      #       regex: ([^:]+)(?::\d+)?;(\d+)
+      #       replacement: ${1}:${2}
+      #       target_label: __address__
+
+---
+# Prometheus Server Configuration
+# Additional configuration can be added here for alerting, recording rules, etc.

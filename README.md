@@ -1312,6 +1312,40 @@ http://localhost:3000
 
 **Documentation:** See [Grafana Setup Guide](docs/operations/grafana-setup.md) for deployment, configuration, and troubleshooting.
 
+### Prometheus Alerting
+
+Automated alerts for critical system failures and performance degradation.
+
+**Alert Rules Configured:**
+- **EnhancementSuccessRateLow** - Warning alert when success rate <95% for 10 minutes
+- **QueueDepthHigh** - Warning alert when pending jobs >100 for 5 minutes
+- **WorkerDown** - Critical alert when no active Celery workers for 2 minutes
+- **HighLatency** - Warning alert when p95 latency >120 seconds for 5 minutes
+
+**Accessing Alerts:**
+
+Local Development:
+```bash
+# View alert rules and current states
+http://localhost:9090/alerts
+```
+
+Kubernetes Production:
+```bash
+# Port-forward to Prometheus
+kubectl port-forward svc/prometheus 9090:9090
+
+# View alert rules
+http://localhost:9090/alerts
+```
+
+**Alert Documentation:**
+- [Alert Configuration Guide](docs/operations/prometheus-alerting.md) - Complete alerting configuration and testing procedures
+- [Alert Runbooks](docs/operations/alert-runbooks.md) - Troubleshooting guides for each alert with root cause analysis and resolution steps
+
+**Current Status:**
+⚠️ Alerts currently fire in Prometheus UI only. Story 4.5 will add Alertmanager for Slack/email/PagerDuty notifications.
+
 ### Sample Queries
 
 ```promql

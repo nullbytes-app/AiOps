@@ -1,0 +1,44 @@
+# Prometheus Configuration for AI Agents Platform
+# Local Development Environment (Docker Compose)
+# Generated for Story 4.2 - Deploy Prometheus Server and Configure Scraping
+
+# Global configuration
+global:
+  # How frequently to scrape targets by default
+  scrape_interval: 15s
+
+  # How frequently to evaluate alerting rules
+  evaluation_interval: 15s
+
+# Alert rules configuration
+rule_files:
+  - "alert-rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # FastAPI Application - Enhancement Service
+  - job_name: 'fastapi-app'
+
+    # Static configuration for Docker Compose service discovery
+    # Uses Docker DNS service name 'api' instead of localhost
+    static_configs:
+      - targets: ['api:8000']
+        labels:
+          service: 'enhancement-api'
+          environment: 'local'
+
+    # Path to the metrics endpoint (exposed by prometheus_client)
+    metrics_path: '/metrics'
+
+    # Scrape timeout (default: 10s, must be <= scrape_interval)
+    scrape_timeout: 10s
+
+  # Optional: Celery Workers - Enhancement Processing
+  # Uncomment if Celery workers expose metrics endpoint
+  # - job_name: 'celery-workers'
+  #   static_configs:
+  #     - targets: ['worker:8001']
+  #       labels:
+  #         service: 'enhancement-worker'
+  #         environment: 'local'
+  #   metrics_path: '/metrics'
