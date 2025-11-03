@@ -19,11 +19,46 @@ Configuration Details:
 import logging
 
 from celery import Celery
+from celery.signals import worker_process_init
 
 from src.config import settings
 from src.utils.secrets import validate_secrets
 
 logger = logging.getLogger(__name__)
+
+# Story 4.6: OpenTelemetry Celery worker tracing initialization
+# Using worker_process_init signal to initialize tracer AFTER worker fork
+# This prevents BatchSpanProcessor threading issues in prefork worker model
+
+
+@worker_process_init.connect(weak=False)
+def init_celery_tracing(*args, **kwargs) -> None:  # type: ignore
+    """
+    Initialize OpenTelemetry tracing AFTER Celery worker process fork.
+
+    This signal handler is critical for prefork worker model:
+    - Celery creates child processes via fork
+    - Background threads in parent don't survive fork
+    - BatchSpanProcessor spawns threads that would break in child processes
+    - Solution: Initialize tracer provider AFTER fork in child process
+
+    This ensures each worker process has its own tracer provider with fresh threads.
+    """
+    from src.monitoring import init_tracer_provider
+    from opentelemetry.instrumentation.celery import CeleryInstrumentor
+
+    try:
+        # Initialize tracer provider in child process
+        init_tracer_provider()
+        logger.info("Celery worker tracing initialized")
+
+        # Instrument Celery for automatic task span creation
+        CeleryInstrumentor().instrument()
+        logger.info("Celery instrumentation enabled")
+    except Exception as e:
+        logger.error(f"Failed to initialize Celery tracing: {str(e)}", exc_info=True)
+        # Continue startup despite tracing initialization failure
+        # (tracing is optional, don't block worker startup)
 
 # Validate secrets before initializing Celery application
 try:

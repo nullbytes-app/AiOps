@@ -1,0 +1,145 @@
+# Jaeger Distributed Tracing Deployment and Service
+# Kubernetes Production Environment
+# Generated for Story 4.6 - Implement Distributed Tracing with OpenTelemetry
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jaeger
+  namespace: default
+  labels:
+    app: jaeger
+    component: observability
+spec:
+  replicas: 1  # Single replica for simplicity; scale as needed for HA
+  selector:
+    matchLabels:
+      app: jaeger
+  template:
+    metadata:
+      labels:
+        app: jaeger
+        component: observability
+    spec:
+      serviceAccountName: default
+      containers:
+        - name: jaeger
+          image: jaegertracing/all-in-one:latest
+          env:
+            - name: COLLECTOR_OTLP_ENABLED
+              value: "true"
+            - name: COLLECTOR_OTLP_HOST_PORT
+              value: "0.0.0.0:4317"
+          ports:
+            # Jaeger UI
+            - name: ui
+              containerPort: 16686
+              protocol: TCP
+            # OTLP gRPC receiver
+            - name: otlp-grpc
+              containerPort: 4317
+              protocol: TCP
+            # OTLP HTTP receiver
+            - name: otlp-http
+              containerPort: 4318
+              protocol: TCP
+            # Jaeger agent - Thrift UDP
+            - name: jaeger-compact
+              containerPort: 6831
+              protocol: UDP
+            - name: jaeger-binary
+              containerPort: 6832
+              protocol: UDP
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+          volumeMounts:
+            - name: jaeger-data
+              mountPath: /badger
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 16686
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 16686
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: jaeger-data
+          emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: jaeger
+  namespace: default
+  labels:
+    app: jaeger
+    component: observability
+spec:
+  type: ClusterIP
+  selector:
+    app: jaeger
+  ports:
+    # Jaeger UI
+    - name: ui
+      port: 16686
+      targetPort: 16686
+      protocol: TCP
+    # OTLP gRPC receiver
+    - name: otlp-grpc
+      port: 4317
+      targetPort: 4317
+      protocol: TCP
+    # OTLP HTTP receiver
+    - name: otlp-http
+      port: 4318
+      targetPort: 4318
+      protocol: TCP
+    # Jaeger agent - Thrift UDP
+    - name: jaeger-compact
+      port: 6831
+      targetPort: 6831
+      protocol: UDP
+    - name: jaeger-binary
+      port: 6832
+      targetPort: 6832
+      protocol: UDP
+
+---
+# Optional: Persistent Volume for trace storage in production
+# Uncomment to enable persistent storage (requires PersistentVolume provisioner)
+# apiVersion: v1
+# kind: PersistentVolumeClaim
+# metadata:
+#   name: jaeger-data
+#   namespace: default
+# spec:
+#   accessModes:
+#     - ReadWriteOnce
+#   resources:
+#     requests:
+#       storage: 10Gi
+#   storageClassName: standard

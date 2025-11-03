@@ -3,6 +3,9 @@ Main FastAPI application entry point.
 
 This module initializes the FastAPI application and will include
 routers, middleware, and startup/shutdown event handlers in future stories.
+
+OpenTelemetry distributed tracing is initialized before app creation
+to capture all requests automatically via FastAPIInstrumentor.
 """
 
 import logging
@@ -17,6 +20,15 @@ from src.cache.redis_client import check_redis_connection
 from src.database.connection import check_database_connection
 from src.utils.secrets import validate_secrets_at_startup
 
+# Story 4.6: OpenTelemetry distributed tracing initialization
+# Initialize tracer provider BEFORE creating FastAPI app
+# This ensures all HTTP requests are automatically instrumented
+from src.monitoring import get_tracer, init_tracer_provider
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+# Initialize OpenTelemetry tracing infrastructure
+init_tracer_provider()
+
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI application
@@ -27,6 +39,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Story 4.6: Instrument FastAPI with OpenTelemetry
+# Automatically creates spans for all HTTP requests with route, method, status_code
+FastAPIInstrumentor.instrument_app(app)
 
 # Register routers
 app.include_router(webhooks.router)

@@ -174,6 +174,33 @@ services:
       start_period: 30s
     restart: unless-stopped
 
+  # Jaeger Distributed Tracing Backend
+  # Story 4.6: Implement Distributed Tracing with OpenTelemetry
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ai-agents-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - COLLECTOR_OTLP_HOST_PORT=0.0.0.0:4317
+    volumes:
+      - ./data/jaeger:/badger
+    ports:
+      # Jaeger UI
+      - "16686:16686"
+      # OTLP gRPC receiver
+      - "4317:4317"
+      # OTLP HTTP receiver
+      - "4318:4318"
+      # Jaeger agent (used for old client libraries)
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:16686/"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

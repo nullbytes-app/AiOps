@@ -26,6 +26,9 @@ from src.utils.exceptions import QueueServiceError
 from src.utils.logger import logger, AuditLogger
 from sqlalchemy.ext.asyncio import AsyncSession
 
+# Story 4.6: Distributed tracing context propagation
+from opentelemetry.propagate import inject
+
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
 
@@ -120,6 +123,12 @@ async def receive_webhook(
         # Prepare job data for queue
         # Reason: Include tenant-specific config (ServiceDesk Plus credentials, preferences)
         # so Celery workers can process with correct tenant context and configuration
+
+        # Story 4.6: Extract trace context from current request for propagation to Celery task
+        # This enables single trace ID to span both FastAPI (webhook receiver) and Celery (enhancement worker)
+        trace_context_carrier = {}
+        inject(trace_context_carrier)  # Injects traceparent and tracestate headers
+
         job_data = {
             "job_id": job_id,
             "ticket_id": payload.ticket_id,
@@ -132,6 +141,8 @@ async def receive_webhook(
             "servicedesk_url": tenant_config.servicedesk_url,
             "servicedesk_api_key": tenant_config.api_key,  # Decrypted by dependency
             "enhancement_preferences": tenant_config.enhancement_preferences,
+            # Story 4.6: Trace context for distributed tracing across services
+            "trace_context": trace_context_carrier.get("traceparent", ""),  # W3C Trace Context format
         }
 
         # Push job to Redis queue
