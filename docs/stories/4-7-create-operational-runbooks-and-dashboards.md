@@ -1,6 +1,6 @@
 # Story 4.7: Create Operational Runbooks and Dashboards
 
-**Status:** review
+**Status:** done
 
 **Story ID:** 4.7
 **Epic:** 4 (Monitoring & Operations)
