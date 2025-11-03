@@ -114,6 +114,8 @@ services:
     restart: unless-stopped
 
   # Grafana Dashboards for Real-Time Monitoring
+  # Note: macOS Docker Desktop - use port 3000 when full stack is running
+  # (requires prometheus service healthy)
   grafana:
     image: grafana/grafana:latest
     container_name: ai-agents-grafana
