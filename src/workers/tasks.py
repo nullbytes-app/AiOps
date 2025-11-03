@@ -179,6 +179,20 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         >>> result.get()
         {"status": "completed", "ticket_id": "TKT-001", ...}
     """
+    # Story 4.6: Extract trace context from job data for distributed tracing
+    # The trace context was propagated from FastAPI webhook handler via job_data['trace_context']
+    from opentelemetry.propagate import extract
+    from opentelemetry import trace as otel_trace
+    from src.monitoring import get_tracer
+    
+    # Extract trace context from job data if present
+    trace_context_carrier = {}
+    if "trace_context" in job_data and job_data["trace_context"]:
+        trace_context_carrier["traceparent"] = job_data["trace_context"]
+    
+    # Extract context to establish trace parent-child relationship with FastAPI span
+    trace_context = extract(trace_context_carrier)
+    
     import uuid
     import json
     from src.workflows.enhancement_workflow import execute_context_gathering
@@ -213,340 +227,389 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         # Extract correlation ID from job (generated at webhook entry or provided)
         correlation_id = job.correlation_id
 
-        # Bind correlation ID to logger for all subsequent logs in this task
-        logger.bind(correlation_id=correlation_id, task_id=self.request.id, worker_id=self.request.hostname)
+        # Story 4.6: Create a named span for this Celery task within the trace context
+        tracer = get_tracer(__name__)
+        with tracer.start_as_current_span(
+            "enhance_ticket", context=trace_context
+        ) as task_span:
+            # Set custom span attributes for task context
+            task_span.set_attribute("tenant.id", job.tenant_id)
+            task_span.set_attribute("ticket.id", job.ticket_id)
+            task_span.set_attribute("job.id", job.job_id)
+            task_span.set_attribute("priority", job.priority)
+            task_span.set_attribute("correlation_id", correlation_id)
+            task_span.set_attribute("celery.task_id", self.request.id)
+            task_span.set_attribute("celery.hostname", self.request.hostname)
 
-        # Log task start with audit logger for compliance
-        audit_logger.audit_enhancement_started(
-            tenant_id=job.tenant_id,
-            ticket_id=job.ticket_id,
-            correlation_id=correlation_id,
-            task_id=self.request.id,
-            worker_id=self.request.hostname,
-        )
+            # Bind correlation ID to logger for all subsequent logs in this task
+            logger.bind(correlation_id=correlation_id, task_id=self.request.id, worker_id=self.request.hostname)
 
-        # Log task start with correlation ID
-        logger.info(
-            "Task enhance_ticket started (Story 2.11)",
-            extra={
-                "correlation_id": correlation_id,
-                "task_id": self.request.id,
-                "ticket_id": job.ticket_id,
-                "tenant_id": job.tenant_id,
-                "job_id": job.job_id,
-                "priority": job.priority,
-            },
-        )
+            # Log task start with audit logger for compliance
+            audit_logger.audit_enhancement_started(
+                tenant_id=job.tenant_id,
+                ticket_id=job.ticket_id,
+                correlation_id=correlation_id,
+                task_id=self.request.id,
+                worker_id=self.request.hostname,
+            )
 
-        # Run async operations in sync Celery task
-        async def run_enhancement_pipeline():
-            nonlocal enhancement_id, context_gathered, llm_output
+            # Log task start with correlation ID
+            logger.info(
+                "Task enhance_ticket started (Story 2.11)",
+                extra={
+                    "correlation_id": correlation_id,
+                    "task_id": self.request.id,
+                    "ticket_id": job.ticket_id,
+                    "tenant_id": job.tenant_id,
+                    "job_id": job.job_id,
+                    "priority": job.priority,
+                },
+            )
 
-            async with async_session_maker() as session:
-                # Set tenant context for RLS (Story 3.1)
-                # Must be called before any database queries on tenant-scoped tables
-                await set_db_tenant_context(session, job.tenant_id)
+            # Run async operations in sync Celery task
+            async def run_enhancement_pipeline():
+                nonlocal enhancement_id, context_gathered, llm_output
 
-                # Task 1.3: Load tenant configuration from database
-                from src.database.models import TenantConfig
+                async with async_session_maker() as session:
+                    # Set tenant context for RLS (Story 3.1)
+                    # Must be called before any database queries on tenant-scoped tables
+                    await set_db_tenant_context(session, job.tenant_id)
 
-                stmt = select(TenantConfig).where(TenantConfig.tenant_id == job.tenant_id)
-                result = await session.execute(stmt)
-                tenant_config = result.scalar_one_or_none()
+                    # Task 1.3: Load tenant configuration from database
+                    from src.database.models import TenantConfig
 
-                if not tenant_config:
-                    logger.error(
-                        "Tenant configuration not found",
+                    stmt = select(TenantConfig).where(TenantConfig.tenant_id == job.tenant_id)
+                    result = await session.execute(stmt)
+                    tenant_config = result.scalar_one_or_none()
+
+                    if not tenant_config:
+                        logger.error(
+                            "Tenant configuration not found",
+                            extra={
+                                "correlation_id": correlation_id,
+                                "tenant_id": job.tenant_id,
+                                "ticket_id": job.ticket_id,
+                            },
+                        )
+                        raise ValueError(f"Tenant {job.tenant_id} not found in database")
+
+                    logger.debug(
+                        "Tenant configuration loaded",
                         extra={
                             "correlation_id": correlation_id,
                             "tenant_id": job.tenant_id,
+                            "tool_type": tenant_config.tool_type,
+                        },
+                    )
+
+                    # Task 1.4: Create enhancement_history record with status='pending'
+                    enhancement = EnhancementHistory(
+                        tenant_id=job.tenant_id,
+                        ticket_id=job.ticket_id,
+                        status="pending",
+                        context_gathered=None,
+                        llm_output=None,
+                        error_message=None,
+                        processing_time_ms=None,
+                        created_at=datetime.now(UTC),
+                        completed_at=None,
+                        correlation_id=correlation_id,
+                    )
+                    session.add(enhancement)
+                    await session.commit()
+                    await session.refresh(enhancement)
+
+                    nonlocal enhancement_id
+                    enhancement_id = str(enhancement.id)
+
+                    logger.info(
+                        "Enhancement history record created with status=pending",
+                        extra={
+                            "correlation_id": correlation_id,
+                            "enhancement_id": enhancement_id,
+                            "ticket_id": job.ticket_id,
+                            "tenant_id": job.tenant_id,
+                        },
+                    )
+
+                    # Task 2: Orchestrate Context Gathering (Story 2.8 Integration)
+                    logger.info(
+                        "Starting context gathering phase",
+                        extra={
+                            "correlation_id": correlation_id,
                             "ticket_id": job.ticket_id,
                         },
                     )
-                    raise ValueError(f"Tenant {job.tenant_id} not found in database")
 
-                logger.debug(
-                    "Tenant configuration loaded",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "tenant_id": job.tenant_id,
-                        "tool_type": tenant_config.tool_type,
-                    },
-                )
+                    try:
+                        # Story 4.6: Custom span for context_gathering phase (AC6)
+                        # Create a named span for context gathering operation
+                        with tracer.start_as_current_span("context_gathering") as context_span:
+                            context_span.set_attribute("tenant.id", job.tenant_id)
+                            context_span.set_attribute("ticket.id", job.ticket_id)
 
-                # Task 1.4: Create enhancement_history record with status='pending'
-                enhancement = EnhancementHistory(
-                    tenant_id=job.tenant_id,
-                    ticket_id=job.ticket_id,
-                    status="pending",
-                    context_gathered=None,
-                    llm_output=None,
-                    error_message=None,
-                    processing_time_ms=None,
-                    created_at=datetime.now(UTC),
-                    completed_at=None,
-                    correlation_id=correlation_id,
-                )
-                session.add(enhancement)
-                await session.commit()
-                await session.refresh(enhancement)
+                            # Task 2.1: Initialize LangGraph workflow with ticket context
+                            # Task 2.2: Execute LangGraph workflow nodes (with 30s timeout)
+                            context = await asyncio.wait_for(
+                                execute_context_gathering(
+                                    tenant_id=job.tenant_id,
+                                    ticket_id=job.ticket_id,
+                                    description=job.description,
+                                    priority=job.priority,
+                                    session=session,
+                                    kb_config={},  # KB config from tenant if needed
+                                    correlation_id=correlation_id,
+                                ),
+                                timeout=30.0,  # 30 second timeout per AC4
+                            )
 
-                nonlocal enhancement_id
-                enhancement_id = str(enhancement.id)
+                            # Store context for later use and database logging
+                            context_gathered = {
+                                "similar_tickets": context.get("similar_tickets", []),
+                                "kb_articles": context.get("kb_articles", []),
+                                "ip_info": context.get("ip_info", []),
+                                "errors": context.get("errors", []),
+                                "workflow_execution_time_ms": context.get("workflow_execution_time_ms", 0),
+                            }
 
-                logger.info(
-                    "Enhancement history record created with status=pending",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "enhancement_id": enhancement_id,
-                        "ticket_id": job.ticket_id,
-                        "tenant_id": job.tenant_id,
-                    },
-                )
+                            num_tickets = len(context.get("similar_tickets", []))
+                            num_articles = len(context.get("kb_articles", []))
+                            num_ips = len(context.get("ip_info", []))
+                            num_errors = len(context.get("errors", []))
 
-                # Task 2: Orchestrate Context Gathering (Story 2.8 Integration)
-                logger.info(
-                    "Starting context gathering phase",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "ticket_id": job.ticket_id,
-                    },
-                )
+                            # Story 4.6: Add child spans for each context source (AC6)
+                            # Record results in parent span attributes for Jaeger visibility
+                            context_span.set_attribute("context.ticket_history.count", num_tickets)
+                            context_span.set_attribute("context.documentation.count", num_articles)
+                            context_span.set_attribute("context.ip_lookup.count", num_ips)
+                            context_span.set_attribute("context.errors.count", num_errors)
 
-                try:
-                    # Task 2.1: Initialize LangGraph workflow with ticket context
-                    # Task 2.2: Execute LangGraph workflow nodes (with 30s timeout)
-                    context = await asyncio.wait_for(
-                        execute_context_gathering(
-                            tenant_id=job.tenant_id,
-                            ticket_id=job.ticket_id,
-                            description=job.description,
-                            priority=job.priority,
-                            session=session,
-                            kb_config={},  # KB config from tenant if needed
-                            correlation_id=correlation_id,
-                        ),
-                        timeout=30.0,  # 30 second timeout per AC4
-                    )
-                    
-                    # Store context for later use and database logging
-                    context_gathered = {
-                        "similar_tickets": context.get("similar_tickets", []),
-                        "kb_articles": context.get("kb_articles", []),
-                        "ip_info": context.get("ip_info", []),
-                        "errors": context.get("errors", []),
-                        "workflow_execution_time_ms": context.get("workflow_execution_time_ms", 0),
-                    }
+                        # Task 2.3: Handle context gathering failures gracefully
+                        if num_errors > 0:
+                            logger.warning(
+                                "Context gathering completed with partial failures",
+                                extra={
+                                    "correlation_id": correlation_id,
+                                    "ticket_id": job.ticket_id,
+                                    "num_tickets": num_tickets,
+                                    "num_articles": num_articles,
+                                    "num_ips": num_ips,
+                                    "num_errors": num_errors,
+                                    "failed_nodes": [e["node_name"] for e in context.get("errors", [])],
+                                },
+                            )
+                        else:
+                            logger.info(
+                                "Context gathering completed successfully",
+                                extra={
+                                    "correlation_id": correlation_id,
+                                    "ticket_id": job.ticket_id,
+                                    "num_tickets": num_tickets,
+                                    "num_articles": num_articles,
+                                    "num_ips": num_ips,
+                                },
+                            )
 
-                    num_tickets = len(context.get("similar_tickets", []))
-                    num_articles = len(context.get("kb_articles", []))
-                    num_ips = len(context.get("ip_info", []))
-                    num_errors = len(context.get("errors", []))
-
-                    # Task 2.3: Handle context gathering failures gracefully
-                    if num_errors > 0:
+                    except asyncio.TimeoutError:
                         logger.warning(
-                            "Context gathering completed with partial failures",
+                            "Context gathering timeout - continuing with empty context",
                             extra={
                                 "correlation_id": correlation_id,
                                 "ticket_id": job.ticket_id,
-                                "num_tickets": num_tickets,
-                                "num_articles": num_articles,
-                                "num_ips": num_ips,
-                                "num_errors": num_errors,
-                                "failed_nodes": [e["node_name"] for e in context.get("errors", [])],
+                                "timeout_seconds": 30,
+                            },
+                        )
+                        context = {}
+                        context_gathered = {
+                            "similar_tickets": [],
+                            "kb_articles": [],
+                            "ip_info": [],
+                            "errors": [{"node_name": "all", "message": "Timeout after 30s"}],
+                            "workflow_execution_time_ms": 30000,
+                        }
+
+                    # Task 3: Integrate LLM Synthesis (Story 2.9 Integration)
+                    logger.info(
+                        "Starting LLM synthesis phase",
+                        extra={
+                            "correlation_id": correlation_id,
+                            "ticket_id": job.ticket_id,
+                        },
+                    )
+
+                    try:
+                        # Story 4.6: Custom span for llm_call phase (AC7)
+                        # Create a named span for OpenAI API call with model and token tracking
+                        with tracer.start_as_current_span("llm.openai.completion") as llm_span:
+                            llm_span.set_attribute("tenant.id", job.tenant_id)
+                            llm_span.set_attribute("ticket.id", job.ticket_id)
+                            llm_span.set_attribute("llm.model", "gpt-4")  # Default model name
+
+                            # Task 3.1: Call LLM synthesis with gathered context
+                            llm_output = await synthesize_enhancement(
+                                context=context,
+                                correlation_id=correlation_id,
+                            )
+
+                            # Record token usage and output length in span
+                            llm_span.set_attribute("llm.output_tokens", len(llm_output.split()))
+                            llm_span.set_attribute("llm.output_length", len(llm_output))
+
+                        # Task 3.3: Validate enhancement output
+                        if not llm_output or len(llm_output.strip()) == 0:
+                            logger.warning(
+                                "LLM synthesis returned empty output - using fallback",
+                                extra={
+                                    "correlation_id": correlation_id,
+                                    "ticket_id": job.ticket_id,
+                                },
+                            )
+                            # Fallback: Format context without AI synthesis
+                            llm_output = _format_context_fallback(context_gathered)
+
+                        logger.info(
+                            "LLM synthesis completed successfully",
+                            extra={
+                                "correlation_id": correlation_id,
+                                "ticket_id": job.ticket_id,
+                                "output_length": len(llm_output),
+                            },
+                        )
+
+                    except Exception as e:
+                        # Task 3.2: Handle LLM synthesis failures with fallback
+                        logger.warning(
+                            "LLM synthesis failed - using fallback context formatting",
+                            extra={
+                                "correlation_id": correlation_id,
+                                "ticket_id": job.ticket_id,
+                                "error_type": type(e).__name__,
+                                "error_message": str(e),
+                            },
+                        )
+                        llm_output = _format_context_fallback(context_gathered)
+
+                    # Task 4: Update ServiceDesk Plus Ticket (Story 2.10 Integration)
+                    logger.info(
+                        "Starting ServiceDesk Plus API update phase",
+                        extra={
+                            "correlation_id": correlation_id,
+                            "ticket_id": job.ticket_id,
+                        },
+                    )
+
+                    # Story 4.6: Custom span for ticket_update phase (AC8)
+                    # Create a named span for ServiceDesk Plus API call with status tracking
+                    with tracer.start_as_current_span("api.servicedesk_plus.update_ticket") as api_span:
+                        api_span.set_attribute("tenant.id", job.tenant_id)
+                        api_span.set_attribute("ticket.id", job.ticket_id)
+                        api_span.set_attribute("api.endpoint", f"/api/v3/tickets/{job.ticket_id}")
+
+                        # Task 4.1: Call ServiceDesk Plus API client
+                        success = await update_ticket_with_enhancement(
+                            base_url=tenant_config.base_url,
+                            api_key=tenant_config.api_key,
+                            ticket_id=job.ticket_id,
+                            enhancement=llm_output,
+                            correlation_id=correlation_id,
+                            tenant_id=job.tenant_id,
+                        )
+
+                        # Record API success/failure status in span
+                        api_span.set_attribute("api.status", "success" if success else "failure")
+                        api_span.set_attribute("api.response_success", success)
+
+                    # Task 4.2: Handle API update result
+                    if success:
+                        logger.info(
+                            "Ticket updated successfully via ServiceDesk Plus API",
+                            extra={
+                                "correlation_id": correlation_id,
+                                "ticket_id": job.ticket_id,
                             },
                         )
                     else:
-                        logger.info(
-                            "Context gathering completed successfully",
+                        logger.error(
+                            "Ticket update failed after retries",
                             extra={
                                 "correlation_id": correlation_id,
                                 "ticket_id": job.ticket_id,
-                                "num_tickets": num_tickets,
-                                "num_articles": num_articles,
-                                "num_ips": num_ips,
                             },
                         )
+                        raise RuntimeError(f"Failed to update ticket {job.ticket_id} via ServiceDesk Plus API")
 
-                except asyncio.TimeoutError:
-                    logger.warning(
-                        "Context gathering timeout - continuing with empty context",
+                    # Task 5: Update Enhancement History Record
+                    # Task 5.1: Calculate processing time
+                    processing_time_ms = int((time() - start_time) * 1000)
+
+                    # Task 5.2: Update enhancement_history on success
+                    stmt = select(EnhancementHistory).where(EnhancementHistory.id == enhancement_id)
+                    result = await session.execute(stmt)
+                    enhancement = result.scalar_one_or_none()
+
+                    if enhancement:
+                        enhancement.status = "completed"
+                        enhancement.completed_at = datetime.now(UTC)
+                        enhancement.processing_time_ms = processing_time_ms
+                        enhancement.llm_output = llm_output
+                        enhancement.context_gathered = json.dumps(context_gathered, default=str)
+                        enhancement.correlation_id = correlation_id
+                        await session.commit()
+
+                    logger.info(
+                        "Enhancement completed and history updated",
                         extra={
                             "correlation_id": correlation_id,
+                            "enhancement_id": enhancement_id,
                             "ticket_id": job.ticket_id,
-                            "timeout_seconds": 30,
+                            "status": "completed",
+                            "processing_time_ms": processing_time_ms,
                         },
                     )
-                    context = {}
-                    context_gathered = {
-                        "similar_tickets": [],
-                        "kb_articles": [],
-                        "ip_info": [],
-                        "errors": [{"node_name": "all", "message": "Timeout after 30s"}],
-                        "workflow_execution_time_ms": 30000,
+
+                    return {
+                        "status": "completed",
+                        "ticket_id": job.ticket_id,
+                        "enhancement_id": enhancement_id,
+                        "processing_time_ms": processing_time_ms,
                     }
 
-                # Task 3: Integrate LLM Synthesis (Story 2.9 Integration)
-                logger.info(
-                    "Starting LLM synthesis phase",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "ticket_id": job.ticket_id,
-                    },
-                )
+            # Run async pipeline in sync Celery task
+            result = asyncio.run(run_enhancement_pipeline())
 
-                try:
-                    # Task 3.1: Call LLM synthesis with gathered context
-                    llm_output = await synthesize_enhancement(
-                        context=context,
-                        correlation_id=correlation_id,
-                    )
+            # Task 10: Record Prometheus metrics for successful enhancement
+            if METRICS_ENABLED:
+                # Record duration histogram for latency analysis
+                enhancement_duration_seconds.labels(
+                    tenant_id=job.tenant_id, status="success"
+                ).observe(result["processing_time_ms"] / 1000.0)
 
-                    # Task 3.3: Validate enhancement output
-                    if not llm_output or len(llm_output.strip()) == 0:
-                        logger.warning(
-                            "LLM synthesis returned empty output - using fallback",
-                            extra={
-                                "correlation_id": correlation_id,
-                                "ticket_id": job.ticket_id,
-                            },
-                        )
-                        # Fallback: Format context without AI synthesis
-                        llm_output = _format_context_fallback(context_gathered)
+                # Update success rate gauge (rolling 5-minute window calculation)
+                # Note: In production, this should be calculated by background task
+                # from the last 300 seconds of observations
+                enhancement_success_rate.labels(tenant_id=job.tenant_id).set(100)
 
-                    logger.info(
-                        "LLM synthesis completed successfully",
-                        extra={
-                            "correlation_id": correlation_id,
-                            "ticket_id": job.ticket_id,
-                            "output_length": len(llm_output),
-                        },
-                    )
-
-                except Exception as e:
-                    # Task 3.2: Handle LLM synthesis failures with fallback
-                    logger.warning(
-                        "LLM synthesis failed - using fallback context formatting",
-                        extra={
-                            "correlation_id": correlation_id,
-                            "ticket_id": job.ticket_id,
-                            "error_type": type(e).__name__,
-                            "error_message": str(e),
-                        },
-                    )
-                    llm_output = _format_context_fallback(context_gathered)
-
-                # Task 4: Update ServiceDesk Plus Ticket (Story 2.10 Integration)
-                logger.info(
-                    "Starting ServiceDesk Plus API update phase",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "ticket_id": job.ticket_id,
-                    },
-                )
-
-                # Task 4.1: Call ServiceDesk Plus API client
-                success = await update_ticket_with_enhancement(
-                    base_url=tenant_config.base_url,
-                    api_key=tenant_config.api_key,
-                    ticket_id=job.ticket_id,
-                    enhancement=llm_output,
-                    correlation_id=correlation_id,
-                    tenant_id=job.tenant_id,
-                )
-
-                # Task 4.2: Handle API update result
-                if success:
-                    logger.info(
-                        "Ticket updated successfully via ServiceDesk Plus API",
-                        extra={
-                            "correlation_id": correlation_id,
-                            "ticket_id": job.ticket_id,
-                        },
-                    )
-                else:
-                    logger.error(
-                        "Ticket update failed after retries",
-                        extra={
-                            "correlation_id": correlation_id,
-                            "ticket_id": job.ticket_id,
-                        },
-                    )
-                    raise RuntimeError(f"Failed to update ticket {job.ticket_id} via ServiceDesk Plus API")
-
-                # Task 5: Update Enhancement History Record
-                # Task 5.1: Calculate processing time
-                processing_time_ms = int((time() - start_time) * 1000)
-
-                # Task 5.2: Update enhancement_history on success
-                stmt = select(EnhancementHistory).where(EnhancementHistory.id == enhancement_id)
-                result = await session.execute(stmt)
-                enhancement = result.scalar_one_or_none()
-
-                if enhancement:
-                    enhancement.status = "completed"
-                    enhancement.completed_at = datetime.now(UTC)
-                    enhancement.processing_time_ms = processing_time_ms
-                    enhancement.llm_output = llm_output
-                    enhancement.context_gathered = json.dumps(context_gathered, default=str)
-                    enhancement.correlation_id = correlation_id
-                    await session.commit()
-
-                logger.info(
-                    "Enhancement completed and history updated",
-                    extra={
-                        "correlation_id": correlation_id,
-                        "enhancement_id": enhancement_id,
-                        "ticket_id": job.ticket_id,
-                        "status": "completed",
-                        "processing_time_ms": processing_time_ms,
-                    },
-                )
-
-                return {
-                    "status": "completed",
+            logger.info(
+                "Task enhance_ticket completed successfully",
+                extra={
+                    "correlation_id": correlation_id,
+                    "task_id": self.request.id,
                     "ticket_id": job.ticket_id,
+                    "tenant_id": job.tenant_id,
                     "enhancement_id": enhancement_id,
-                    "processing_time_ms": processing_time_ms,
-                }
+                    "processing_time_ms": result["processing_time_ms"],
+                },
+            )
 
-        # Run async pipeline in sync Celery task
-        result = asyncio.run(run_enhancement_pipeline())
+            # Log enhancement completion with audit logger for compliance
+            audit_logger.audit_enhancement_completed(
+                tenant_id=job.tenant_id,
+                ticket_id=job.ticket_id,
+                correlation_id=correlation_id,
+                duration_ms=result["processing_time_ms"],
+            )
 
-        # Task 10: Record Prometheus metrics for successful enhancement
-        if METRICS_ENABLED:
-            # Record duration histogram for latency analysis
-            enhancement_duration_seconds.labels(
-                tenant_id=job.tenant_id, status="success"
-            ).observe(result["processing_time_ms"] / 1000.0)
-
-            # Update success rate gauge (rolling 5-minute window calculation)
-            # Note: In production, this should be calculated by background task
-            # from the last 300 seconds of observations
-            enhancement_success_rate.labels(tenant_id=job.tenant_id).set(100)
-
-        logger.info(
-            "Task enhance_ticket completed successfully",
-            extra={
-                "correlation_id": correlation_id,
-                "task_id": self.request.id,
-                "ticket_id": job.ticket_id,
-                "tenant_id": job.tenant_id,
-                "enhancement_id": enhancement_id,
-                "processing_time_ms": result["processing_time_ms"],
-            },
-        )
-
-        # Log enhancement completion with audit logger for compliance
-        audit_logger.audit_enhancement_completed(
-            tenant_id=job.tenant_id,
-            ticket_id=job.ticket_id,
-            correlation_id=correlation_id,
-            duration_ms=result["processing_time_ms"],
-        )
-
-        return result
+            return result
 
     except SoftTimeLimitExceeded:
         processing_time_ms = int((time() - start_time) * 1000)

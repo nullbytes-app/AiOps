@@ -126,8 +126,20 @@ async def receive_webhook(
 
         # Story 4.6: Extract trace context from current request for propagation to Celery task
         # This enables single trace ID to span both FastAPI (webhook receiver) and Celery (enhancement worker)
+        from src.monitoring import get_tracer
+        from opentelemetry import trace as otel_trace
+        
         trace_context_carrier = {}
         inject(trace_context_carrier)  # Injects traceparent and tracestate headers
+
+        # Get current span and add custom attributes for webhook_received span
+        current_span = otel_trace.get_current_span()
+        if current_span and current_span.is_recording():
+            current_span.set_attribute("tenant.id", payload.tenant_id)
+            current_span.set_attribute("ticket.id", payload.ticket_id)
+            current_span.set_attribute("ticket.priority", payload.priority)
+            current_span.set_attribute("ticket.event", payload.event)
+            current_span.set_attribute("webhook.correlation_id", correlation_id)
 
         job_data = {
             "job_id": job_id,
@@ -145,10 +157,19 @@ async def receive_webhook(
             "trace_context": trace_context_carrier.get("traceparent", ""),  # W3C Trace Context format
         }
 
-        # Push job to Redis queue
-        queued_job_id = await queue_service.push_job(
-            job_data, tenant_id=payload.tenant_id, ticket_id=payload.ticket_id
-        )
+        # Story 4.6: Custom span for job_queued phase (AC5)
+        # Create a named span for Redis queue operation with current span as parent
+        tracer = get_tracer("src.api.webhooks")
+        with tracer.start_as_current_span("job_queued") as queue_span:
+            queue_span.set_attribute("queue.name", "enhancement_queue")
+            queue_span.set_attribute("job.id", job_id)
+            queue_span.set_attribute("tenant.id", payload.tenant_id)
+            queue_span.set_attribute("ticket.id", payload.ticket_id)
+
+            # Push job to Redis queue
+            queued_job_id = await queue_service.push_job(
+                job_data, tenant_id=payload.tenant_id, ticket_id=payload.ticket_id
+            )
 
         # Increment Prometheus metric for successfully queued job
         enhancement_requests_total.labels(
