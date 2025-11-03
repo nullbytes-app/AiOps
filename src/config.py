@@ -104,6 +104,18 @@ class Settings(BaseSettings):
         description="Shared secret for HMAC-SHA256 webhook signature validation",
         min_length=32,
     )
+    webhook_timestamp_tolerance_seconds: int = Field(
+        default=300,
+        description="Webhook timestamp tolerance in seconds (default: 5 minutes)",
+        ge=60,
+        le=3600,
+    )
+    webhook_clock_skew_tolerance_seconds: int = Field(
+        default=30,
+        description="Webhook clock skew tolerance in seconds (default: 30 seconds)",
+        ge=1,
+        le=300,
+    )
     admin_api_key: str = Field(
         ...,
         description="API key for admin endpoints (X-Admin-Key header)",

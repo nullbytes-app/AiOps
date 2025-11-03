@@ -94,7 +94,20 @@ jobs:
         run: mypy src/ --ignore-missing-imports
         continue-on-error: false
 
-      # Step 9: Run unit tests with coverage
+      # Step 9: Security scanning with Bandit (Story 3.4 AC7)
+      # Reason: Static analysis security linter for Python code
+      # Bandit detects common security issues: hardcoded secrets, SQL injection risks, weak crypto
+      # Configured in pyproject.toml [tool.bandit] with exclude_dirs and severity=MEDIUM
+      # -ll flag reports medium and high severity issues
+      # CI will fail on high/medium severity findings (exit code 1)
+      # nosec comments can be added to lines to suppress false positives with justification
+      - name: Run security scanning (Bandit)
+        run: |
+          pip install bandit[toml]
+          python -m bandit -r src/ -ll
+        continue-on-error: false
+
+      # Step 10: Run unit tests with coverage
       # Reason: Validates code functionality and generates coverage report
       # Coverage must be >= 80% (per tech spec requirement)
       # pytest configuration in pyproject.toml specifies:

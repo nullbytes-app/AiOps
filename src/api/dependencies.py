@@ -82,18 +82,20 @@ async def get_tenant_id(request: Request) -> str:
 
 async def get_tenant_db(
     tenant_id: str = Depends(get_tenant_id),
+    session: AsyncSession = Depends(get_async_session),
 ) -> AsyncGenerator[AsyncSession, None]:
     """
     Provide RLS-aware database session with tenant context pre-configured.
 
     This dependency:
-    1. Creates a new database session
+    1. Receives an already-created database session from get_async_session dependency
     2. Sets the tenant context using set_db_tenant_context()
     3. Yields the session for use in request handlers
-    4. Automatically closes session and clears context on completion
+    4. Session cleanup is handled by the get_async_session dependency
 
     Args:
         tenant_id: Tenant identifier (injected via get_tenant_id dependency)
+        session: AsyncSession from get_async_session dependency
 
     Yields:
         AsyncSession: Database session with tenant context set
@@ -118,26 +120,25 @@ async def get_tenant_db(
         - All queries through this session are subject to RLS filtering
         - Superuser roles with BYPASSRLS will see all data regardless
     """
-    async with get_async_session() as session:
-        try:
-            # Set tenant context before yielding session
-            await set_db_tenant_context(session, tenant_id)
+    try:
+        # Set tenant context before yielding session
+        await set_db_tenant_context(session, tenant_id)
 
-            # Yield session for request handler use
-            yield session
+        # Yield session for request handler use
+        yield session
 
-        except Exception as e:
-            # If tenant context setting fails, return 500
-            # This typically means tenant_id doesn't exist in tenant_configs
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to set tenant context: {str(e)}"
-            )
+    except Exception as e:
+        # If tenant context setting fails, return 500
+        # This typically means tenant_id doesn't exist in tenant_configs
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to set tenant context: {str(e)}"
+        )
 
-        finally:
-            # Session cleanup handled by context manager
-            # Tenant context automatically cleared on session close
-            pass
+    finally:
+        # Session cleanup handled by get_async_session dependency
+        # Tenant context automatically cleared on session close
+        pass
 
 
 async def get_tenant_config_dep(

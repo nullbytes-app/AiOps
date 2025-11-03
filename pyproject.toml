@@ -65,3 +65,9 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "asyncio: marks tests as async (for async test functions)",
 ]
+
+[tool.bandit]
+exclude_dirs = ["tests", "alembic/versions", ".venv"]
+skips = ["B101"]  # Skip assert_used check (used in tests excluded by path anyway)
+# Report medium and high severity issues
+severity = "MEDIUM"

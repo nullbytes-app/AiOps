@@ -12,7 +12,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import ValidationError
 
-from src.schemas.webhook import WebhookPayload, ResolvedTicketWebhook
+from src.schemas.webhook import WebhookPayload, ResolvedTicketWebhook, WebhookResponse
 from src.services.webhook_validator import validate_webhook_signature, validate_signature
 from src.services.queue_service import QueueService, get_queue_service
 from src.services.ticket_storage_service import store_webhook_resolved_ticket
@@ -36,14 +36,14 @@ router = APIRouter(prefix="/webhook", tags=["webhooks"])
     "Validates the payload using tenant-specific webhook secret and returns 202 Accepted immediately while "
     "queuing the ticket for enhancement processing. Uses tenant-specific configuration for ServiceDesk Plus credentials "
     "and enhancement preferences. This is the primary entry point for the ticket enhancement pipeline.",
-    dependencies=[Depends(validate_webhook_signature)],
+    response_model=WebhookResponse,
 )
 async def receive_webhook(
     payload: WebhookPayload,
     db: AsyncSession = Depends(get_tenant_db),
     queue_service: QueueService = Depends(get_queue_service),
     tenant_config: TenantConfigInternal = Depends(get_tenant_config_dep)
-) -> dict[str, str]:
+) -> WebhookResponse:
     """
     Receive and validate webhook notification from ServiceDesk Plus.
 
@@ -179,7 +179,7 @@ async def store_resolved_ticket(
     payload: ResolvedTicketWebhook,
     session: AsyncSession = Depends(get_tenant_db),
     settings = Depends(get_settings),
-) -> dict[str, str]:
+) -> WebhookResponse:
     """
     Receive and store resolved ticket webhook notification from ServiceDesk Plus.
 

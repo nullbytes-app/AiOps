@@ -102,6 +102,12 @@ class TenantConfig(Base):
         onupdate=func.now(),
         doc="Last modification timestamp",
     )
+    rate_limits: dict = Column(
+        JSON,
+        nullable=True,
+        default=lambda: {"webhooks": {"ticket_created": 100, "ticket_resolved": 100}},
+        doc="Per-tenant rate limit configuration (JSONB). Default: 100 webhooks/min per endpoint",
+    )
 
 
 class EnhancementHistory(Base):

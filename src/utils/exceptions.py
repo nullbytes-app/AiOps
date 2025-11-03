@@ -52,3 +52,18 @@ class DatabaseError(Exception):
     """
 
     pass
+
+
+class TenantNotFoundException(Exception):
+    """
+    Exception raised when a tenant configuration is not found.
+
+    This exception is raised when attempting to access or modify a tenant
+    that doesn't exist in the database. Used for clear error handling when
+    tenant-specific operations fail due to missing configuration.
+
+    Example:
+        raise TenantNotFoundException(f"Tenant '{tenant_id}' not found")
+    """
+
+    pass

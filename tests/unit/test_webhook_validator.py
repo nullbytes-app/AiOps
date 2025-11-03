@@ -13,6 +13,7 @@ import pytest
 from fastapi import HTTPException, Request
 
 from src.services.webhook_validator import validate_signature, validate_webhook_signature
+from src.services.tenant_service import TenantService
 from src.config import Settings
 
 
@@ -101,6 +102,32 @@ def mock_settings(test_secret: str) -> Settings:
     settings = Mock(spec=Settings)
     settings.webhook_secret = test_secret
     return settings
+
+
+@pytest.fixture
+def mock_tenant_service(test_secret: str) -> TenantService:
+    """
+    Mock TenantService for unit tests.
+
+    Returns a mock service that provides tenant configs and secrets.
+
+    Args:
+        test_secret: Test secret for webhook validation
+
+    Returns:
+        AsyncMock: Mock TenantService with get_tenant_config and get_webhook_secret methods
+    """
+    service = AsyncMock(spec=TenantService)
+
+    # Mock tenant config
+    mock_config = Mock()
+    mock_config.is_active = True
+    mock_config.webhook_signing_secret = test_secret
+
+    service.get_tenant_config = AsyncMock(return_value=mock_config)
+    service.get_webhook_secret = AsyncMock(return_value=test_secret)
+
+    return service
 
 
 # Tests for validate_signature function
@@ -200,6 +227,7 @@ class TestValidateWebhookSignature:
         mock_request: Mock,
         valid_signature: str,
         mock_settings: Settings,
+        mock_tenant_service: TenantService,
     ) -> None:
         """
         Test that valid signature allows request through.
@@ -211,6 +239,7 @@ class TestValidateWebhookSignature:
             request=mock_request,
             x_servicedesk_signature=valid_signature,
             settings=mock_settings,
+            tenant_service=mock_tenant_service,
         )
 
     @pytest.mark.asyncio
@@ -219,6 +248,7 @@ class TestValidateWebhookSignature:
         mock_request: Mock,
         invalid_signature: str,
         mock_settings: Settings,
+        mock_tenant_service: TenantService,
     ) -> None:
         """
         Test that invalid signature raises HTTPException(401).
@@ -230,16 +260,19 @@ class TestValidateWebhookSignature:
                 request=mock_request,
                 x_servicedesk_signature=invalid_signature,
                 settings=mock_settings,
+                tenant_service=mock_tenant_service,
             )
 
         assert exc_info.value.status_code == 401
-        assert "Invalid webhook signature" in exc_info.value.detail
+        assert isinstance(exc_info.value.detail, dict)
+        assert "Invalid webhook signature" in exc_info.value.detail.get("detail", "")
 
     @pytest.mark.asyncio
     async def test_missing_header_raises_401(
         self,
         mock_request: Mock,
         mock_settings: Settings,
+        mock_tenant_service: TenantService,
     ) -> None:
         """
         Test that missing signature header raises HTTPException(401).
@@ -251,16 +284,19 @@ class TestValidateWebhookSignature:
                 request=mock_request,
                 x_servicedesk_signature=None,
                 settings=mock_settings,
+                tenant_service=mock_tenant_service,
             )
 
         assert exc_info.value.status_code == 401
-        assert "Missing signature header" in exc_info.value.detail
+        assert isinstance(exc_info.value.detail, dict)
+        assert "Missing signature header" in exc_info.value.detail.get("detail", "")
 
     @pytest.mark.asyncio
     async def test_empty_string_header_raises_401(
         self,
         mock_request: Mock,
         mock_settings: Settings,
+        mock_tenant_service: TenantService,
     ) -> None:
         """
         Test that empty string signature header raises HTTPException(401).
@@ -272,10 +308,12 @@ class TestValidateWebhookSignature:
                 request=mock_request,
                 x_servicedesk_signature="",
                 settings=mock_settings,
+                tenant_service=mock_tenant_service,
             )
 
         assert exc_info.value.status_code == 401
-        assert "Missing signature header" in exc_info.value.detail
+        assert isinstance(exc_info.value.detail, dict)
+        assert "Missing signature header" in exc_info.value.detail.get("detail", "")
 
     @pytest.mark.asyncio
     async def test_request_body_read_correctly(
@@ -283,6 +321,7 @@ class TestValidateWebhookSignature:
         mock_request: Mock,
         valid_signature: str,
         mock_settings: Settings,
+        mock_tenant_service: TenantService,
     ) -> None:
         """
         Test that request body is read correctly for validation.
@@ -293,6 +332,7 @@ class TestValidateWebhookSignature:
             request=mock_request,
             x_servicedesk_signature=valid_signature,
             settings=mock_settings,
+            tenant_service=mock_tenant_service,
         )
 
         # Verify body was read

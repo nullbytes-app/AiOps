@@ -32,11 +32,7 @@ from src.schemas.tenant import (
     EnhancementPreferences,
 )
 from src.utils.encryption import encrypt, decrypt, EncryptionError
-
-
-class TenantNotFoundException(Exception):
-    """Raised when tenant configuration not found."""
-    pass
+from src.utils.exceptions import TenantNotFoundException
 
 
 class TenantService:
@@ -411,3 +407,82 @@ class TenantService:
             logger.info(f"Manually invalidated cache for tenant {tenant_id}")
         except Exception as e:
             logger.warning(f"Failed to invalidate cache for {tenant_id}: {str(e)}")
+
+    async def get_webhook_secret(self, tenant_id: str) -> str:
+        """
+        Retrieve webhook signing secret for a tenant (cached).
+
+        Checks Redis cache first; on cache miss, loads from database.
+
+        Args:
+            tenant_id: Tenant identifier
+
+        Returns:
+            Decrypted webhook signing secret
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+            EncryptionError: If decryption fails
+        """
+        # Try to get from full tenant config (cached)
+        config = await self.get_tenant_config(tenant_id)
+        return config.webhook_signing_secret
+
+    async def rotate_webhook_secret(self, tenant_id: str) -> str:
+        """
+        Rotate webhook signing secret for a tenant.
+
+        Generates new secret, updates database, invalidates cache.
+
+        Args:
+            tenant_id: Tenant identifier
+
+        Returns:
+            New webhook signing secret
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+        """
+        import secrets
+        
+        # Generate new secret: 64 characters base64-encoded
+        new_secret = secrets.token_urlsafe(48)  # 48 bytes -> 64 chars base64
+        
+        # Update tenant config
+        updates = TenantConfigUpdate(webhook_signing_secret=new_secret)
+        updated_config = await self.update_tenant(tenant_id, updates)
+        
+        logger.info(f"Rotated webhook secret for tenant {tenant_id}")
+        return updated_config.webhook_signing_secret
+
+    async def get_rate_limits(self, tenant_id: str) -> dict:
+        """
+        Retrieve rate limit configuration for a tenant.
+
+        Args:
+            tenant_id: Tenant identifier
+
+        Returns:
+            Rate limit configuration dictionary with structure:
+            {"webhooks": {"ticket_created": 100, "ticket_resolved": 100}}
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+        """
+        config = await self.get_tenant_config(tenant_id)
+        
+        # Get rate limits from config, with sensible defaults
+        rate_limits = config.enhancement_preferences.get('rate_limits') if hasattr(config, 'enhancement_preferences') else None
+        
+        # Check if rate_limits column exists in the returned config
+        # This will be set by the model after migration
+        if not rate_limits:
+            # Return default rate limits
+            rate_limits = {
+                "webhooks": {
+                    "ticket_created": 100,
+                    "ticket_resolved": 100
+                }
+            }
+        
+        return rate_limits
