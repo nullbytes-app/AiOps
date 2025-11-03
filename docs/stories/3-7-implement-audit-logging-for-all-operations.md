@@ -1,6 +1,6 @@
 # Story 3.7: Implement Audit Logging for All Operations
 
-**Status:** done
+**Status:** review
 
 **Story ID:** 3.7
 **Epic:** 3 (Multi-Tenancy & Security)
