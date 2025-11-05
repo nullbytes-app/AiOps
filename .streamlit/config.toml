@@ -1,0 +1,33 @@
+# Streamlit Configuration for AI Agents Admin UI
+# Version: 1.44.0+
+# Reference: https://docs.streamlit.io/develop/api-reference/configuration/config.toml
+
+[server]
+# Server settings
+port = 8501
+headless = true
+enableCORS = false
+enableXsrfProtection = true
+
+[browser]
+# Browser settings
+gatherUsageStats = false
+
+[theme]
+# Custom theme configuration (Streamlit 1.44+ advanced theming)
+primaryColor = "#0066CC"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F0F2F6"
+textColor = "#262730"
+font = "sans-serif"
+
+# Sidebar-specific theme properties (fixes console warnings)
+[theme.sidebar]
+widgetBackgroundColor = "#FFFFFF"
+widgetBorderColor = "#E0E0E0"
+skeletonBackgroundColor = "#F0F2F6"
+
+[client]
+# Client settings
+showErrorDetails = true
+toolbarMode = "minimal"

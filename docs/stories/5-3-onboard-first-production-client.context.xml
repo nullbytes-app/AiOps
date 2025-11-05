@@ -1,0 +1,309 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5.3</storyId>
+    <title>Onboard First Production Client</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/5-3-onboard-first-production-client.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>account manager</asA>
+    <iWant>to onboard the first MSP client to the platform</iWant>
+    <soThat>we can validate value proposition with real data</soThat>
+    <tasks>
+      <taskGroup id="AC1" title="Tenant Configuration Created">
+        <task id="1.1">Generate unique tenant_id (UUID) and webhook signing secret (32-character random string)</task>
+        <task id="1.2">Encrypt ServiceDesk Plus API key using Fernet symmetric encryption or store in Kubernetes secret</task>
+        <task id="1.3">Insert tenant_configs record with all required fields (tenant_id, name, URLs, encrypted credentials, default preferences)</task>
+        <task id="1.4">Verify tenant configuration via database query</task>
+      </taskGroup>
+      <taskGroup id="AC2" title="ServiceDesk Plus Webhook Configured">
+        <task id="2.1">Generate production webhook URL with tenant_id parameter</task>
+        <task id="2.2">Access client's ServiceDesk Plus admin console (Automation > Webhooks > Add New Webhook)</task>
+        <task id="2.3">Configure webhook with name, URL, method (POST), headers (X-ServiceDesk-Signature), and signing secret</task>
+        <task id="2.4">Configure triggers for ticket creation events</task>
+      </taskGroup>
+      <taskGroup id="AC3" title="Client-Specific Configuration Applied">
+        <task id="3.1">Create Kubernetes secret for tenant credentials</task>
+        <task id="3.2">Define enhancement preferences in tenant_configs.enhancement_preferences (JSONB)</task>
+        <task id="3.3">Set client-specific rate limits and quotas in Kubernetes resource quotas (if premium tier)</task>
+        <task id="3.4">Verify credentials encrypted and accessible</task>
+      </taskGroup>
+      <taskGroup id="AC4" title="Kubernetes Namespace Isolation">
+        <task id="4.1">Determine tier: Basic (shared namespace with RLS) vs Premium (dedicated namespace)</task>
+        <task id="4.2">If premium: Create namespace and apply RBAC policies</task>
+        <task id="4.3">If premium: Configure network policies (default deny ingress, allow from ingress controller)</task>
+        <task id="4.4">If premium: Set resource quotas (CPU, memory limits) and verify with test deployment</task>
+      </taskGroup>
+      <taskGroup id="AC5" title="Test Webhook Processed">
+        <task id="5.1">Create test ticket in client's ServiceDesk Plus or send mock webhook via curl/Postman</task>
+        <task id="5.2">Verify webhook signature validation in FastAPI logs</task>
+        <task id="5.3">Confirm job queued to Redis (monitor queue depth in Grafana or redis-cli)</task>
+        <task id="5.4">Monitor Celery worker processing and verify no errors</task>
+      </taskGroup>
+      <taskGroup id="AC6" title="Real Ticket Enhanced">
+        <task id="6.1">Coordinate with client to create real production ticket in ServiceDesk Plus</task>
+        <task id="6.2">Monitor enhancement workflow via Jaeger distributed tracing</task>
+        <task id="6.3">Verify enhancement posted to ServiceDesk Plus ticket notes/comments</task>
+        <task id="6.4">Collect client feedback on enhancement quality, usefulness, and accuracy</task>
+      </taskGroup>
+      <taskGroup id="AC7" title="Onboarding Documentation Created">
+        <task id="7.1">Create client-onboarding-runbook.md with prerequisites, step-by-step process, validation steps</task>
+        <task id="7.2">Document required client information (ServiceDesk Plus URL, API key, admin access, webhook permissions)</task>
+        <task id="7.3">Create tenant-troubleshooting-guide.md with common issues and solutions</task>
+        <task id="7.4">Create client handoff guide for support team</task>
+      </taskGroup>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Tenant Configuration Created: Client tenant record inserted in tenant_configs table with unique tenant_id, encrypted credentials, and enhancement preferences</criterion>
+    <criterion id="AC2">ServiceDesk Plus Webhook Configured: Webhook endpoint configured in client's ServiceDesk Plus instance pointing to production API with correct signing secret</criterion>
+    <criterion id="AC3">Client-Specific Configuration Applied: API credentials (ServiceDesk Plus, OpenAI), enhancement preferences, and signing secret configured and encrypted in Kubernetes secrets</criterion>
+    <criterion id="AC4">Kubernetes Namespace Isolation: Tenant-specific namespace created with RBAC policies, network policies, and resource quotas enforced (if premium tier)</criterion>
+    <criterion id="AC5">Test Webhook Processed: Test webhook from client's ServiceDesk Plus successfully validated, queued, processed by Celery worker, and enhancement returned</criterion>
+    <criterion id="AC6">Real Ticket Enhanced: Client's first production ticket processed end-to-end with enhancement posted to ServiceDesk Plus and visible to technicians</criterion>
+    <criterion id="AC7">Onboarding Documentation Created: Client onboarding checklist, prerequisites, configuration guide, and troubleshooting documented for future client onboarding</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - Multi-Tenancy (FR018-FR021)</section>
+        <snippet>FR018: System shall isolate client data using row-level security in PostgreSQL. FR019: System shall load tenant-specific configuration (API credentials, enhancement preferences) from ConfigMaps. FR020: System shall support different ServiceDesk Plus instances per tenant. FR021: System shall track enhancement history per tenant for auditing and analytics.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements - Security (NFR004)</section>
+        <snippet>System shall enforce data isolation between tenants using row-level security, validate all webhook signatures, encrypt credentials at rest using Kubernetes secrets, and apply input validation to prevent injection attacks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements - Webhook Processing (FR003)</section>
+        <snippet>System shall extract ticket metadata (ID, description, priority, client/tenant ID) from webhook payload and validate against tenant_configs table.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Technical Architecture</title>
+        <section>Row-Level Security (RLS) Implementation</section>
+        <snippet>RLS policies filter rows based on session variable. Application sets app.current_tenant_id session variable before each query. Helper function set_tenant_context(p_tenant_id) validates tenant exists in tenant_configs and sets session variable securely. All tenant-scoped tables (tenant_configs, enhancement_history, ticket_history, system_inventory) have RLS policies enabled.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Technical Architecture</title>
+        <section>Database Schema - tenant_configs Table</section>
+        <snippet>Stores per-tenant settings including tenant_id (VARCHAR unique), name, servicedesk_url, encrypted API keys, webhook secrets, and enhancement preferences (JSONB). Indexed on tenant_id for efficient lookups. Foreign key relationships to all tenant-scoped tables.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Technical Architecture</title>
+        <section>Webhook Signature Validation</section>
+        <snippet>Per-tenant signing secret stored encrypted in tenant_configs. Middleware extracts tenant_id from webhook payload and validates against tenant_configs. HMAC-SHA256 signature validation prevents unauthorized submissions.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Breakdown</title>
+        <section>Epic 5: Production Deployment & Validation - Story 5.3</section>
+        <snippet>Onboard first MSP client to platform. Acceptance: Client tenant created in tenant_configs, ServiceDesk Plus webhook configured, client-specific configuration (API credentials, enhancement preferences, signing secret), Kubernetes namespace for isolation, test webhook processed successfully, real ticket enhanced, onboarding checklist documented.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/production-deployment-runbook.md</path>
+        <title>Production Deployment Runbook</title>
+        <section>Operational Procedures</section>
+        <snippet>Comprehensive 700+ line runbook covering production deployment procedures, rollback steps, troubleshooting, health checks, monitoring validation. Created in Story 5.2 as foundation for operational documentation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/tenant-namespace-provisioning.md</path>
+        <title>Tenant Namespace Provisioning</title>
+        <section>Multi-Tenant Kubernetes Configuration</section>
+        <snippet>Documentation for creating tenant-specific Kubernetes namespaces with RBAC policies, network policies, and resource quotas for premium tier clients.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/5-2-deploy-application-to-production-environment.md</path>
+        <title>Story 5.2: Deploy Application to Production Environment</title>
+        <section>Production Infrastructure Ready</section>
+        <snippet>Status: done, Code Review: APPROVED. Production cluster operational with 3+ nodes, managed PostgreSQL with RLS enabled, Redis with persistence, FastAPI API (2 replicas) and Celery workers (3 replicas) deployed, HTTPS endpoint at api.ai-agents.production with TLS, Prometheus and Grafana monitoring active.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>TenantConfig</symbol>
+        <lines>29-109</lines>
+        <reason>SQLAlchemy model for tenant_configs table. Contains all fields needed for onboarding: tenant_id, name, servicedesk_url, encrypted credentials, webhook_signing_secret_encrypted, enhancement_preferences (JSONB), rate_limits. This model is used to INSERT new tenant configuration during onboarding.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/webhooks.py</path>
+        <kind>controller</kind>
+        <symbol>receive_webhook</symbol>
+        <lines>34-214</lines>
+        <reason>FastAPI webhook receiver endpoint (POST /webhook/servicedesk). Validates webhook signatures, loads tenant config, queues jobs to Redis. This is the production endpoint that client's ServiceDesk Plus will call. Must be accessible at https://api.ai-agents.production/webhook/servicedesk?tenant_id=&lt;uuid&gt; for Story 5.3.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/tenant_service.py</path>
+        <kind>service</kind>
+        <symbol>TenantService</symbol>
+        <lines>37-487</lines>
+        <reason>Service class for tenant CRUD operations. Methods: create_tenant (lines 145-209), get_tenant_config (lines 62-143), update_tenant (lines 211-308). Story 5.3 will use create_tenant to insert new tenant_configs record with encrypted credentials. Includes Redis caching for performance.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/tenant_context.py</path>
+        <kind>service</kind>
+        <symbol>set_db_tenant_context</symbol>
+        <lines>16-30</lines>
+        <reason>Helper function to set PostgreSQL session variable for RLS (Row-Level Security). Sets app.current_tenant_id session variable before queries to enforce tenant isolation. Critical for validating RLS works correctly during Story 5.3 testing.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/webhook_validator.py</path>
+        <kind>service</kind>
+        <symbol>WebhookValidator</symbol>
+        <lines>1-100</lines>
+        <reason>HMAC-SHA256 webhook signature validation service. Validates X-ServiceDesk-Signature header using per-tenant webhook signing secret. Story 5.3 must generate signing secret during tenant creation and configure in client's ServiceDesk Plus webhook settings.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/servicedesk_client.py</path>
+        <kind>integration</kind>
+        <symbol>ServiceDeskClient</symbol>
+        <lines>1-200</lines>
+        <reason>ServiceDesk Plus REST API client. Methods: fetch_ticket, update_ticket. Story 5.3 testing will use this client to verify enhancement is posted back to client's ServiceDesk Plus instance after processing.</reason>
+      </artifact>
+      <artifact>
+        <path>alembic/versions/168c9b67e6ca_add_row_level_security_policies.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade</symbol>
+        <lines>1-200</lines>
+        <reason>Alembic migration that enables RLS policies on tenant_configs, enhancement_history, ticket_history, system_inventory tables. Defines set_tenant_context() database function. Story 5.3 MUST verify these policies are active in production before onboarding first client (critical security requirement).</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/production/namespace.yaml</path>
+        <kind>manifest</kind>
+        <symbol>Namespace</symbol>
+        <lines>1-50</lines>
+        <reason>Production Kubernetes namespace with RBAC policies, network policies, pod security policies. For premium tier clients in Story 5.3, this serves as template for creating dedicated tenant namespaces with resource quotas and network isolation.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/production/secrets.yaml</path>
+        <kind>manifest</kind>
+        <symbol>Secret</symbol>
+        <lines>1-100</lines>
+        <reason>Production Kubernetes secrets for database, Redis, and API credentials. Story 5.3 will create similar tenant-specific secrets (kubectl create secret generic tenant-&lt;id&gt;-credentials) for ServiceDesk Plus API keys and webhook signing secrets.</reason>
+      </artifact>
+      <artifact>
+        <path>docker/api.production.dockerfile</path>
+        <kind>dockerfile</kind>
+        <symbol>API Container</symbol>
+        <lines>1-50</lines>
+        <reason>Production Dockerfile for FastAPI webhook receiver. Story 5.2 advisory noted this uses 'fastapi run' command requiring FastAPI &gt;= 0.111.0. Story 5.3 should verify FastAPI version in production before onboarding to avoid runtime issues.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/production-smoke-test.sh</path>
+        <kind>script</kind>
+        <symbol>smoke_test</symbol>
+        <lines>1-247</lines>
+        <reason>Production smoke test suite with 7 comprehensive tests. Story 5.3 can use this as reference for creating tenant-onboarding-test.sh script to validate end-to-end webhook processing for new tenant.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version="&gt;=0.111.0" reason="FastAPI web framework for webhook API. Version requirement from Story 5.2 review (api.production.dockerfile uses 'fastapi run' command)"/>
+        <package name="sqlalchemy" version="~=2.0" reason="ORM for tenant_configs database operations. AsyncSession used with RLS-aware queries"/>
+        <package name="asyncpg" version="~=0.29" reason="Async PostgreSQL driver for SQLAlchemy. Required for async database operations and RLS session variable management"/>
+        <package name="cryptography" version="~=41.0" reason="Fernet symmetric encryption for tenant credentials (servicedesk_api_key_encrypted, webhook_signing_secret_encrypted)"/>
+        <package name="redis" version="~=5.0" reason="Redis client for job queuing and tenant config caching. Used by QueueService and TenantService"/>
+        <package name="celery" version="~=5.3" reason="Distributed task queue for asynchronous ticket enhancement processing"/>
+        <package name="opentelemetry-api" version="~=1.20" reason="Distributed tracing instrumentation for monitoring enhancement workflow (Story 4.6 implementation)"/>
+        <package name="prometheus-client" version="~=0.19" reason="Prometheus metrics for monitoring tenant-specific success rates and latency"/>
+      </python>
+      <kubernetes>
+        <resource name="kubectl" version="&gt;=1.25" reason="Kubernetes CLI for creating tenant namespaces, secrets, and resource quotas"/>
+        <resource name="cert-manager" version="&gt;=1.12" reason="TLS certificate management for HTTPS webhook endpoint"/>
+      </kubernetes>
+      <infrastructure>
+        <resource name="PostgreSQL" version="17" reason="Primary database with RLS support. Managed service (RDS/Cloud SQL) configured in Story 5.1"/>
+        <resource name="Redis" version="~=7.0" reason="Message queue and cache. Managed service (ElastiCache/MemoryStore) from Story 5.1"/>
+        <resource name="Kubernetes" version="&gt;=1.25" reason="Container orchestration platform. Production cluster provisioned in Story 5.1"/>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" type="security">Row-Level Security (RLS) MUST be verified active on production database before onboarding first client. Run: SELECT * FROM pg_policies WHERE tablename IN ('tenant_configs', 'enhancement_history', 'ticket_history'); Expected: 3+ policies with expressions containing current_setting('app.current_tenant_id'). This is a critical security control for multi-tenant data isolation.</constraint>
+    <constraint id="C2" type="operational">No code changes allowed in Story 5.3. All multi-tenant infrastructure implemented in Epics 2-3 and deployed in Story 5.2. Story 5.3 is purely operational: database INSERT, ServiceDesk Plus configuration, Kubernetes namespace creation (if premium), testing, and documentation.</constraint>
+    <constraint id="C3" type="encryption">All sensitive tenant data MUST be encrypted at rest. ServiceDesk Plus API keys and webhook signing secrets encrypted using Fernet symmetric encryption (from cryptography library) or stored in Kubernetes secrets with AWS KMS/Azure Key Vault encryption.</constraint>
+    <constraint id="C4" type="webhook">Production webhook URL format MUST include tenant_id query parameter: https://api.ai-agents.production/webhook/servicedesk?tenant_id=&lt;uuid&gt;. Client's ServiceDesk Plus webhook configuration must include X-ServiceDesk-Signature header with HMAC-SHA256(payload, signing_secret) for validation.</constraint>
+    <constraint id="C5" type="tier-based">Tier-based provisioning determines namespace strategy: Basic tier clients share 'production' namespace with RLS isolation (sufficient for MVP). Premium tier clients get dedicated Kubernetes namespace with RBAC, network policies, and resource quotas (optional for Story 5.3, required for premium SLA clients).</constraint>
+    <constraint id="C6" type="testing">Test webhook MUST be processed successfully before marking Story 5.3 complete. Validation: webhook signature validated, job queued to Redis, Celery worker processes without errors, enhancement posted to ServiceDesk Plus. Monitor via Grafana dashboards and Jaeger distributed tracing.</constraint>
+    <constraint id="C7" type="documentation">Onboarding documentation MUST be repeatable for future clients. Create client-onboarding-runbook.md following structure from production-deployment-runbook.md (700+ lines in Story 5.2): Prerequisites, Steps, Validation, Troubleshooting, Escalation.</constraint>
+    <constraint id="C8" type="fastapi-version">Verify FastAPI version in production is &gt;= 0.111.0 before onboarding. Story 5.2 advisory: api.production.dockerfile uses 'fastapi run' command. If version &lt; 0.111.0, use traditional 'uvicorn src.main:app --host 0.0.0.0 --port 8000' instead.</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>POST /webhook/servicedesk</name>
+      <kind>REST endpoint</kind>
+      <signature>POST https://api.ai-agents.production/webhook/servicedesk?tenant_id=&lt;uuid&gt;</signature>
+      <path>src/api/webhooks.py:34-214</path>
+      <description>FastAPI webhook receiver endpoint. Accepts ServiceDesk Plus webhooks with tenant_id query parameter. Validates HMAC signature from X-ServiceDesk-Signature header, loads tenant config, queues job to Redis. Returns 202 Accepted with job_id. Story 5.3 configures this endpoint in client's ServiceDesk Plus webhook settings.</description>
+    </interface>
+    <interface>
+      <name>TenantService.create_tenant()</name>
+      <kind>service method</kind>
+      <signature>async def create_tenant(tenant_data: TenantConfigCreate) -&gt; TenantConfig</signature>
+      <path>src/services/tenant_service.py:145-209</path>
+      <description>Creates new tenant configuration in tenant_configs table. Encrypts ServiceDesk Plus API key and webhook signing secret using Fernet. Validates tenant_id uniqueness. Returns TenantConfig model. Story 5.3 uses this method to insert first production client configuration.</description>
+    </interface>
+    <interface>
+      <name>set_db_tenant_context()</name>
+      <kind>database helper</kind>
+      <signature>async def set_db_tenant_context(session: AsyncSession, tenant_id: str) -&gt; None</signature>
+      <path>src/database/tenant_context.py:16-30</path>
+      <description>Sets PostgreSQL session variable app.current_tenant_id for RLS policy enforcement. Validates tenant exists in tenant_configs before setting. Raises exception if tenant_id invalid. Story 5.3 validation testing uses this to verify RLS isolation between tenants.</description>
+    </interface>
+    <interface>
+      <name>ServiceDeskClient</name>
+      <kind>integration client</kind>
+      <signature>class ServiceDeskClient with methods: fetch_ticket(), update_ticket()</signature>
+      <path>src/services/servicedesk_client.py:1-200</path>
+      <description>ServiceDesk Plus REST API client. Authenticates using per-tenant API key from tenant_configs. Methods: fetch_ticket(ticket_id) retrieves ticket details, update_ticket(ticket_id, content) posts enhancement to ticket notes. Story 5.3 testing verifies enhancement posted to client's ServiceDesk Plus instance.</description>
+    </interface>
+    <interface>
+      <name>tenant_configs table</name>
+      <kind>database schema</kind>
+      <signature>Table with columns: id (UUID PK), tenant_id (VARCHAR unique), name, servicedesk_url, servicedesk_api_key_encrypted, webhook_signing_secret_encrypted, enhancement_preferences (JSONB), rate_limits (JSONB), created_at, updated_at</signature>
+      <path>src/database/models.py:29-109</path>
+      <description>Multi-tenant configuration storage with RLS policies enabled. Story 5.3 INSERTs first production client record with unique tenant_id (UUID), encrypted credentials, and default enhancement preferences. Indexed on tenant_id for efficient lookups.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Story 5.3 is operational (configuration, testing, documentation) with no new code implementation. All code paths already tested in Epics 2-3. Testing framework: pytest>=7.4.3 with pytest-asyncio for async tests. Unit tests use mocks/fixtures for isolation. Integration tests use real database/Redis containers via docker-compose. Security tests in tests/security/ directory validate tenant isolation, webhook signature validation, and OWASP vulnerabilities. Test fixtures in tests/fixtures/ provide reusable test data (tenant configs, webhooks, tickets). Test coverage tracked via pytest-cov. Story 5.3 requires end-to-end integration testing with production systems (real ServiceDesk Plus webhooks, real tickets) rather than unit tests.</standards>
+    <locations>
+      <location>tests/unit/test_row_level_security.py - RLS enforcement tests (Story 3.1)</location>
+      <location>tests/unit/test_tenant_service.py - TenantService CRUD operations (Story 3.2)</location>
+      <location>tests/unit/test_webhook_validator.py - Webhook signature validation (Story 3.5)</location>
+      <location>tests/security/test_tenant_isolation.py - Multi-tenant isolation security tests</location>
+      <location>tests/integration/test_webhook_security.py - End-to-end webhook validation</location>
+      <location>tests/integration/test_tenant_namespace_isolation.py - Kubernetes namespace isolation</location>
+      <location>tests/integration/test_end_to_end_workflow.py - Complete enhancement workflow</location>
+      <location>scripts/production-smoke-test.sh - Production smoke test suite (7 tests, 247 lines)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Create tenant-onboarding-test.sh script: Automate tenant creation with TenantService.create_tenant(), validate database INSERT with query, verify credentials encrypted, check tenant_id uniqueness. Expected: Tenant record exists in tenant_configs with all required fields populated.</idea>
+      <idea ac="AC2">Manual ServiceDesk Plus webhook configuration test: Document steps for accessing client's ServiceDesk Plus admin console, configuring webhook URL (https://api.ai-agents.production/webhook/servicedesk?tenant_id=&lt;uuid&gt;), setting signing secret, configuring triggers. Capture screenshots for documentation.</idea>
+      <idea ac="AC3">Kubernetes secret validation test: Create tenant-specific secret with kubectl, verify secret exists (kubectl get secret tenant-&lt;id&gt;-credentials), test secret can be mounted in pod (kubectl describe secret), validate encryption at rest with cloud provider KMS.</idea>
+      <idea ac="AC4">Namespace isolation test (if premium tier): Create dedicated tenant namespace, apply RBAC policies, verify network policies block cross-namespace traffic, test resource quotas enforce limits, deploy test pod to validate configuration.</idea>
+      <idea ac="AC5">Test webhook processing end-to-end: Send mock webhook via curl/Postman with valid HMAC signature, monitor FastAPI logs for signature validation success, check Redis queue depth in Grafana (redis_queue_depth metric), verify Celery worker picks up job (check worker logs), confirm enhancement_requests_total metric increments.</idea>
+      <idea ac="AC6">Real ticket enhancement validation: Coordinate with client to create production ticket with known issue (e.g., 'Database connection timeout'), monitor enhancement workflow via Jaeger distributed tracing (webhook_received → job_queued → ticket_enhanced spans), verify enhancement posted to ServiceDesk Plus ticket notes, collect client feedback on enhancement quality (relevance, accuracy, usefulness).</idea>
+      <idea ac="AC7">Documentation completeness review: Validate client-onboarding-runbook.md contains all required sections (Prerequisites, Steps, Validation, Troubleshooting, Escalation), verify tenant-troubleshooting-guide.md covers common issues (signature mismatch, API errors, RLS failures), ensure documentation is repeatable for future client onboarding.</idea>
+      <idea ac="ALL">RLS isolation validation script (tenant-isolation-validation.sh): Create two test tenants, insert enhancement_history records for each, query with set_db_tenant_context() for tenant A, verify only tenant A data returned, query for tenant B, verify only tenant B data returned, confirm no cross-tenant leakage. Expected: 100% isolation between tenants.</idea>
+      <idea ac="ALL">FastAPI version verification: kubectl exec into production API pod, run 'python -c "import fastapi; print(fastapi.__version__)"', verify version >= 0.111.0. If version too low, update docker/api.production.dockerfile to use 'uvicorn' instead of 'fastapi run' command before onboarding first client.</idea>
+      <idea ac="ALL">Production health check before onboarding: Run scripts/production-smoke-test.sh (7 comprehensive tests), verify all pods running (kubectl get pods -n production), check database connectivity (psql connection test), validate Redis accessible (redis-cli PING), confirm Prometheus scraping metrics (/metrics endpoint returns 200), verify Grafana dashboards loading.</idea>
+    </ideas>
+  </tests>
+</story-context>

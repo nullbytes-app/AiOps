@@ -1,0 +1,410 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5.2</storyId>
+    <title>Deploy Application to Production Environment</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-03</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/5-2-deploy-application-to-production-environment.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer</asA>
+    <iWant>all application components deployed to production cluster</iWant>
+    <soThat>the platform is accessible to clients</soThat>
+    <tasks>
+### Task 1: Kubernetes Manifests Applied
+- Task 1.1: Create production secrets manifest with all credentials (database, Redis, OpenAI, ServiceDesk Plus signing secret)
+- Task 1.2: Create production ConfigMap with non-sensitive application settings (log level, worker concurrency, timeouts)
+- Task 1.3: Create API deployment manifest: 2 replicas, FastAPI container with health probes, init container for migrations
+- Task 1.4: Create API service manifest: ClusterIP service exposing port 8000 for ingress routing
+- Task 1.5: Create Celery worker deployment manifest: 3 replicas with auto-scaling, Redis connection, task concurrency settings
+- Task 1.6: Create ingress manifest: TLS enabled, cert-manager annotations for Let's Encrypt, route /webhook to API service
+- Task 1.7: Create HPA manifest: auto-scale workers 3-10 replicas based on Redis queue depth metric
+- Task 1.8: Apply all manifests to production cluster: `kubectl apply -f k8s/production/`
+
+### Task 2: Docker Images Available
+- Task 2.1: Build FastAPI Docker image with production Dockerfile (python:3.12-slim base, layer caching optimized)
+- Task 2.2: Build Celery worker Docker image (shared application code with API, different CMD)
+- Task 2.3: Build migration runner Docker image (Alembic only, minimal dependencies)
+- Task 2.4: Tag all images with version: v1.0.0 and latest
+- Task 2.5: Push images to container registry (ECR/GCR/ACR) with production credentials
+- Task 2.6: Verify images pullable from production cluster: `kubectl run test-pod --image=<registry>/ai-agents-api:v1.0.0`
+
+### Task 3: Secrets Configured
+- Task 3.1: Create Kubernetes secret for database credentials: `kubectl create secret generic db-credentials --from-literal=DATABASE_URL=<postgres-url>`
+- Task 3.2: Create Kubernetes secret for Redis credentials: `kubectl create secret generic redis-credentials --from-literal=REDIS_URL=<redis-url>`
+- Task 3.3: Create Kubernetes secret for OpenAI API key: `kubectl create secret generic openai-credentials --from-literal=OPENAI_API_KEY=<key>`
+- Task 3.4: Create Kubernetes secret for ServiceDesk Plus webhook signing: `kubectl create secret generic servicedesk-credentials --from-literal=WEBHOOK_SECRET=<secret>`
+- Task 3.5: Verify secrets encrypted at rest: check AWS KMS encryption enabled on cluster (from Story 5.1 setup)
+- Task 3.6: Update deployment manifests to inject secrets as environment variables via secretKeyRef
+
+### Task 4: Pods Healthy
+- Task 4.1: Implement FastAPI health check endpoint: `/health` returns 200 with database/Redis connectivity status
+- Task 4.2: Configure liveness probe in API deployment: HTTP GET /health, initialDelaySeconds=30, periodSeconds=10
+- Task 4.3: Configure readiness probe in API deployment: HTTP GET /health/ready, initialDelaySeconds=5, periodSeconds=5
+- Task 4.4: Configure startup probe in API deployment: HTTP GET /health, failureThreshold=30, periodSeconds=10 (allow 5min startup)
+- Task 4.5: Monitor pod rollout: `kubectl rollout status deployment/ai-agents-api -n production`
+- Task 4.6: Verify all pods running: `kubectl get pods -n production` shows all pods with 2/2 READY (app container + metrics sidecar)
+- Task 4.7: Check pod logs for startup errors: `kubectl logs -n production deployment/ai-agents-api --tail=100`
+
+### Task 5: Database Migrations
+- Task 5.1: Create Alembic migration runner Docker image with database health check script
+- Task 5.2: Add init container to API deployment manifest: runs before FastAPI container starts
+- Task 5.3: Configure init container: image=ai-agents-migrations, command=`alembic upgrade head`
+- Task 5.4: Add database health check to init container: retry connection to PostgreSQL before running migrations
+- Task 5.5: Test migrations locally: connect to production database (read-only) and verify schema version
+- Task 5.6: Deploy API pods with init container: verify migration runs successfully via `kubectl logs <pod> -c migration-runner`
+- Task 5.7: Verify database schema updated: query `alembic_version` table shows latest revision
+
+### Task 6: Production Endpoint Accessible
+- Task 6.1: Create ingress resource with TLS configuration: host=api.ai-agents.production, secretName=api-tls-cert
+- Task 6.2: Add cert-manager annotations to ingress: `cert-manager.io/cluster-issuer: letsencrypt-prod`
+- Task 6.3: Configure DNS: create A record pointing api.ai-agents.production to ingress load balancer IP
+- Task 6.4: Apply ingress manifest: `kubectl apply -f k8s/production/ingress.yaml`
+- Task 6.5: Monitor certificate provisioning: `kubectl get certificate api-tls-cert -n production -w` (wait for READY)
+- Task 6.6: Verify HTTPS endpoint: `curl -v https://api.ai-agents.production/health` returns 200 with valid TLS certificate
+- Task 6.7: Test HTTP to HTTPS redirect: `curl -v http://api.ai-agents.production/health` redirects to HTTPS
+
+### Task 7: Smoke Test Passed
+- Task 7.1: Create smoke test script: tests health check, webhook signature validation, end-to-end enhancement
+- Task 7.2: Test health check endpoint: `GET /health` returns `{"status": "healthy", "database": "connected", "redis": "connected"}`
+- Task 7.3: Test webhook signature validation: send webhook with invalid signature, verify 401 Unauthorized response
+- Task 7.4: Test valid webhook: send test ticket webhook with valid signature, verify 202 Accepted response
+- Task 7.5: Verify ticket enhancement completes: check Redis queue processed, Celery worker logs show successful completion
+- Task 7.6: Verify ServiceDesk Plus ticket updated: API call to ServiceDesk Plus confirms enhancement comment added
+- Task 7.7: Document smoke test results: pass/fail for each test, response times, any errors encountered
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Kubernetes Manifests Applied - All production Kubernetes manifests deployed to production cluster (namespace, deployments, services, configmaps, secrets)
+AC2: Docker Images Available - Application images (API, Celery workers) built, tagged, and pushed to container registry accessible from production cluster
+AC3: Secrets Configured - Production credentials (database, Redis, OpenAI API, ServiceDesk Plus) configured as Kubernetes secrets with encryption at rest
+AC4: Pods Healthy - All pods (API, Celery workers) running with 2/2 containers ready, passing liveness and readiness probes
+AC5: Database Migrations - Alembic migrations applied successfully to production PostgreSQL database before application starts
+AC6: Production Endpoint Accessible - Webhook endpoint accessible via HTTPS with valid TLS certificate (https://api.ai-agents.production/)
+AC7: Smoke Test Passed - End-to-end smoke test validates: health check returns 200, webhook signature validation works, test ticket enhancement completes successfully
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Epic Documentation -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 5: Production Deployment &amp; Validation</title>
+        <section>Epic 5 Overview and Story 5.2</section>
+        <snippet>Epic 5 focuses on deploying the platform to production. Story 5.2 deploys all application components to the production Kubernetes cluster provisioned in Story 5.1, including FastAPI webhook receiver, Celery workers, database migrations, and TLS-enabled ingress.</snippet>
+      </doc>
+
+      <!-- Architecture Documentation -->
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>5.3 Deployment Infrastructure</section>
+        <snippet>Production deployment uses Kubernetes 1.28+ with single Uvicorn process per container (cluster handles replication). Docker images built from python:3.12-slim base. Kubernetes Secrets for credentials encrypted at rest via KMS. Managed PostgreSQL (RDS) and Redis (ElastiCache) with Multi-AZ configuration.</snippet>
+      </doc>
+
+      <!-- PRD Requirements -->
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements</section>
+        <snippet>NFR001 (Performance): p95 latency &lt; 60 seconds. NFR004 (Security): Row-level security, webhook signature validation, encrypted credentials at rest. NFR005 (Observability): Prometheus metrics, Grafana dashboards, distributed tracing, 90-day audit logs.</snippet>
+      </doc>
+
+      <!-- Production Cluster Setup (Story 5.1) -->
+      <doc>
+        <path>docs/operations/production-cluster-setup.md</path>
+        <title>Production Kubernetes Cluster Setup Guide</title>
+        <section>Infrastructure Overview</section>
+        <snippet>Complete production infrastructure from Story 5.1: AWS EKS cluster with 3+ nodes across 3 AZs, managed PostgreSQL (RDS Multi-AZ), managed Redis (ElastiCache Multi-AZ), nginx-ingress controller with cert-manager for Let's Encrypt TLS, RBAC with app-sa and prometheus-sa service accounts, network policies, pod security policies.</snippet>
+      </doc>
+
+      <!-- Monitoring Documentation (Epic 4) -->
+      <doc>
+        <path>docs/operations/prometheus-setup.md</path>
+        <title>Prometheus Setup and Configuration</title>
+        <section>Prometheus Deployment</section>
+        <snippet>Prometheus deployed in k8s cluster, scrapes metrics from /metrics endpoints on FastAPI pods, retention 15 days, persistent storage for time-series data.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/operations/grafana-setup.md</path>
+        <title>Grafana Dashboard Configuration</title>
+        <section>Grafana Integration</section>
+        <snippet>Grafana dashboards display application and infrastructure metrics, preconfigured dashboards for API performance, Celery workers, database connections, Redis queue depth.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/operations/distributed-tracing-setup.md</path>
+        <title>Distributed Tracing with OpenTelemetry</title>
+        <section>OpenTelemetry Collector</section>
+        <snippet>OpenTelemetry collector forwards distributed traces to Jaeger, trace IDs propagated from webhook receipt through Celery task to ServiceDesk Plus update, enables debugging failed enhancements.</snippet>
+      </doc>
+
+      <doc>
+        <path>docs/operations/alert-runbooks.md</path>
+        <title>Alert Runbooks and Response Procedures</title>
+        <section>Operational Runbooks</section>
+        <snippet>Runbooks for API down, high error rate, queue backup, database connection failures. Each runbook includes symptom detection, investigation steps, and remediation procedures.</snippet>
+      </doc>
+
+      <!-- FastAPI Production Best Practices (2025 - from Ref MCP) -->
+      <doc>
+        <path>External: FastAPI Official Docs</path>
+        <title>FastAPI in Containers - Docker</title>
+        <section>Replication in Kubernetes</section>
+        <snippet>When using Kubernetes, run single Uvicorn process per container (NOT --workers). Cluster handles replication with load balancing at cluster level. Build Docker image from scratch using python:3.12-slim. Use exec form CMD for graceful shutdown: CMD ["fastapi", "run", "app/main.py", "--port", "80", "--proxy-headers"].</snippet>
+      </doc>
+
+      <!-- Kubernetes Health Probes Best Practices (2025 - from Ref MCP) -->
+      <doc>
+        <path>External: AWS EKS Best Practices</path>
+        <title>Running Highly-Available Applications</title>
+        <section>Health Probe Recommendations</section>
+        <snippet>Use Liveness probes to detect deadlocks and remove unhealthy pods. Use Startup probes for apps with long initialization times (delays Liveness/Readiness checks). Use Readiness probes to detect temporary unavailability and stop routing traffic. Avoid external dependencies in probes to prevent cascade failures.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Application Entry Point -->
+      <artifact>
+        <path>src/main.py</path>
+        <kind>application</kind>
+        <symbol>app (FastAPI)</symbol>
+        <lines>35-56</lines>
+        <reason>Main FastAPI application with OpenTelemetry instrumentation, health/webhook routers, Prometheus metrics endpoint at /metrics. Startup event validates secrets.</reason>
+      </artifact>
+
+      <!-- Health Check Endpoints -->
+      <artifact>
+        <path>src/main.py</path>
+        <kind>endpoint</kind>
+        <symbol>health()</symbol>
+        <lines>94-144</lines>
+        <reason>Health check endpoint validates PostgreSQL and Redis connectivity, returns 503 if dependencies unhealthy. Used by Kubernetes liveness/readiness probes.</reason>
+      </artifact>
+
+      <artifact>
+        <path>src/api/health.py</path>
+        <kind>module</kind>
+        <symbol>health_check()</symbol>
+        <lines>14-62</lines>
+        <reason>Detailed health check function with database and Redis validation. Router provides /api/v1/health and /api/v1/ready endpoints.</reason>
+      </artifact>
+
+      <!-- Webhook Integration -->
+      <artifact>
+        <path>src/api/dependencies.py</path>
+        <kind>dependency</kind>
+        <symbol>get_tenant_id()</symbol>
+        <lines>41-80</lines>
+        <reason>Extracts tenant_id from webhook payloads or X-Tenant-ID header. Required for multi-tenant isolation in production deployment.</reason>
+      </artifact>
+
+      <!-- Existing Kubernetes Manifests (Local Dev/Staging) -->
+      <artifact>
+        <path>k8s/deployment-api.yaml</path>
+        <kind>kubernetes</kind>
+        <symbol>Deployment: api</symbol>
+        <lines>1-147</lines>
+        <reason>Existing local/staging API deployment with health probes, resource limits, security context. Template for production deployment with 2 replicas, health probes at /api/v1/health and /api/v1/ready.</reason>
+      </artifact>
+
+      <artifact>
+        <path>k8s/deployment-worker.yaml</path>
+        <kind>kubernetes</kind>
+        <symbol>Deployment: worker</symbol>
+        <lines>1-120</lines>
+        <reason>Existing Celery worker deployment template. Uses same image as API with different command. Needs production version with resource quotas and HPA integration.</reason>
+      </artifact>
+
+      <!-- Production Infrastructure (Story 5.1) -->
+      <artifact>
+        <path>k8s/production/namespace.yaml</path>
+        <kind>kubernetes</kind>
+        <symbol>Namespace: production</symbol>
+        <lines>1-100</lines>
+        <reason>Production namespace from Story 5.1 with RBAC, network policies (default deny ingress, allow DNS egress), pod security policies, resource quotas. Ready for application deployment.</reason>
+      </artifact>
+
+      <artifact>
+        <path>infrastructure/terraform/outputs.tf</path>
+        <kind>infrastructure</kind>
+        <symbol>Terraform outputs</symbol>
+        <lines>78-151</lines>
+        <reason>Story 5.1 Terraform outputs provide RDS endpoint, ElastiCache endpoint, ingress controller DNS for production secrets configuration. Connection string templates for DATABASE_URL and REDIS_URL.</reason>
+      </artifact>
+
+      <!-- Database Migrations -->
+      <artifact>
+        <path>alembic/versions/</path>
+        <kind>migrations</kind>
+        <symbol>Alembic migration files</symbol>
+        <lines>all</lines>
+        <reason>Database schema migrations including RLS policies (168c9b67e6ca), tenant configs schema, provenance fields. Must run before application starts via init container.</reason>
+      </artifact>
+
+      <artifact>
+        <path>alembic/env.py</path>
+        <kind>migration-runner</kind>
+        <symbol>Alembic environment</symbol>
+        <lines>all</lines>
+        <reason>Alembic migration runner configuration. Used in init container to run 'alembic upgrade head' before FastAPI pods start.</reason>
+      </artifact>
+
+      <!-- Configuration -->
+      <artifact>
+        <path>src/config.py</path>
+        <kind>configuration</kind>
+        <symbol>get_settings()</symbol>
+        <lines>192-199</lines>
+        <reason>Application configuration loaded from environment variables. Validates DATABASE_URL, REDIS_URL, OPENAI_API_KEY. Kubernetes secrets inject these via secretKeyRef.</reason>
+      </artifact>
+
+      <!-- Docker Compose (Local Development Reference) -->
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>docker</kind>
+        <symbol>Docker Compose stack</symbol>
+        <lines>all</lines>
+        <reason>Local development Docker Compose configuration. Reference for service definitions, environment variables, healthchecks. Production uses Kubernetes equivalents.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version="latest"/>
+        <package name="uvicorn" version="latest"/>
+        <package name="sqlalchemy" version="2.x"/>
+        <package name="asyncpg" version="latest"/>
+        <package name="redis" version="latest"/>
+        <package name="celery" version="latest"/>
+        <package name="alembic" version="latest"/>
+        <package name="opentelemetry-api" version="latest"/>
+        <package name="opentelemetry-sdk" version="latest"/>
+        <package name="opentelemetry-instrumentation-fastapi" version="latest"/>
+        <package name="prometheus-client" version="latest"/>
+        <package name="pydantic" version="2.x"/>
+        <package name="python-dotenv" version="latest"/>
+      </python>
+      <infrastructure>
+        <service name="Kubernetes" version="1.28+"/>
+        <service name="PostgreSQL" version="17" deployment="AWS RDS Multi-AZ"/>
+        <service name="Redis" version="7" deployment="AWS ElastiCache Multi-AZ"/>
+        <service name="Docker" version="latest" purpose="Container runtime"/>
+        <service name="nginx-ingress-controller" purpose="TLS termination and routing"/>
+        <service name="cert-manager" purpose="Let's Encrypt TLS certificates"/>
+        <service name="AWS KMS" purpose="Secrets encryption at rest"/>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>FastAPI Deployment Pattern: Run single Uvicorn process per container (NOT --workers flag). Kubernetes cluster handles replication and load balancing at cluster level. (Source: FastAPI official docs 2025)</constraint>
+    <constraint>Docker Image: Build from python:3.12-slim base. Use exec form CMD: CMD ["fastapi", "run", "app/main.py", "--port", "80", "--proxy-headers"]. Layer caching: copy requirements.txt first, then code.</constraint>
+    <constraint>Health Probes: Use Startup probe for slow initialization (delays Liveness/Readiness checks). Liveness probe detects deadlocks (triggers restart). Readiness probe prevents traffic to unready pods. Avoid external dependencies in probes.</constraint>
+    <constraint>Database Migrations: Run Alembic migrations in init container BEFORE application starts. Single process handles migrations (Alembic uses database locks). Check database health before running migrations (retry with backoff).</constraint>
+    <constraint>Secrets Management: Kubernetes secrets encrypted at rest via AWS KMS (configured in Story 5.1). Inject secrets as environment variables via secretKeyRef. DATABASE_URL includes ?sslmode=require, REDIS_URL uses rediss:// protocol.</constraint>
+    <constraint>Multi-Tenant Isolation: Database RLS policies enforce tenant_id filtering (from Story 3.x). Application sets tenant context before queries. Network policies prevent cross-tenant pod communication.</constraint>
+    <constraint>Resource Limits: API pods: 250m-500m CPU, 512Mi-1Gi memory. Worker pods: 500m-1000m CPU, 1Gi-2Gi memory. Production namespace quota: 10 CPU requests, 20Gi memory requests.</constraint>
+    <constraint>Security Posture: All pods run as non-root (user 1000). allowPrivilegeEscalation=false. readOnlyRootFilesystem where possible. Drop ALL capabilities. Database/Redis connections use TLS.</constraint>
+    <constraint>Monitoring Integration: Prometheus scrapes /metrics endpoint (from Epic 4). Grafana dashboards display application metrics. Alertmanager triggers alerts on health issues. OpenTelemetry collector forwards traces to Jaeger.</constraint>
+    <constraint>Production Namespace: Deploy to 'production' namespace (from Story 5.1). Use app-sa service account for application pods. RBAC permissions: get secrets/configmaps. Network policies: default deny ingress, explicit egress allow.</constraint>
+    <constraint>TLS Certificate: Ingress resource must include cert-manager annotations: cert-manager.io/cluster-issuer: letsencrypt-prod, kubernetes.io/tls-acme: "true". cert-manager automatically provisions certificate.</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Health Check Endpoint</name>
+      <kind>REST API</kind>
+      <signature>GET /health → 200 OK | 503 Service Unavailable</signature>
+      <path>src/main.py:94-144</path>
+      <description>Health check validates PostgreSQL and Redis connectivity. Returns {"status": "healthy", "dependencies": {"database": "healthy", "redis": "healthy"}}. Used by Kubernetes liveness and readiness probes.</description>
+    </interface>
+
+    <interface>
+      <name>Readiness Check Endpoint</name>
+      <kind>REST API</kind>
+      <signature>GET /api/v1/ready → 200 OK | 503 Service Unavailable</signature>
+      <path>src/api/health.py</path>
+      <description>Separate readiness endpoint for Kubernetes readiness probe. Lightweight check that pod is ready to serve traffic without expensive operations.</description>
+    </interface>
+
+    <interface>
+      <name>Webhook Endpoint</name>
+      <kind>REST API</kind>
+      <signature>POST /webhook/servicedesk → 202 Accepted | 401 Unauthorized | 400 Bad Request</signature>
+      <path>src/api/webhooks.py</path>
+      <description>ServiceDesk Plus webhook receiver. Validates signature, extracts tenant_id, queues enhancement job to Redis. Production ingress routes to this endpoint via HTTPS.</description>
+    </interface>
+
+    <interface>
+      <name>Prometheus Metrics</name>
+      <kind>Metrics Endpoint</kind>
+      <signature>GET /metrics → text/plain (Prometheus format)</signature>
+      <path>src/main.py:55-56</path>
+      <description>Prometheus metrics endpoint exposes request count, latency histogram, error rate, custom metrics (enhancement_success_rate, context_gathering_duration). Scraped by Prometheus from Epic 4.</description>
+    </interface>
+
+    <interface>
+      <name>Database Connection</name>
+      <kind>PostgreSQL Database</kind>
+      <signature>postgresql+asyncpg://user:password@hostname:5432/database?sslmode=require</signature>
+      <path>Terraform outputs: rds_endpoint, rds_database_name, rds_username</path>
+      <description>PostgreSQL RDS Multi-AZ from Story 5.1. Connection pooling configured. RLS policies enforce tenant isolation. TLS required for all connections.</description>
+    </interface>
+
+    <interface>
+      <name>Redis Connection</name>
+      <kind>Redis Cache/Queue</kind>
+      <signature>rediss://hostname:6379/0</signature>
+      <path>Terraform outputs: elasticache_endpoint</path>
+      <description>ElastiCache Redis Multi-AZ from Story 5.1. Used as Celery broker and result backend. TLS encryption enabled. RDB persistence with hourly snapshots.</description>
+    </interface>
+
+    <interface>
+      <name>Celery Task Queue</name>
+      <kind>Message Queue</kind>
+      <signature>celery -A src.workers.celery_app worker</signature>
+      <path>src/workers/celery_app.py</path>
+      <description>Celery workers process enhancement tasks from Redis queue. Auto-scale 3-10 replicas via HPA based on queue depth. Task timeout 120 seconds.</description>
+    </interface>
+
+    <interface>
+      <name>Alembic Migrations</name>
+      <kind>Database Migration</kind>
+      <signature>alembic upgrade head</signature>
+      <path>alembic/env.py, alembic/versions/</path>
+      <description>Database schema migrations run in init container before application starts. Alembic uses database locks for safety. Includes RLS policies and tenant schema.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Testing framework: pytest with pytest-asyncio for async support. Test organization: Unit tests (tests/unit/) with mocked dependencies, Integration tests (tests/integration/) with real Docker dependencies, Security tests (tests/security/). Coverage target: >80% for all modules. Execution time: <5 minutes for full suite. Naming convention: test_component_scenario_expected_result. CI/CD: Tests run automatically in GitHub Actions (.github/workflows/ci.yml) - lint stage (Black, Ruff, Mypy), unit tests (<2 min), integration tests (<5 min), coverage enforcement. Dependencies: pyproject.toml defines dependencies (FastAPI, Uvicorn, SQLAlchemy, asyncpg, Redis, Celery, OpenTelemetry, Prometheus). Test fixtures in tests/fixtures/ for reusable test data.</standards>
+    <locations>
+      <location>tests/unit/ - Fast unit tests with mocked dependencies</location>
+      <location>tests/integration/ - Integration tests with Docker stack (PostgreSQL, Redis, Celery)</location>
+      <location>tests/security/ - Security tests (OWASP vulnerabilities, tenant isolation, webhook signature validation)</location>
+      <location>tests/fixtures/ - Reusable test data (tickets, API responses, LLM responses)</location>
+      <location>tests/conftest.py - Shared pytest fixtures and configuration</location>
+      <location>tests/README.md - Comprehensive testing guide with patterns and best practices</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1">Smoke test: Validate all production Kubernetes manifests apply successfully to production cluster (namespace, secrets, configmaps, deployments, services, ingress, HPA). Use kubectl apply --dry-run=server -f k8s/production/ to validate without actual deployment.</idea>
+      <idea ac="AC1">Validation test: Check all production manifests reference correct namespace (production), use correct service account (app-sa), have resource limits defined, security context configured (runAsNonRoot, allowPrivilegeEscalation=false).</idea>
+      <idea ac="AC2">Integration test: Build Docker images using production Dockerfile, tag with version and latest, push to test container registry, verify images pullable from production cluster (kubectl run test-pod).</idea>
+      <idea ac="AC2">Unit test: Verify Dockerfile uses python:3.12-slim base, exec form CMD, layer caching optimization (requirements.txt copied before code), --proxy-headers flag for FastAPI.</idea>
+      <idea ac="AC3">Security test: Validate Kubernetes secrets created with correct keys (DATABASE_URL, REDIS_URL, OPENAI_API_KEY, WEBHOOK_SECRET), secrets encrypted at rest via AWS KMS, DATABASE_URL includes ?sslmode=require.</idea>
+      <idea ac="AC3">Integration test: Deploy application pods, verify secrets injected as environment variables via secretKeyRef, validate database connection uses TLS (check PostgreSQL logs), Redis connection uses rediss:// protocol.</idea>
+      <idea ac="AC4">Health check test: Call GET /health endpoint, verify returns 200 with {"status": "healthy", "dependencies": {"database": "healthy", "redis": "healthy"}}. Test failure scenarios: database down returns 503, Redis down returns 503.</idea>
+      <idea ac="AC4">Probe test: Deploy API pods, monitor kubectl get pods, verify liveness probe passes (initialDelaySeconds=30, periodSeconds=10), readiness probe passes (initialDelaySeconds=5), startup probe allows 5min initialization (failureThreshold=30, periodSeconds=10).</idea>
+      <idea ac="AC5">Migration test: Verify Alembic migrations run successfully in init container before FastAPI starts, check init container logs (kubectl logs pod -c migration-runner), query alembic_version table shows latest revision.</idea>
+      <idea ac="AC5">Database test: Connect to production PostgreSQL after migration, verify schema includes RLS policies (pg_policies table), tenant_configs table exists, enhancement_history table has tenant_id column with RLS enabled.</idea>
+      <idea ac="AC6">TLS test: Verify HTTPS endpoint accessible (curl -v https://api.ai-agents.production/health returns 200), certificate valid (check issuer=Let's Encrypt), HTTP redirects to HTTPS, TLS version >= 1.2.</idea>
+      <idea ac="AC6">DNS test: Verify DNS A record points to ingress controller load balancer, cert-manager provisions certificate automatically (kubectl get certificate shows READY=True), ingress resource routes /webhook to API service.</idea>
+      <idea ac="AC7">End-to-end smoke test: Health check returns 200 -> send test webhook with invalid signature (verify 401 Unauthorized) -> send valid webhook (verify 202 Accepted) -> check Redis queue processed -> verify Celery worker logs show task completion -> query ServiceDesk Plus API to confirm ticket updated.</idea>
+      <idea ac="AC7">Performance test: Measure end-to-end latency from webhook receipt to ticket update, verify p95 latency < 60 seconds (NFR001 requirement), check Prometheus metrics for enhancement_success_rate, context_gathering_duration.</idea>
+      <idea ac="All">Rollback test: Deploy new version, simulate failure, rollback using kubectl rollout undo, verify previous version healthy, all pods running with 2/2 READY, health checks passing.</idea>
+      <idea ac="All">Monitoring integration test: Verify Prometheus scrapes /metrics endpoint from API pods, Grafana dashboard displays application metrics (request count, latency, error rate), Alertmanager receives test alert.</idea>
+    </ideas>
+  </tests>
+</story-context>

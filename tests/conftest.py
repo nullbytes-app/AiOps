@@ -89,6 +89,202 @@ def env_vars(monkeypatch):
     return set_env
 
 
+# ============================================================================
+# Plugin Testing Fixtures (Story 7.6)
+# ============================================================================
+
+
+@pytest.fixture
+def mock_generic_plugin():
+    """
+    Provide clean MockTicketingToolPlugin instance for each test.
+
+    Returns:
+        MockTicketingToolPlugin: Fresh mock plugin in success mode with
+            clean call history for test isolation.
+
+    Scope:
+        Function scope (default) ensures each test gets a fresh instance
+        with no state leakage from previous tests.
+
+    Example:
+        def test_webhook_validation(mock_generic_plugin):
+            valid = await mock_generic_plugin.validate_webhook(payload, sig)
+            assert valid is True
+    """
+    from tests.mocks.mock_plugin import MockTicketingToolPlugin
+    return MockTicketingToolPlugin.success_mode()
+
+
+@pytest.fixture
+def mock_servicedesk_plugin():
+    """
+    Provide MockTicketingToolPlugin with ServiceDesk Plus-specific defaults.
+
+    Returns:
+        MockTicketingToolPlugin: Mock plugin configured with ServiceDesk Plus
+            webhook payload structure and API response format.
+
+    Notes:
+        - Ticket response mimics ServiceDesk Plus API /api/v3/tickets/{id} structure
+        - Priority format: {"name": "High"} (ServiceDesk Plus convention)
+        - Created time format: {"value": "epoch_milliseconds"} (ServiceDesk Plus)
+
+    Example:
+        def test_servicedesk_workflow(mock_servicedesk_plugin):
+            ticket = await mock_servicedesk_plugin.get_ticket("tenant", "123")
+            assert "request" in ticket  # ServiceDesk Plus wraps in "request"
+    """
+    from tests.mocks.mock_plugin import MockTicketingToolPlugin
+    from datetime import datetime, timezone
+
+    # ServiceDesk Plus-specific ticket response structure
+    servicedesk_ticket_response = {
+        "request": {
+            "id": "12345",
+            "subject": "Mock ServiceDesk Plus ticket",
+            "description": "<p>Server is slow and unresponsive</p>",
+            "status": {"name": "Open"},
+            "priority": {"name": "High"},
+            "created_time": {"value": str(int(datetime.now(timezone.utc).timestamp() * 1000))},
+        }
+    }
+
+    return MockTicketingToolPlugin(
+        _validate_response=True,
+        _get_ticket_response=servicedesk_ticket_response,
+        _update_ticket_response=True,
+    )
+
+
+@pytest.fixture
+def mock_jira_plugin():
+    """
+    Provide MockTicketingToolPlugin with Jira-specific defaults.
+
+    Returns:
+        MockTicketingToolPlugin: Mock plugin configured with Jira Service Management
+            webhook payload structure and API response format.
+
+    Notes:
+        - Ticket response mimics Jira API /rest/api/3/issue/{key} structure
+        - Key format: "PROJ-123" (Jira issue key convention)
+        - Priority format: {"name": "High", "id": "2"} (Jira priority object)
+        - Created format: "2025-11-05T10:00:00.000+0000" (ISO 8601 Jira format)
+
+    Example:
+        def test_jira_workflow(mock_jira_plugin):
+            ticket = await mock_jira_plugin.get_ticket("tenant", "JIRA-456")
+            assert ticket["key"] == "JIRA-456"
+            assert "fields" in ticket  # Jira wraps data in "fields"
+    """
+    from tests.mocks.mock_plugin import MockTicketingToolPlugin
+    from datetime import datetime, timezone
+
+    # Jira-specific ticket response structure
+    jira_ticket_response = {
+        "id": "10456",
+        "key": "JIRA-456",
+        "fields": {
+            "summary": "Mock Jira Service Management ticket",
+            "description": "Server is slow and unresponsive",
+            "status": {"name": "Open", "id": "1"},
+            "priority": {"name": "High", "id": "2"},
+            "created": datetime.now(timezone.utc).isoformat().replace("+00:00", "+0000"),
+            "issuetype": {"name": "Incident", "id": "10001"},
+        },
+    }
+
+    return MockTicketingToolPlugin(
+        _validate_response=True,
+        _get_ticket_response=jira_ticket_response,
+        _update_ticket_response=True,
+    )
+
+
+@pytest.fixture
+def mock_plugin_manager(monkeypatch):
+    """
+    Provide mocked PluginManager for plugin routing tests.
+
+    Patches PluginManager singleton to return mock plugins for tenant lookups.
+    Ensures proper cleanup after test.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture for dependency injection.
+
+    Yields:
+        MagicMock: Mocked PluginManager instance with get_plugin method configured
+            to return MockTicketingToolPlugin.
+
+    Notes:
+        - Uses monkeypatch to safely replace PluginManager singleton
+        - Automatically cleans up after test (monkeypatch handles teardown)
+        - get_plugin() returns MockTicketingToolPlugin.success_mode() by default
+
+    Example:
+        def test_plugin_routing(mock_plugin_manager):
+            from src.plugins.registry import PluginManager
+            plugin = PluginManager().get_plugin("servicedesk_plus")
+            assert isinstance(plugin, MockTicketingToolPlugin)
+    """
+    from unittest.mock import MagicMock
+    from tests.mocks.mock_plugin import MockTicketingToolPlugin
+
+    # Create mock manager
+    mock_manager = MagicMock()
+    mock_manager.get_plugin.return_value = MockTicketingToolPlugin.success_mode()
+
+    # Patch PluginManager singleton
+    monkeypatch.setattr(
+        "src.plugins.registry.PluginManager._instance",
+        mock_manager
+    )
+
+    yield mock_manager
+
+    # Cleanup happens automatically via monkeypatch teardown
+
+
+@pytest.fixture(params=["api_error", "auth_error", "timeout", "not_found"])
+def plugin_failure_mode(request):
+    """
+    Parameterized fixture for testing all plugin failure scenarios.
+
+    Provides a MockTicketingToolPlugin instance configured for one of four
+    failure modes. Test function using this fixture will be executed four times,
+    once for each failure mode.
+
+    Args:
+        request: Pytest request object with param attribute.
+
+    Returns:
+        MockTicketingToolPlugin: Plugin configured for specific failure mode.
+
+    Failure Modes:
+        - api_error: Raises ServiceDeskAPIError in get_ticket/update_ticket
+        - auth_error: Raises ValidationError in validate_webhook
+        - timeout: Raises asyncio.TimeoutError in all async methods
+        - not_found: Returns None from get_ticket (ticket not found)
+
+    Example:
+        def test_handle_failures(plugin_failure_mode):
+            # This test runs 4 times, once for each failure mode
+            plugin = plugin_failure_mode
+            # Test error handling logic...
+    """
+    from tests.mocks.mock_plugin import MockTicketingToolPlugin
+
+    factory_map = {
+        "api_error": MockTicketingToolPlugin.api_error_mode,
+        "auth_error": MockTicketingToolPlugin.auth_error_mode,
+        "timeout": MockTicketingToolPlugin.timeout_mode,
+        "not_found": MockTicketingToolPlugin.not_found_mode,
+    }
+
+    return factory_map[request.param]()
+
+
 # Import all test fixtures for pytest discovery
 pytest_plugins = [
     "tests.fixtures.rls_fixtures",

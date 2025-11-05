@@ -1,0 +1,99 @@
+# Production Ingress
+# Story 5.2: Deploy Application to Production Environment
+# HTTPS ingress with automatic TLS certificate provisioning via cert-manager
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-agents-ingress
+  namespace: production
+  labels:
+    app: ai-agents
+    component: ingress
+  annotations:
+    # cert-manager annotations for automatic TLS certificate provisioning
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"  # ClusterIssuer from Story 5.1
+    kubernetes.io/tls-acme: "true"
+
+    # nginx-ingress controller annotations
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"  # Force HTTPS
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"  # Max webhook payload size
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+
+    # Rate limiting (100 requests per minute per IP)
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+
+    # CORS headers
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://admin.ai-agents.production"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Authorization,X-Tenant-ID,X-ServiceDesk-Signature"
+    nginx.ingress.kubernetes.io/cors-allow-credentials: "true"
+
+    # Security headers
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      more_set_headers "X-Frame-Options: DENY";
+      more_set_headers "X-Content-Type-Options: nosniff";
+      more_set_headers "X-XSS-Protection: 1; mode=block";
+      more_set_headers "Strict-Transport-Security: max-age=31536000; includeSubDomains";
+      more_set_headers "Referrer-Policy: strict-origin-when-cross-origin";
+
+spec:
+  ingressClassName: nginx  # Use nginx-ingress controller from Story 5.1
+  tls:
+    - hosts:
+        - api.ai-agents.production  # REPLACE with actual production domain
+      secretName: api-tls-cert  # cert-manager will create this secret automatically
+  rules:
+    - host: api.ai-agents.production  # REPLACE with actual production domain
+      http:
+        paths:
+          # Webhook endpoint
+          - path: /webhook
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-agents-api
+                port:
+                  number: 8000
+
+          # Health check endpoints
+          - path: /health
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-agents-api
+                port:
+                  number: 8000
+
+          # API endpoints
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-agents-api
+                port:
+                  number: 8000
+
+          # Metrics endpoint (restricted to Prometheus service account)
+          - path: /metrics
+            pathType: Prefix
+            backend:
+              service:
+                name: ai-agents-api
+                port:
+                  number: 9090
+
+---
+# DNS Configuration Instructions
+# After applying this ingress, configure DNS:
+# 1. Get ingress load balancer IP: kubectl get ingress ai-agents-ingress -n production -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+# 2. Create A record: api.ai-agents.production → <load-balancer-ip>
+# 3. Wait for DNS propagation (5-30 minutes)
+# 4. Monitor certificate: kubectl get certificate api-tls-cert -n production -w
+# 5. Verify HTTPS: curl -v https://api.ai-agents.production/health

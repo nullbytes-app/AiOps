@@ -1,0 +1,422 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>8</storyId>
+    <title>Create Admin UI Documentation and Deployment Guide</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/6-8-create-admin-ui-documentation-and-deployment-guide.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a developer or operations engineer</asA>
+    <iWant>comprehensive documentation for the admin UI</iWant>
+    <soThat>I can deploy, configure, and use it effectively</soThat>
+    <tasks>
+      <task id="1" name="Create Comprehensive Admin UI Guide Document">
+        - Research 2025 best practices for technical documentation structure
+        - Create docs/admin-ui-guide.md with complete documentation structure
+        - Write Overview section (purpose, audience, features, architecture)
+        - Write Quick Start section (prerequisites, installation, first login)
+        - Write Access &amp; Authentication section (local dev, production, security)
+        - Write Features section with subsections for all 6 pages (Dashboard, Tenant Management, Enhancement History, Operations, Metrics, Workers)
+        - Write Local Development Setup section (detailed setup steps)
+        - Write Kubernetes Deployment section (build, auth, manifests, verification)
+        - Write Configuration Reference section (env vars, config files, RBAC)
+        - Write Troubleshooting section (6+ common issues with solutions)
+        - Write Security Considerations section (authentication, secrets, network, database, audit)
+        - Write Future Enhancements section (OAuth2, RBAC, audit logs UI, TLS, etc.)
+        - Add Screenshots section with placeholders for all 6 pages
+        - Add References section with links to PRD, Architecture, Story files, manifests
+      </task>
+      <task id="2" name="Document Screenshots and Visual Aids">
+        - Research best practices for documentation screenshots (2025 standards)
+        - Decide: actual screenshots vs annotated wireframes (wireframes for MVP)
+        - Create wireframes for all 6 pages with annotations
+        - Add wireframes to admin-ui-guide.md with captions
+      </task>
+      <task id="3" name="Create Quick Reference Card">
+        - Add Quick Reference section to admin-ui-guide.md
+        - Create Common Commands table
+        - Create Useful URLs table
+        - Create Troubleshooting Quick Checks table
+        - Create Configuration Files table
+      </task>
+      <task id="4" name="Update Main README with Admin UI Link">
+        - Read existing README.md structure
+        - Update Quick Links section with Admin UI Guide link
+        - Add comprehensive description
+        - Verify all links work
+      </task>
+      <task id="5" name="Create Deployment Checklist Document">
+        - Create docs/admin-ui-deployment-checklist.md
+        - Add Pre-Deployment checklist
+        - Add Build &amp; Push checklist
+        - Add Configuration checklist
+        - Add Deployment checklist
+        - Add Verification checklist
+        - Add Security Hardening checklist
+        - Add Post-Deployment checklist
+      </task>
+      <task id="6" name="Validate Documentation Completeness">
+        - Verify all 8 acceptance criteria covered
+        - Check all commands are correct and tested
+        - Verify all file paths exist
+        - Check all internal links work
+        - Spell check and grammar check
+        - Verify technical accuracy against code/manifests
+        - Check formatting consistency
+      </task>
+      <task id="7" name="Create Documentation Index and Navigation">
+        - Update docs/index.md with admin-ui-guide.md link
+        - Add table of contents to admin-ui-guide.md
+        - Add internal anchor links
+        - Cross-link related documentation
+        - Add Related Documentation section
+      </task>
+      <task id="8" name="Review Documentation Against 2025 Best Practices">
+        - Verify 2025 documentation best practices
+        - Include beginner-friendly content
+        - Include advanced content for experts
+        - Ensure maintainability (version info, dates, ownership)
+      </task>
+      <task id="9" name="Testing Documentation">
+        - Manual test: follow local dev setup on clean environment
+        - Verify all commands execute without errors
+        - Test K8s deployment on fresh cluster
+        - Verify troubleshooting steps resolve issues
+        - Validate authentication setup
+        - Get peer review or self-review after 24 hours
+        - Update based on testing feedback
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">docs/admin-ui-guide.md created with sections: Overview, Access, Features, Configuration</criterion>
+    <criterion id="AC2">Local development setup documented (Streamlit dev server, database connection)</criterion>
+    <criterion id="AC3">Kubernetes deployment instructions (manifests, ingress, authentication)</criterion>
+    <criterion id="AC4">Screenshots/wireframes for each page (Dashboard, Tenants, History, Operations, Metrics, Workers)</criterion>
+    <criterion id="AC5">Troubleshooting section (common issues, logs locations, health checks)</criterion>
+    <criterion id="AC6">Security considerations documented (authentication, authorization, secrets management)</criterion>
+    <criterion id="AC7">Future enhancements section (OAuth, role-based access, audit logs UI)</criterion>
+    <criterion id="AC8">README.md updated with link to admin UI guide</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Admin UI &amp; Configuration Management (FR026-FR033)</section>
+        <snippet>FR026: Web-based admin UI for configuration management. FR027: Real-time status dashboard. FR028: Tenant management CRUD. FR029: Enhancement history filtering. FR030: System operations controls. FR031: Worker health metrics. FR032: Form-based config editing. FR033: Search functionality.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-009: Streamlit for Admin UI, Epic 6 Implementation</section>
+        <snippet>Streamlit 1.30+ chosen for admin UI (Epic 6). Rationale: Python-native, 5-10x faster development than React, perfect for ops tools. Independent Streamlit app (src/admin/app.py) with K8s service on port 8501.</snippet>
+      </doc>
+      <doc>
+        <path>docs/admin-ui-setup.md</path>
+        <title>Admin UI Setup Guide (Story 6.1)</title>
+        <section>Foundation Setup Guide</section>
+        <snippet>Existing 422-line setup guide covering foundation, basic structure, authentication, database connectivity. Created in Story 6.1. Covers local dev setup and K8s deployment basics. Story 6.8 creates comprehensive replacement covering all 6 pages (6.2-6.7).</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Product Epics Document</title>
+        <section>Epic 6: Admin UI &amp; Configuration Management, Story 6.8</section>
+        <snippet>Epic 6 added for MVP v1.5 (2025-11-02). Story 6.8: Create comprehensive documentation for admin UI covering all features from Stories 6.1-6.7.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-1-set-up-streamlit-application-foundation.md</path>
+        <title>Story 6.1: Streamlit Foundation</title>
+        <section>Foundation Setup</section>
+        <snippet>Multi-page navigation, session-based auth, shared database models, dual-mode authentication (dev/prod), production-ready foundation for Stories 6.2-6.7.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-2-implement-system-status-dashboard-page.md</path>
+        <title>Story 6.2: System Status Dashboard</title>
+        <section>Dashboard Page Implementation</section>
+        <snippet>Real-time metrics cards (database status, active tenants, queue depth, success rate), system health indicators, auto-refresh with @st.fragment, performance-optimized caching.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-3-create-tenant-management-interface.md</path>
+        <title>Story 6.3: Tenant Management</title>
+        <section>Tenant CRUD Operations</section>
+        <snippet>CRUD operations, Fernet encryption for secrets, ServiceDesk Plus API integration, validation, 127 tests passing. Production-ready tenant management interface.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-4-implement-enhancement-history-viewer.md</path>
+        <title>Story 6.4: Enhancement History Viewer</title>
+        <section>History Filtering and Export</section>
+        <snippet>Filters (tenant/status/date/search), pagination, expandable details (JSON/text/errors), CSV export, composite index for query optimization, custom pagination patterns.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-5-add-system-operations-controls.md</path>
+        <title>Story 6.5: System Operations Controls</title>
+        <section>Operations Interface</section>
+        <snippet>Pause/resume processing, queue management (clear/inspect), tenant sync, worker restart, confirmation dialogs, status indicators, comprehensive operations helper modules.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-6-integrate-real-time-metrics-display.md</path>
+        <title>Story 6.6: Real-Time Metrics</title>
+        <section>Prometheus Integration</section>
+        <snippet>Prometheus HTTP API integration, interactive Plotly charts (Queue Depth, Success Rate, Latency P50/P95/P99), time range selector (1h/6h/24h/7d), 60s auto-refresh, cached data fallback.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-7-add-worker-health-and-resource-monitoring.md</path>
+        <title>Story 6.7: Worker Monitoring</title>
+        <section>Worker Health and Resources</section>
+        <snippet>Celery inspect API (ping/stats/active), Prometheus metrics (CPU%/Memory%/throughput), K8s operations (graceful restart, logs), 7-day charts, 30s auto-refresh, RBAC requirements (ServiceAccount, Role, RoleBinding in k8s/streamlit-rbac.yaml).</snippet>
+      </doc>
+      <doc>
+        <path>Web Search Results</path>
+        <title>2025 Technical Documentation Best Practices</title>
+        <section>Documentation Structure Guidelines</section>
+        <snippet>Progressive disclosure: Quick Start first, detailed sections follow. Use headings, bullet points, visual aids (screenshots/diagrams). Role-based organization for different audiences. Clear language, avoid jargon, include glossary. Practical real-life examples. Good search function. Maintain quarterly reviews.</snippet>
+      </doc>
+      <doc>
+        <path>Web Search Results</path>
+        <title>Streamlit Kubernetes Deployment 2025</title>
+        <section>Deployment Best Practices</section>
+        <snippet>Official Streamlit K8s tutorial at docs.streamlit.io/deploy/tutorials/kubernetes. Docker containerization with dependencies. ConfigMap and Deployment setup. LoadBalancer service type (port 80 → targetPort 8501). OAuth2-Proxy sidecar for authentication. Scaling via replica configuration. Cloud provider monitoring tools.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/admin/app.py</path>
+        <kind>main_app</kind>
+        <symbol>main entrypoint</symbol>
+        <lines>1-200</lines>
+        <reason>Main Streamlit application entry point. Handles multi-page navigation, authentication, and shared UI elements. Uses st.Page and st.navigation for routing. Implements dual-mode authentication (dev/prod).</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/1_Dashboard.py</path>
+        <kind>page</kind>
+        <symbol>dashboard_content, dashboard_fragment</symbol>
+        <lines>all</lines>
+        <reason>System status dashboard (Story 6.2). Real-time metrics cards, database status, auto-refresh with @st.fragment. Document features: metrics cards, health indicators, refresh functionality.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/2_Tenants.py</path>
+        <kind>page</kind>
+        <symbol>tenant management</symbol>
+        <lines>all</lines>
+        <reason>Tenant management interface (Story 6.3). CRUD operations, Fernet encryption, ServiceDesk Plus API config. Document features: tenant list, edit forms, validation, encryption status.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/3_History.py</path>
+        <kind>page</kind>
+        <symbol>history viewer</symbol>
+        <lines>all</lines>
+        <reason>Enhancement history viewer (Story 6.4). Filters, pagination, expandable details, CSV export. Document features: filter bar, pagination controls, detail expander, export functionality.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/4_Operations.py</path>
+        <kind>page</kind>
+        <symbol>operations controls</symbol>
+        <lines>all</lines>
+        <reason>System operations controls (Story 6.5). Pause/resume, queue management, tenant sync, worker restart. Document features: operation buttons, confirmation dialogs, status indicators.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/5_Workers.py</path>
+        <kind>page</kind>
+        <symbol>worker monitoring</symbol>
+        <lines>all</lines>
+        <reason>Worker health and resource monitoring (Story 6.7). Celery inspect API, Prometheus metrics, K8s operations, logs viewer, performance charts. Document features: worker table, resource metrics, restart operations, logs, charts.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/db_helper.py</path>
+        <kind>utility</kind>
+        <symbol>database helpers</symbol>
+        <lines>all</lines>
+        <reason>Database connection management for Streamlit. Synchronous SQLAlchemy session. Document configuration: DATABASE_URL environment variable, connection pooling.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/worker_helper.py</path>
+        <kind>utility</kind>
+        <symbol>worker operations</symbol>
+        <lines>all</lines>
+        <reason>Worker monitoring and operations (Story 6.7). Celery inspect, K8s API integration, logs fetching. Critical for Worker Monitoring page documentation. Requires RBAC permissions.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/streamlit-rbac.yaml</path>
+        <kind>manifest</kind>
+        <symbol>ServiceAccount, Role, RoleBinding</symbol>
+        <lines>1-87</lines>
+        <reason>CRITICAL: Kubernetes RBAC for admin UI (Story 6.7). ServiceAccount: streamlit-admin. Permissions: pods (get/list/watch/delete), pods/log (get/list), deployments (get/list/patch). Required for Worker Monitoring page. Must be applied before deployment.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/streamlit-admin-deployment.yaml</path>
+        <kind>manifest</kind>
+        <symbol>Deployment</symbol>
+        <lines>all</lines>
+        <reason>Streamlit admin UI deployment manifest. Includes serviceAccountName field, resource limits, environment variables, container configuration. Document deployment process.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/streamlit-admin-service.yaml</path>
+        <kind>manifest</kind>
+        <symbol>Service</symbol>
+        <lines>all</lines>
+        <reason>Service for Streamlit admin UI. LoadBalancer type, port 80 → targetPort 8501. Document service configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/streamlit-admin-ingress.yaml</path>
+        <kind>manifest</kind>
+        <symbol>Ingress</symbol>
+        <lines>all</lines>
+        <reason>NGINX Ingress for admin UI. Basic authentication annotations, WebSocket support, TLS configuration (commented). Document ingress setup, authentication configuration.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/streamlit-admin-configmap.yaml</path>
+        <kind>manifest</kind>
+        <symbol>ConfigMap</symbol>
+        <lines>all</lines>
+        <reason>Streamlit configuration. config.toml settings: server port, headless mode, XSRF protection, theme colors. Document configuration options.</reason>
+      </artifact>
+      <artifact>
+        <path>scripts/setup-streamlit-auth.sh</path>
+        <kind>script</kind>
+        <symbol>authentication setup</symbol>
+        <lines>all</lines>
+        <reason>Script to create htpasswd secret for basic authentication. Usage: ./setup-streamlit-auth.sh username password. Document in deployment instructions.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version="1.44.0+" reason="Web UI framework for admin interface"/>
+        <package name="kubernetes" version="29.0.0+" reason="K8s API client for worker operations (Story 6.7)"/>
+        <package name="psutil" version="5.9.0+" reason="Process monitoring for worker metrics"/>
+        <package name="plotly" version="5.x" reason="Interactive charts for metrics visualization (Story 6.6)"/>
+        <package name="sqlalchemy" version="2.x" reason="Synchronous database access"/>
+        <package name="cryptography" version="latest" reason="Fernet encryption for tenant secrets"/>
+        <package name="loguru" version="latest" reason="Structured logging"/>
+      </python>
+      <kubernetes>
+        <component name="NGINX Ingress Controller" version="1.x" reason="Required for ingress with basic auth"/>
+        <component name="Prometheus" version="2.x" reason="Metrics backend for real-time metrics page (optional)"/>
+      </kubernetes>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="Story Definition">
+      Documentation-only story - NO code changes required. All acceptance criteria (AC1-AC8) are documentation deliverables. Do not modify Python code, K8s manifests, or configuration files.
+    </constraint>
+    <constraint id="C2" source="Story 6.8 Scope">
+      Story creates NEW comprehensive admin-ui-guide.md (800-1000 lines estimated) that SUPERSEDES existing admin-ui-setup.md. Do NOT delete admin-ui-setup.md (may have external links). Note the supersession in new guide.
+    </constraint>
+    <constraint id="C3" source="Dev Notes">
+      Documentation must serve TWO audiences: (1) Developers - local dev setup, architecture understanding, configuration options, (2) Operations Engineers - K8s deployment, troubleshooting, security hardening. Use progressive disclosure structure.
+    </constraint>
+    <constraint id="C4" source="AC4">
+      Screenshots/wireframes REQUIRED for all 6 pages (Dashboard, Tenants, History, Operations, Metrics, Workers). Decision for MVP: Use annotated wireframes (placeholder screenshots). Actual screenshots in future update.
+    </constraint>
+    <constraint id="C5" source="Story 6.7 Critical">
+      CRITICAL for K8s deployment documentation: k8s/streamlit-rbac.yaml MUST be applied BEFORE streamlit-admin-deployment.yaml. Worker Monitoring page will NOT function without proper RBAC permissions (ServiceAccount: streamlit-admin, Role: pods/logs/deployments access).
+    </constraint>
+    <constraint id="C6" source="2025 Best Practices">
+      Follow 2025 documentation best practices from web research: progressive disclosure (Quick Start → detailed sections), visual aids (screenshots/diagrams/tables), clear language (no jargon without definitions), practical examples (real commands), role-based organization, searchable structure (clear headers).
+    </constraint>
+    <constraint id="C7" source="Streamlit 2025 Patterns">
+      Document 2025 Streamlit deployment patterns: Docker containerization, K8s ConfigMap/Deployment/Service/Ingress, LoadBalancer service (port 80 → 8501), NGINX basic auth (OAuth2-Proxy future enhancement), scaling via replicas, monitoring tools.
+    </constraint>
+    <constraint id="C8" source="AC3 K8s Deployment">
+      Kubernetes deployment instructions must cover: Prerequisites (K8s 1.28+, kubectl, NGINX Ingress), Docker image build, Authentication setup (setup-streamlit-auth.sh), Manifest deployment order (RBAC → ConfigMap → Deployment → Service → Ingress), Verification commands, Local access configuration (/etc/hosts).
+    </constraint>
+    <constraint id="C9" source="AC5 Troubleshooting">
+      Troubleshooting section MUST include 6+ common issues with step-by-step solutions: Database connection failures, Authentication issues (K8s), Worker monitoring not loading (RBAC), Pod crashes, WebSocket connection lost, Port conflicts (local). Include diagnostic commands and expected outputs.
+    </constraint>
+    <constraint id="C10" source="AC6 Security">
+      Security considerations MUST cover: Authentication methods (basic auth vs OAuth2 future), Secrets management (K8s secrets, env vars, rotation), Network security (ingress annotations, TLS), Database access (RLS, pooling), Audit logging (NGINX, application, K8s), Production hardening checklist.
+    </constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Streamlit Multi-Page Navigation</name>
+      <kind>application_pattern</kind>
+      <signature>st.Page(), st.navigation([pages]) - Streamlit 1.44+ routing system</signature>
+      <path>src/admin/app.py</path>
+      <reason>Document multi-page navigation pattern used throughout admin UI. Each page is a separate Python file in src/admin/pages/. Main app.py handles routing.</reason>
+    </interface>
+    <interface>
+      <name>Database Connection (Synchronous)</name>
+      <kind>database_interface</kind>
+      <signature>AI_AGENTS_DATABASE_URL environment variable, SQLAlchemy synchronous session</signature>
+      <path>src/admin/utils/db_helper.py</path>
+      <reason>Document database configuration. Separate from async FastAPI layer. Connection string format: postgresql+psycopg2://user:pass@host:port/dbname. Connection pooling configurable.</reason>
+    </interface>
+    <interface>
+      <name>Kubernetes RBAC for Worker Operations</name>
+      <kind>kubernetes_api</kind>
+      <signature>ServiceAccount: streamlit-admin, Role: pods/logs/deployments permissions</signature>
+      <path>k8s/streamlit-rbac.yaml</path>
+      <reason>CRITICAL interface for Worker Monitoring page (Story 6.7). Document RBAC requirements: pods (get/list/watch/delete), pods/log (get/list), deployments (get/list/patch). Must apply manifest before deployment.</reason>
+    </interface>
+    <interface>
+      <name>NGINX Ingress Basic Authentication</name>
+      <kind>authentication</kind>
+      <signature>nginx.ingress.kubernetes.io/auth-type: basic, nginx.ingress.kubernetes.io/auth-secret: streamlit-basic-auth</signature>
+      <path>k8s/streamlit-admin-ingress.yaml</path>
+      <reason>Document production authentication setup. Basic auth via NGINX Ingress annotations. Secret created with scripts/setup-streamlit-auth.sh (htpasswd format). Future enhancement: OAuth2-Proxy.</reason>
+    </interface>
+    <interface>
+      <name>Prometheus HTTP API</name>
+      <kind>rest_api</kind>
+      <signature>GET http://prometheus:9090/api/v1/query_range?query=...</signature>
+      <path>src/admin/utils/metrics_helper.py</path>
+      <reason>Document Prometheus integration for Real-Time Metrics page (Story 6.6). Query metrics: queue depth, success rate, latency percentiles. Cached data fallback if unavailable.</reason>
+    </interface>
+    <interface>
+      <name>Celery Inspect API</name>
+      <kind>python_api</kind>
+      <signature>celery.app.control.Inspect() methods: ping(), stats(), active()</signature>
+      <path>src/admin/utils/worker_helper.py</path>
+      <reason>Document Celery worker inspection for Worker Monitoring page (Story 6.7). Used to discover workers, check health, get active tasks. Configuration: CELERY_APP_NAME environment variable.</reason>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>This is a documentation-only story (Constraint C1) with NO code changes. Traditional unit/integration tests are not applicable. Testing for Story 6.8 consists of DOCUMENTATION VALIDATION: (1) Manual testing: Follow documented steps in clean environment to verify accuracy, (2) Command verification: Execute all commands in documentation to ensure they work, (3) Link validation: Check all internal and external links are accessible, (4) Technical accuracy: Cross-reference documentation against actual code/manifests, (5) Peer review: Get team member review or self-review after 24 hours, (6) Checklist validation: Use admin-ui-deployment-checklist.md to verify completeness.</standards>
+    <locations>
+      - docs/admin-ui-guide.md (primary deliverable, 800-1000 lines)
+      - docs/admin-ui-deployment-checklist.md (deployment validation checklist)
+      - README.md (Quick Links section updated)
+      - docs/index.md (navigation link added if exists)
+    </locations>
+    <ideas>
+      <idea ac="AC1">
+        Validate admin-ui-guide.md structure: Verify sections exist (Overview, Access, Features, Configuration). Check table of contents completeness. Verify progressive disclosure pattern (Quick Start → detailed sections). Validate internal anchor links work.
+      </idea>
+      <idea ac="AC2">
+        Test local development setup instructions: Follow setup steps on clean environment (Python 3.12+, PostgreSQL). Verify all commands execute without errors. Test database connection with provided connection string format. Verify authentication setup with .streamlit/secrets.toml. Confirm app starts with `streamlit run src/admin/app.py`.
+      </idea>
+      <idea ac="AC3">
+        Test Kubernetes deployment instructions: Verify prerequisite checks (K8s 1.28+, kubectl, NGINX Ingress). Test Docker image build command. Execute setup-streamlit-auth.sh script. Apply manifests in documented order (RBAC → ConfigMap → Deployment → Service → Ingress). Run verification commands. Test /etc/hosts configuration. Verify app accessible via ingress.
+      </idea>
+      <idea ac="AC4">
+        Validate screenshots/wireframes: Verify wireframes/placeholders exist for all 6 pages (Dashboard, Tenants, History, Operations, Metrics, Workers). Check annotations are clear and highlight key features. Verify captions explain each visual ("Figure 1: Dashboard page showing..."). Ensure images directory structure exists (docs/images/admin-ui/).
+      </idea>
+      <idea ac="AC5">
+        Test troubleshooting section: Verify 6+ common issues documented. Test diagnostic commands for each issue (e.g., `echo $AI_AGENTS_DATABASE_URL`, `kubectl get pods`). Follow solutions step-by-step. Verify expected outputs are shown. Check that solutions resolve actual issues.
+      </idea>
+      <idea ac="AC6">
+        Validate security considerations: Verify authentication methods documented (basic auth vs OAuth2). Check secrets management guidance (K8s secrets, rotation schedule). Verify network security section (ingress annotations, TLS). Check database access documentation (RLS, pooling). Validate audit logging section (NGINX, application, K8s). Review production hardening checklist completeness.
+      </idea>
+      <idea ac="AC7">
+        Validate future enhancements: Verify 5+ enhancement items documented (OAuth2-Proxy, RBAC, audit logs UI, TLS automation, custom alerting, advanced dashboards, multi-cluster). Check each has description and estimated effort. Verify items align with post-MVP roadmap.
+      </idea>
+      <idea ac="AC8">
+        Test README.md update: Verify Quick Links section contains "Admin UI Guide" link. Check link points to docs/admin-ui-guide.md. Validate description is comprehensive. Test all other README links still work. Verify formatting consistency with existing links.
+      </idea>
+      <idea ac="general">
+        Documentation completeness validation: Run spell check and grammar check. Verify technical accuracy by cross-referencing with code (src/admin/), manifests (k8s/streamlit-*), and story files (6.1-6.7). Check all file paths referenced actually exist. Validate all internal links work (#overview, #features, etc.). Ensure formatting consistency (headers, code blocks, tables). Verify Google-style documentation standards (clear language, no unexplained jargon).
+      </idea>
+      <idea ac="deployment-checklist">
+        Test deployment checklist: Follow admin-ui-deployment-checklist.md step-by-step. Verify Pre-Deployment checklist items are actionable. Test Build &amp; Push commands. Follow Configuration checklist. Execute Deployment steps. Run Verification checks. Review Security Hardening items. Complete Post-Deployment tasks. Ensure all checkbox items are clear and testable.
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

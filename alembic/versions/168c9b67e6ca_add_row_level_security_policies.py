@@ -93,12 +93,14 @@ def upgrade() -> None:
             -- Set session variable (false = session-scoped, not transaction-scoped)
             PERFORM set_config('app.current_tenant_id', p_tenant_id, false);
         END;
-        $$ LANGUAGE plpgsql SECURITY DEFINER;
+        $$ LANGUAGE plpgsql SECURITY DEFINER
+    """)
 
+    op.execute("""
         COMMENT ON FUNCTION set_tenant_context(VARCHAR) IS
         'Sets PostgreSQL session variable for RLS tenant context. '
         'Validates tenant_id exists before setting. '
-        'Must be called before any tenant-scoped database operations.';
+        'Must be called before any tenant-scoped database operations.'
     """)
 
     # Step 2: Enable Row Level Security on all tenant-scoped tables
@@ -119,10 +121,12 @@ def upgrade() -> None:
         CREATE POLICY tenant_configs_tenant_isolation_policy
         ON tenant_configs
         FOR ALL
-        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''));
+        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''))
+    """)
 
+    op.execute("""
         COMMENT ON POLICY tenant_configs_tenant_isolation_policy ON tenant_configs IS
-        'Isolates tenant configuration data by tenant_id using session variable. Returns no rows if context not set.';
+        'Isolates tenant configuration data by tenant_id using session variable. Returns no rows if context not set.'
     """)
 
     # Policy for enhancement_history table
@@ -130,10 +134,12 @@ def upgrade() -> None:
         CREATE POLICY enhancement_history_tenant_isolation_policy
         ON enhancement_history
         FOR ALL
-        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''));
+        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''))
+    """)
 
+    op.execute("""
         COMMENT ON POLICY enhancement_history_tenant_isolation_policy ON enhancement_history IS
-        'Isolates enhancement tracking data by tenant_id using session variable. Returns no rows if context not set.';
+        'Isolates enhancement tracking data by tenant_id using session variable. Returns no rows if context not set.'
     """)
 
     # Policy for ticket_history table
@@ -141,10 +147,12 @@ def upgrade() -> None:
         CREATE POLICY ticket_history_tenant_isolation_policy
         ON ticket_history
         FOR ALL
-        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''));
+        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''))
+    """)
 
+    op.execute("""
         COMMENT ON POLICY ticket_history_tenant_isolation_policy ON ticket_history IS
-        'Isolates historical ticket data by tenant_id using session variable. Returns no rows if context not set.';
+        'Isolates historical ticket data by tenant_id using session variable. Returns no rows if context not set.'
     """)
 
     # Policy for system_inventory table
@@ -152,10 +160,12 @@ def upgrade() -> None:
         CREATE POLICY system_inventory_tenant_isolation_policy
         ON system_inventory
         FOR ALL
-        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''));
+        USING (tenant_id = COALESCE(current_setting('app.current_tenant_id', true), ''))
+    """)
 
+    op.execute("""
         COMMENT ON POLICY system_inventory_tenant_isolation_policy ON system_inventory IS
-        'Isolates system inventory data by tenant_id using session variable. Returns no rows if context not set.';
+        'Isolates system inventory data by tenant_id using session variable. Returns no rows if context not set.'
     """)
 
     # Note: Database admin role with BYPASSRLS should be created manually

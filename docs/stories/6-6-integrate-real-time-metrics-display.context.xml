@@ -1,0 +1,231 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>6</storyId>
+    <title>Integrate Real-Time Metrics Display</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>/Users/ravi/Documents/nullBytes_Apps/Ai_Agents/AI Ops/docs/stories/6-6-integrate-real-time-metrics-display.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>operations manager</asA>
+    <iWant>live charts showing system performance trends</iWant>
+    <soThat>I can identify patterns and anomalies over time</soThat>
+    <tasks>
+      <task id="1" ac="3">Add Prometheus HTTP API Integration to Metrics Helper
+        - Research Python libraries for Prometheus HTTP API
+        - Add Prometheus base URL to config
+        - Create fetch_prometheus_range_query() function
+        - Parse JSON response and return formatted data
+        - Add error handling and caching
+      </task>
+      <task id="2" ac="1,3">Implement Time-Series Query Functions for Each Metric
+        - Create fetch_queue_depth_timeseries() function
+        - Create fetch_success_rate_timeseries() function
+        - Create fetch_latency_timeseries() with P50/P95/P99 support
+        - Convert time ranges to step values
+        - Apply caching decorators
+      </task>
+      <task id="3" ac="4">Create Plotly Time-Series Chart Helper Function
+        - Create create_timeseries_chart() function
+        - Configure Plotly with hover, zoom, pan
+        - Enable interactivity features
+      </task>
+      <task id="4" ac="1,2">Modify Dashboard Page to Add Time-Series Charts Section
+        - Add "Performance Trends" section
+        - Add time range selector (1h, 6h, 24h, 7d)
+        - Display Queue Depth, Success Rate, and Latency charts
+        - Implement auto-refresh with @st.fragment decorator
+      </task>
+      <task id="5" ac="7">Implement Error Handling with Fallback to Cached Data
+        - Catch connection errors and timeouts
+        - Return cached data on Prometheus unavailability
+        - Display warning banner to user
+      </task>
+      <task id="6" ac="8">Optimize Chart Performance for 1000 Data Points
+        - Implement data sampling for long time ranges
+        - Use plotly.graph_objects for performance
+        - Measure and optimize render time
+      </task>
+      <task id="7">Unit and Integration Testing
+        - Test Prometheus integration functions
+        - Test error handling and fallback logic
+        - Test chart creation and performance
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Dashboard page includes time-series charts for: Queue depth, Success rate, Latency (P50/P95/P99)</criterion>
+    <criterion id="2">Charts display last 24 hours by default with time range selector (1h, 6h, 24h, 7d)</criterion>
+    <criterion id="3">Data fetched from Prometheus via HTTP API</criterion>
+    <criterion id="4">Charts use Plotly for interactivity (hover tooltips, zoom, pan)</criterion>
+    <criterion id="5">Chart refresh interval configurable (default 60s)</criterion>
+    <criterion id="6">Loading spinner displayed while fetching data</criterion>
+    <criterion id="7">Error handling for Prometheus unavailability (show cached data + warning)</criterion>
+    <criterion id="8">Chart performance: renders &lt; 2 seconds for 1000 data points</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 6 - Admin UI Implementation</title>
+        <section>Story 6.6: Integrate Real-Time Metrics Display</section>
+        <snippet>Dashboard page includes time-series charts for Queue depth, Success rate, Latency (P50/P95/P99). Charts display last 24 hours by default with time range selector. Data fetched from Prometheus via HTTP API using Plotly for interactivity.</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR027: Real-Time System Status Dashboard</section>
+        <snippet>Admin UI shall display real-time system status dashboard with key metrics (queue depth, success rate, active workers). System shall expose Prometheus metrics for monitoring.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>System Architecture</title>
+        <section>Admin UI Stack</section>
+        <snippet>Streamlit 1.30+ for web-based admin dashboard framework. Pandas for data manipulation. Plotly for interactive charts and visualizations. Prometheus Client for metrics instrumentation.</snippet>
+      </doc>
+      <doc>
+        <path>web-research</path>
+        <title>Prometheus HTTP API Best Practices (2025)</title>
+        <section>query_range Endpoint Usage</section>
+        <snippet>Use requests library with /api/v1/query_range endpoint. Parameters: query (PromQL), start/end (unix timestamp), step (interval). For large queries, use POST with application/x-www-form-urlencoded. Common pitfall: don't query /metrics endpoint which only shows Prometheus self-metrics. Use histogram_quantile() with rate() for percentile calculations from histogram buckets.</snippet>
+      </doc>
+      <doc>
+        <path>web-research</path>
+        <title>Streamlit Fragments Auto-Refresh (2025)</title>
+        <section>Real-Time Data Streaming</section>
+        <snippet>Streamlit v1.37.0+ introduced st.fragment decorator with run_every parameter for automatic reruns at specified intervals. Fragments rerun only a portion of code instead of full script, ideal for auto-refreshing charts without reloading entire page. Use @st.fragment(run_every="60s") for 60-second auto-refresh. Combine with @st.cache_data(ttl=N) for efficient data caching.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/admin/utils/metrics_helper.py</path>
+        <kind>module</kind>
+        <symbol>get_queue_depth, get_success_rate_24h, get_p95_latency</symbol>
+        <lines>1-318</lines>
+        <reason>Existing metrics helper with current metric functions. Story 6.6 extends this file with Prometheus time-series query functions (fetch_prometheus_range_query, fetch_queue_depth_timeseries, etc.). Uses @st.cache_data(ttl=30) pattern for caching.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/1_Dashboard.py</path>
+        <kind>page</kind>
+        <symbol>show, dashboard_fragment, dashboard_content</symbol>
+        <lines>1-200</lines>
+        <reason>Dashboard page created in Story 6.2. Story 6.6 adds "Performance Trends" section with Plotly charts below existing metric cards. Uses @st.fragment(run_every=N) for auto-refresh pattern.</reason>
+      </artifact>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings</symbol>
+        <lines>28-189</lines>
+        <reason>Configuration class using Pydantic. Need to add prometheus_url field with default "http://prometheus:9090" and env variable PROMETHEUS_URL.</reason>
+      </artifact>
+      <artifact>
+        <path>src/monitoring/metrics.py</path>
+        <kind>module</kind>
+        <symbol>enhancement_duration_seconds, enhancement_success_rate, queue_depth</symbol>
+        <lines>1-100</lines>
+        <reason>Prometheus metrics defined in Story 4.1. Story 6.6 queries these via HTTP API: enhancement_duration_seconds (histogram for P50/P95/P99), enhancement_success_rate (gauge), queue_depth metric.</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/prometheus-deployment.yaml</path>
+        <kind>config</kind>
+        <symbol>prometheus service</symbol>
+        <lines>1-50</lines>
+        <reason>Prometheus deployed as Kubernetes service at prometheus:9090. HTTP API available at /api/v1/query_range endpoint. Scrape interval: 15 seconds.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/admin/test_metrics_helper.py</path>
+        <kind>test</kind>
+        <symbol>test patterns</symbol>
+        <lines>1-60</lines>
+        <reason>Existing test patterns for metrics_helper. Use pytest fixtures with autouse=True for cache clearing, @patch for mocking, MagicMock for dependencies. Follow same patterns for Prometheus integration tests.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="httpx" version=">=0.25.2">Async HTTP client (can be used synchronously). Use instead of requests library for Prometheus HTTP API calls. Already in dependencies.</package>
+        <package name="streamlit" version=">=1.44.0">Admin UI framework with fragments support (v1.37.0+ feature). Provides @st.fragment(run_every) decorator for auto-refresh.</package>
+        <package name="pandas" version=">=2.1.0">Data manipulation for chart data processing and downsampling. Already in dependencies.</package>
+        <package name="plotly" version=">=5.18.0">Interactive charting library. Use plotly.graph_objects for performance. Already in dependencies.</package>
+        <package name="prometheus-client" version=">=0.19.0">Prometheus metrics client (used for instrumentation, not querying). Already in dependencies.</package>
+      </python>
+      <note>NO new dependencies required. All necessary packages already installed.</note>
+      <note>Use httpx instead of requests for Prometheus API calls. Httpx supports both sync and async, compatible with Streamlit synchronous execution model.</note>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All files must be under 500 lines (CLAUDE.md requirement). Current metrics_helper.py is 318 lines, adding ~200 lines for Prometheus integration keeps it under limit.</constraint>
+    <constraint>Synchronous operations only - NO async/await. Streamlit compatibility requires synchronous code. Use httpx.Client() not httpx.AsyncClient().</constraint>
+    <constraint>Use @st.cache_data(ttl=60) for Prometheus query functions to avoid redundant API calls during 60-second refresh window.</constraint>
+    <constraint>Use @st.fragment(run_every="60s") for auto-refresh chart section (AC#5 requirement). Fragment reruns without full page reload.</constraint>
+    <constraint>PEP8 compliance: Black formatter (line length 100), type hints on all functions, Google-style docstrings.</constraint>
+    <constraint>Project-relative paths only in context file. Strip {project-root} prefix from all paths.</constraint>
+    <constraint>Performance target: Chart render time &lt; 2 seconds for 1000 data points (AC#8). Implement downsampling if needed.</constraint>
+    <constraint>Error resilience: Graceful degradation when Prometheus unavailable. Return cached data and display warning banner (AC#7).</constraint>
+    <constraint>Use existing patterns from metrics_helper.py: try/except with logger.error, return safe defaults on failure.</constraint>
+    <constraint>Follow Story 6.2 Dashboard patterns: st.metric cards for current values, Plotly charts for time series trends.</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Prometheus HTTP API /api/v1/query_range</name>
+      <kind>REST endpoint</kind>
+      <signature>GET http://prometheus:9090/api/v1/query_range?query={promql}&amp;start={unix_timestamp}&amp;end={unix_timestamp}&amp;step={duration}</signature>
+      <path>k8s/prometheus-deployment.yaml</path>
+      <details>Returns JSON with resultType=matrix, result[0].values array of [timestamp, value] pairs. Use httpx.get() with timeout=5s.</details>
+    </interface>
+    <interface>
+      <name>PromQL Queries for Metrics</name>
+      <kind>Query language</kind>
+      <signature>
+        Queue Depth: ai_agents_queue_depth
+        Success Rate: ai_agents_enhancement_success_rate
+        P50 Latency: histogram_quantile(0.50, rate(ai_agents_enhancement_latency_seconds_bucket[5m]))
+        P95 Latency: histogram_quantile(0.95, rate(ai_agents_enhancement_latency_seconds_bucket[5m]))
+        P99 Latency: histogram_quantile(0.99, rate(ai_agents_enhancement_latency_seconds_bucket[5m]))
+      </signature>
+      <path>src/monitoring/metrics.py</path>
+      <details>Metrics defined in Story 4.1. Use histogram_quantile() with rate() for percentile calculations from histogram buckets.</details>
+    </interface>
+    <interface>
+      <name>Plotly Figure Configuration</name>
+      <kind>Chart interface</kind>
+      <signature>plotly.graph_objects.Figure with Scatter traces, hover tooltips, zoom/pan enabled</signature>
+      <path>Story 6.6 implementation</path>
+      <details>Use go.Scatter(mode='lines'), hovertemplate for tooltips, rangeslider_visible=False for clean x-axis, height=300px for dashboard.</details>
+    </interface>
+    <interface>
+      <name>Streamlit Fragment Auto-Refresh</name>
+      <kind>Decorator pattern</kind>
+      <signature>@st.fragment(run_every="60s") def display_charts(): ...</signature>
+      <path>src/admin/pages/1_Dashboard.py</path>
+      <details>Streamlit 1.44.0+ feature. Fragment function reruns automatically every 60 seconds without full page reload. Combine with cached data functions.</details>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Use pytest testing framework with pytest-mock for mocking. Clear Streamlit cache before/after each test using @pytest.fixture(autouse=True). Mock external dependencies (httpx.get for Prometheus API, st.selectbox, st.spinner, st.plotly_chart for UI components). Use @patch decorator for function mocking. Follow existing patterns from test_metrics_helper.py: 1 expected case, 1 edge case, 1 failure case per function. All tests must pass before story completion.</standards>
+    <locations>
+      <location>tests/admin/test_metrics_prometheus.py</location>
+      <location>tests/admin/test_metrics_helper.py (extend existing)</location>
+    </locations>
+    <ideas>
+      <test ac="3">Test fetch_prometheus_range_query() with mocked httpx.get() - verify correct URL construction with query, start, end, step parameters. Assert JSON parsing returns list of dict with timestamp and value keys.</test>
+      <test ac="3">Test fetch_prometheus_range_query() connection error - mock httpx.ConnectError, verify returns empty list and logs warning.</test>
+      <test ac="3">Test fetch_prometheus_range_query() timeout - mock httpx.TimeoutException, verify graceful handling.</test>
+      <test ac="7">Test error fallback to cached data - mock connection error, set cached data in st.session_state, verify returns cached data and sets prometheus_unavailable flag.</test>
+      <test ac="1,2">Test fetch_queue_depth_timeseries() - verify PromQL query string is "ai_agents_queue_depth" and time range conversion (1h → 60 min, step=1m).</test>
+      <test ac="1,2">Test fetch_success_rate_timeseries() - verify correct PromQL query and caching with @st.cache_data(ttl=60).</test>
+      <test ac="1,2">Test fetch_latency_timeseries() - verify histogram_quantile queries for P50/P95/P99, verify latency converted from seconds to milliseconds (*1000).</test>
+      <test ac="4">Test create_timeseries_chart() - verify Plotly figure has correct traces, layout (title, height=300), hover tooltips, and interactivity settings (rangeslider_visible=False).</test>
+      <test ac="8">Test chart performance with 1000 data points - generate 1000-point dataset, measure render time with time.time(), assert &lt; 2 seconds.</test>
+      <test ac="8">Test data downsampling - generate 2000-point dataset, verify downsampling reduces to ~1000 points using pandas resample.</test>
+      <test ac="2">Test time range selector - mock st.selectbox, verify default index=2 selects "24h".</test>
+      <test ac="5,6">Test Dashboard fragment integration - mock @st.fragment decorator, verify run_every="60s" parameter, verify st.spinner displayed during fetch.</test>
+      <test>Integration test - Start local Prometheus container with test metrics, query actual data via HTTP API, verify data parsing and chart generation end-to-end.</test>
+    </ideas>
+  </tests>
+</story-context>

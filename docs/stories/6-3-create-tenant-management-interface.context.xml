@@ -1,0 +1,328 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>3</storyId>
+    <title>Create Tenant Management Interface</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/6-3-create-tenant-management-interface.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an operations engineer</asA>
+    <iWant>to view, add, edit, and delete tenant configurations</iWant>
+    <soThat>I can onboard new clients without editing YAML files</soThat>
+    <tasks>
+      <task id="1" title="Display Tenant List Table" acs="1,2">
+        <subtask id="1.1">Create get_all_tenants() function in src/admin/utils/tenant_helper.py querying TenantConfig table</subtask>
+        <subtask id="1.2">Query returns: tenant_id, name, servicedesk_url, created_at, updated_at (exclude encrypted fields)</subtask>
+        <subtask id="1.3">Add is_active boolean field to TenantConfig model (migration needed) for soft delete support</subtask>
+        <subtask id="1.4">Display tenant list using st.dataframe() with columns: Name, Tenant ID, ServiceDesk URL, Status, Created Date</subtask>
+        <subtask id="1.5">Implement search box: st.text_input filtering by name or tenant_id (case-insensitive)</subtask>
+        <subtask id="1.6">Implement status filter: st.selectbox filtering by All/Active/Inactive</subtask>
+        <subtask id="1.7">Use @st.cache_data(ttl=60) on get_all_tenants() to reduce database load</subtask>
+        <subtask id="1.8">Test with mock data: 0 tenants, 1 tenant, 50 tenants (performance check)</subtask>
+      </task>
+      <task id="2" title="Implement Field Encryption/Decryption" acs="3,6">
+        <subtask id="2.1">Research Python encryption library: cryptography.fernet for symmetric encryption</subtask>
+        <subtask id="2.2">Create encrypt_field(plaintext: str) -> str using Fernet with key from environment</subtask>
+        <subtask id="2.3">Create decrypt_field(ciphertext: str) -> str for reading encrypted fields</subtask>
+        <subtask id="2.4">Add TENANT_ENCRYPTION_KEY to .streamlit/secrets.toml</subtask>
+        <subtask id="2.5">Implement mask_sensitive_field(value: str, visible_chars: int = 4) -> str showing only last 4 chars</subtask>
+        <subtask id="2.6">Test encryption: verify round-trip (encrypt → decrypt = original), verify masked display</subtask>
+        <subtask id="2.7">Add unit tests: test_encrypt_decrypt_field(), test_mask_sensitive_field()</subtask>
+      </task>
+      <task id="3" title="Create Add New Tenant Form" acs="3,4,8,9">
+        <subtask id="3.1">Use st.form() to batch input changes (Streamlit best practice)</subtask>
+        <subtask id="3.2">Form fields: Tenant Name, Tenant ID, Tool Type dropdown (ServiceDesk Plus only for MVP)</subtask>
+        <subtask id="3.3">Form fields: ServiceDesk URL, API Key (type=password)</subtask>
+        <subtask id="3.4">Auto-generate webhook secret: secrets.token_urlsafe(32) on form submission</subtask>
+        <subtask id="3.5">Enhancement preferences: st.multiselect with feature options mapping to JSON</subtask>
+        <subtask id="3.6">Implement validate_tenant_form(form_data: dict) -> tuple[bool, list[str]] validation function</subtask>
+        <subtask id="3.7">Validation rules: Required fields, URL format, tenant_id alphanumeric+hyphens only</subtask>
+        <subtask id="3.8">Duplicate check: Query SELECT COUNT(*) FROM tenant_configs WHERE tenant_id = :tenant_id</subtask>
+        <subtask id="3.9">On submit: If validation passes → create_tenant() → st.success() with webhook URL</subtask>
+        <subtask id="3.10">Webhook URL format: https://{ingress_host}/webhook/servicedesk?tenant_id={tenant_id}</subtask>
+        <subtask id="3.11">Add copy-to-clipboard button for webhook URL using st.code()</subtask>
+        <subtask id="3.12">Test validation: empty fields, invalid URL, duplicate tenant_id, special chars</subtask>
+      </task>
+      <task id="4" title="Implement Test Connection Button" acs="5">
+        <subtask id="4.1">Create src/admin/utils/servicedesk_validator.py with test_servicedesk_connection()</subtask>
+        <subtask id="4.2">API call: GET {servicedesk_url}/api/v3/requests?limit=1 with header authtoken</subtask>
+        <subtask id="4.3">Use httpx synchronous client: httpx.Client(timeout=10.0) for Streamlit compatibility</subtask>
+        <subtask id="4.4">Success criteria: HTTP 200 response with valid JSON returns (True, "Connection successful")</subtask>
+        <subtask id="4.5">Failure handling: HTTP 401/403, 404, Timeout with specific error messages</subtask>
+        <subtask id="4.6">Display test button in form: st.form_submit_button("Test Connection")</subtask>
+        <subtask id="4.7">Show spinner during test: with st.spinner("Testing connection...")</subtask>
+        <subtask id="4.8">Display result: st.success(message) or st.error(message) below test button</subtask>
+        <subtask id="4.9">Test with mock ServiceDesk API responses: 200 OK, 401 Unauthorized, timeout</subtask>
+        <subtask id="4.10">Add unit tests for connection test scenarios using pytest-httpx</subtask>
+      </task>
+      <task id="5" title="Implement Edit Tenant Form" acs="6,8">
+        <subtask id="5.1">Add tenant selection: st.selectbox("Select tenant to edit") displays names, stores tenant_id</subtask>
+        <subtask id="5.2">Load tenant: get_tenant_by_id(tenant_id: str) -> Optional[TenantConfig] queries database</subtask>
+        <subtask id="5.3">Pre-populate form with st.form("edit_tenant") using value= parameter for each field</subtask>
+        <subtask id="5.4">Sensitive fields display: st.text_input with masked value using mask_sensitive_field()</subtask>
+        <subtask id="5.5">Add checkbox: st.checkbox("Update API Key") - only decrypt/update if checked</subtask>
+        <subtask id="5.6">Add checkbox: st.checkbox("Update Webhook Secret") - only regenerate if checked</subtask>
+        <subtask id="5.7">Implement update_tenant(tenant_id: str, updates: dict) -> bool function with partial updates</subtask>
+        <subtask id="5.8">Validation: Reuse validate_tenant_form() but skip duplicate check if tenant_id unchanged</subtask>
+        <subtask id="5.9">On submit: If valid → update_tenant() → st.success(), else st.error()</subtask>
+        <subtask id="5.10">Clear cache after update: st.cache_data.clear() to refresh tenant list</subtask>
+        <subtask id="5.11">Test: Edit name only, edit URL only, update API key, update both credentials</subtask>
+      </task>
+      <task id="6" title="Implement Delete Tenant (Soft Delete)" acs="7,8">
+        <subtask id="6.1">Add is_active boolean column to TenantConfig model (default=True)</subtask>
+        <subtask id="6.2">Create Alembic migration: alembic revision -m "add_is_active_to_tenant_configs"</subtask>
+        <subtask id="6.3">Migration: ALTER TABLE tenant_configs ADD COLUMN is_active BOOLEAN DEFAULT TRUE NOT NULL</subtask>
+        <subtask id="6.4">Add delete button in tenant list: st.button("Delete") with unique key</subtask>
+        <subtask id="6.5">Implement confirmation dialog pattern: Use st.session_state["confirm_delete"] flag</subtask>
+        <subtask id="6.6">Confirmation UI: st.warning with "Are you sure?" message + Confirm and Cancel buttons</subtask>
+        <subtask id="6.7">Implement soft_delete_tenant(tenant_id: str) -> bool: UPDATE SET is_active = FALSE</subtask>
+        <subtask id="6.8">On confirm: Call soft_delete_tenant() → st.success() → clear cache</subtask>
+        <subtask id="6.9">Filter default view: get_all_tenants() should filter WHERE is_active = TRUE by default</subtask>
+        <subtask id="6.10">Add toggle: st.checkbox("Show inactive tenants") to view soft-deleted records</subtask>
+        <subtask id="6.11">Test: Delete tenant, verify marked inactive, verify filtering works correctly</subtask>
+      </task>
+      <task id="7" title="Implement CRUD Database Functions" acs="1-9">
+        <subtask id="7.1">Create create_tenant(tenant_data: dict) -> TenantConfig in tenant_helper.py</subtask>
+        <subtask id="7.2">Encrypt API key and webhook secret before INSERT</subtask>
+        <subtask id="7.3">Generate tenant_id slug if not provided: slugify(name) or use provided tenant_id</subtask>
+        <subtask id="7.4">Set defaults: is_active = True, created_at = func.now(), enhancement_preferences</subtask>
+        <subtask id="7.5">Create get_all_tenants(include_inactive: bool = False) -> list[TenantConfig] with filter</subtask>
+        <subtask id="7.6">Create get_tenant_by_id(tenant_id: str) -> Optional[TenantConfig] for edit form</subtask>
+        <subtask id="7.7">Create update_tenant(tenant_id: str, updates: dict) -> bool with partial update logic</subtask>
+        <subtask id="7.8">Create soft_delete_tenant(tenant_id: str) -> bool setting is_active=False</subtask>
+        <subtask id="7.9">All functions use context manager: with get_db_session() as session</subtask>
+        <subtask id="7.10">Error handling: Try/except with session.rollback() on failure</subtask>
+        <subtask id="7.11">Add type hints to all functions</subtask>
+        <subtask id="7.12">Add Google-style docstrings with Args/Returns/Raises sections</subtask>
+      </task>
+      <task id="8" title="Testing and Validation" acs="all">
+        <subtask id="8.1">Create tests/admin/test_tenant_helper.py for CRUD operations</subtask>
+        <subtask id="8.2">Test create_tenant(): success case, duplicate tenant_id, missing required fields</subtask>
+        <subtask id="8.3">Test get_all_tenants(): empty list, single tenant, filter by is_active</subtask>
+        <subtask id="8.4">Test update_tenant(): partial update, update encrypted fields, invalid tenant_id</subtask>
+        <subtask id="8.5">Test soft_delete_tenant(): success, verify is_active=False, invalid tenant_id</subtask>
+        <subtask id="8.6">Test encryption: test_encrypt_decrypt_field(), test_mask_sensitive_field()</subtask>
+        <subtask id="8.7">Create tests/admin/test_servicedesk_validator.py for connection testing</subtask>
+        <subtask id="8.8">Test test_servicedesk_connection(): success, 401, 404, timeout scenarios using pytest-httpx</subtask>
+        <subtask id="8.9">Manual testing: Launch Streamlit app, add tenant, edit tenant, delete tenant, test connection</subtask>
+        <subtask id="8.10">Code review checklist: PEP8 compliance, type hints, docstrings, error handling, file size</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">Tenants page displays table of all tenants (name, tool_type, ServiceDesk URL, status, created_at)</criterion>
+    <criterion id="AC2">Search/filter functionality for tenant list</criterion>
+    <criterion id="AC3">"Add New Tenant" form with fields: name, tool_type (dropdown), servicedesk_url, api_key, webhook_secret (auto-generated), enhancement_preferences (checkboxes)</criterion>
+    <criterion id="AC4">Form validation: required fields, URL format, duplicate tenant_id check</criterion>
+    <criterion id="AC5">"Test Connection" button validates credentials against ServiceDesk Plus API before saving</criterion>
+    <criterion id="AC6">Edit tenant form pre-populated with existing values (sensitive fields masked)</criterion>
+    <criterion id="AC7">Delete tenant with confirmation dialog (soft delete, marks inactive)</criterion>
+    <criterion id="AC8">Success/error messages displayed after each operation</criterion>
+    <criterion id="AC9">Webhook URL displayed after tenant creation (for copying to ServiceDesk Plus config)</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/epics.md</path>
+        <title>Epic 6: Admin UI & Configuration Management</title>
+        <section>Story 6.3: Create Tenant Management Interface</section>
+        <snippet>As an operations engineer, I want to view, add, edit, and delete tenant configurations, so that I can onboard new clients without editing YAML files. 9 acceptance criteria covering tenant CRUD, form validation, connection testing, and webhook URL generation.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR028 - Tenant Management Interface</section>
+        <snippet>Admin UI shall provide tenant management interface for CRUD operations on tenant configurations</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR032 - Form Validation</section>
+        <snippet>Admin UI shall provide form-based configuration editing with validation for tenant settings</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR004 - Security Requirements</section>
+        <snippet>System shall encrypt credentials at rest using Kubernetes secrets, and apply input validation to prevent injection attacks</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-009: Streamlit for Admin UI</section>
+        <snippet>Use Streamlit 1.30+ for admin UI. Python-native, 5-10x faster development than React, built-in components for data tables and forms, perfect fit for ops tools. Separate app at src/admin/app.py with shared SQLAlchemy database access.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Database Schema - tenant_configs Table</section>
+        <snippet>Table structure: id (UUID), tenant_id (VARCHAR unique), name, servicedesk_url, servicedesk_api_key_encrypted (TEXT), webhook_signing_secret_encrypted (TEXT), enhancement_preferences (JSON), rate_limits (JSON), created_at, updated_at. Indexed on tenant_id.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Admin UI Epic 6 Components</section>
+        <snippet>src/admin/app.py (Streamlit main), pages/ (1_Dashboard.py, 2_Tenants.py, 3_History.py), utils/ (database.py for DB connection, metrics.py for metrics helpers)</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/stories/6-1-set-up-streamlit-application-foundation.md</path>
+        <title>Story 6.1 - Streamlit Foundation</title>
+        <section>Completed Story - Foundation Available</section>
+        <snippet>Foundation complete with src/admin/utils/db_helper.py (get_sync_engine, get_db_session, test_database_connection), database models imported from src.database.models, multi-page navigation skeleton, dual-mode authentication (session state for local dev, K8s Ingress for production)</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/stories/6-2-implement-system-status-dashboard-page.md</path>
+        <title>Story 6.2 - System Status Dashboard</title>
+        <section>Completed Story - Patterns to Follow</section>
+        <snippet>Use @st.cache_resource for connection pooling, @st.cache_data(ttl=N) for read-only queries, DO NOT cache mutations. Implement graceful error handling with st.error(). Use context managers for database sessions. Follow Google-style docstrings. Synchronous operations only (no async/await).</snippet>
+      </artifact>
+      <artifact>
+        <path>Web Search: Streamlit Forms 2025</path>
+        <title>Streamlit Form Validation Best Practices 2025</title>
+        <section>Latest Best Practices</section>
+        <snippet>Custom validation functions required (no built-in validation). Return tuple[bool, list[str]] from validators. Use st.session_state for persistence. Display all errors together. Validate before database operations. Use regex for pattern matching (email, phone). Leverage built-in widgets for type checking.</snippet>
+      </artifact>
+      <artifact>
+        <path>Web Search: Python Fernet Encryption 2025</path>
+        <title>Fernet Encryption Key Management Best Practices</title>
+        <section>Security Best Practices</section>
+        <snippet>Use Fernet.generate_key() for cryptographically secure keys. Store keys in environment variables or dedicated key management systems (AWS Secrets Manager, Azure Key Vault, HashiCorp Vault). Never hardcode keys. Implement regular key rotation using MultiFernet. At least 1,200,000 iterations for password-based key derivation (Django recommendation Jan 2025).</snippet>
+      </artifact>
+      <artifact>
+        <path>Web Search: Streamlit Cache Performance 2025</path>
+        <title>st.cache_data Performance Optimization</title>
+        <section>Caching Strategy</section>
+        <snippet>Use st.cache_data for database queries, dataframe transforms, API calls. Set appropriate ttl (time-to-live) based on data freshness needs - shorter ttl ensures freshness but impacts performance. Clear cache with func.clear() or st.cache_data.clear(). Only cache expensive operations. Cached objects stored in pickled form. Each caller gets own copy of cached data.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>TenantConfig</symbol>
+        <lines>29-109</lines>
+        <reason>Core database model for tenant configurations. Contains all fields for CRUD operations: id, tenant_id, name, servicedesk_url, servicedesk_api_key_encrypted, webhook_signing_secret_encrypted, enhancement_preferences, rate_limits, created_at, updated_at. Note: is_active column needs to be added for soft delete (Task 1.3, 6.1).</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/db_helper.py</path>
+        <kind>utility</kind>
+        <symbol>get_sync_engine, get_session_maker, get_db_session</symbol>
+        <lines>all</lines>
+        <reason>Shared database connection utilities for Streamlit app. Provides synchronous session management with context manager pattern. Use get_db_session() for all database operations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/2_Tenants.py</path>
+        <kind>page</kind>
+        <symbol>show</symbol>
+        <lines>1-107</lines>
+        <reason>Existing skeleton tenant management page from Story 6.1. Contains basic tenant list view (read-only). This file will be completely rewritten with full CRUD functionality for Story 6.3.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/tenant_service.py</path>
+        <kind>service</kind>
+        <symbol>TenantService</symbol>
+        <lines>37-487</lines>
+        <reason>ASYNC tenant service with encryption, caching, and full CRUD methods. Uses AsyncSession and Redis. This is for FastAPI endpoints. Story 6.3 needs SYNCHRONOUS equivalents for Streamlit compatibility (create tenant_helper.py with sync functions).</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/1_Dashboard.py</path>
+        <kind>page</kind>
+        <symbol>show</symbol>
+        <lines>all</lines>
+        <reason>Story 6.2 implementation showing Streamlit best practices: @st.cache_data(ttl=60) for queries, synchronous database operations, error handling with st.error(), context manager usage. Follow these patterns.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/status_helper.py</path>
+        <kind>utility</kind>
+        <symbol>all functions</symbol>
+        <lines>all</lines>
+        <reason>Example helper utility from Story 6.2 showing separation of business logic from Streamlit UI code. Follow this pattern for tenant_helper.py.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version=">=1.44.0">Multi-page web framework for admin UI. Already installed.</package>
+        <package name="httpx" version=">=0.25.2">HTTP client for ServiceDesk API connection testing. Already installed.</package>
+        <package name="cryptography" version="latest">Fernet symmetric encryption for sensitive fields. NEEDS TO BE ADDED to pyproject.toml.</package>
+        <package name="sqlalchemy" version=">=2.0">Database ORM, already used throughout project.</package>
+        <package name="pandas" version=">=2.1.0">Data manipulation for tenant list display.</package>
+      </python>
+      <database>
+        <migration>Alembic migration needed: add is_active boolean column to tenant_configs table (Task 6.2, 6.3)</migration>
+      </database>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">All files must be under 500 lines (CLAUDE.md requirement). Split tenant_helper.py if needed.</constraint>
+    <constraint id="C2">Synchronous operations only - Streamlit not compatible with async/await. Do NOT use TenantService directly.</constraint>
+    <constraint id="C3">Database sessions must use context manager pattern: with get_db_session() as session:</constraint>
+    <constraint id="C4">DO NOT cache mutation operations (create, update, delete) - only use @st.cache_data for read-only queries.</constraint>
+    <constraint id="C5">All functions require type hints and Google-style docstrings (CLAUDE.md requirement).</constraint>
+    <constraint id="C6">PEP8 compliance required. Use Black formatter, line length 100.</constraint>
+    <constraint id="C7">No hardcoded secrets. Use st.secrets[] or os.getenv() for encryption keys.</constraint>
+    <constraint id="C8">Field-level encryption required for api_key and webhook_secret (NFR004 security requirement).</constraint>
+    <constraint id="C9">Soft delete pattern - mark is_active=False, do not physically delete records (preserves audit trail).</constraint>
+    <constraint id="C10">Form validation must happen before database operations to prevent partial writes.</constraint>
+    <constraint id="C11">Never log or display plaintext credentials - always mask sensitive fields.</constraint>
+    <constraint id="C12">Test connection to ServiceDesk API before saving tenant config (AC5 requirement).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>TenantConfig Model Fields</name>
+      <kind>database_model</kind>
+      <signature>id: UUID, tenant_id: str (unique, indexed), name: str, servicedesk_url: str, servicedesk_api_key_encrypted: Text, webhook_signing_secret_encrypted: Text, enhancement_preferences: JSON, rate_limits: JSON, created_at: DateTime, updated_at: DateTime, is_active: bool (TO BE ADDED)</signature>
+      <path>src/database/models.py</path>
+    </interface>
+    <interface>
+      <name>get_db_session() Context Manager</name>
+      <kind>function</kind>
+      <signature>def get_db_session() -> Generator[Session, None, None]: yields synchronous SQLAlchemy session with automatic commit/rollback</signature>
+      <path>src/admin/utils/db_helper.py</path>
+    </interface>
+    <interface>
+      <name>ServiceDesk Plus API v3 - Connection Test Endpoint</name>
+      <kind>REST_endpoint</kind>
+      <signature>GET {servicedesk_url}/api/v3/requests?limit=1, Header: authtoken: {api_key}, Success: HTTP 200 with JSON {"requests": [...]}, Failure: 401/403 (invalid key), 404 (invalid URL), Timeout (network issue)</signature>
+      <path>External API</path>
+    </interface>
+    <interface>
+      <name>Streamlit Form Pattern</name>
+      <kind>streamlit_component</kind>
+      <signature>with st.form(key="form_name"): ...form fields... submit = st.form_submit_button("Submit"); if submit: process_form()</signature>
+      <path>Streamlit best practice</path>
+    </interface>
+    <interface>
+      <name>Fernet Encryption Functions</name>
+      <kind>function_signature</kind>
+      <signature>encrypt_field(plaintext: str) -> str: returns base64-encoded ciphertext; decrypt_field(ciphertext: str) -> str: returns plaintext; mask_sensitive_field(value: str, visible_chars: int = 4) -> str: returns masked string</signature>
+      <path>To be created in src/admin/utils/tenant_helper.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Use pytest framework with fixtures. Mock Streamlit components (st.session_state, st.form, st.text_input, st.button) using pytest-mock. Use context managers for database sessions in tests. Integration tests can use real test database. Follow patterns from tests/admin/test_db_helper.py and tests/admin/test_status_helper.py. Use pytest-httpx for mocking HTTP requests in connection test. All test functions must start with test_ prefix. Use pytest fixtures with autouse=True for cache clearing: st.cache_resource.clear(), st.cache_data.clear().</standards>
+    <locations>
+      <location>tests/admin/test_tenant_helper.py - Unit tests for tenant CRUD operations and encryption functions</location>
+      <location>tests/admin/test_servicedesk_validator.py - Unit tests for ServiceDesk API connection testing</location>
+      <location>tests/admin/pages/test_tenants_page.py - Integration tests for Tenants page UI (optional)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC1,AC2">Test get_all_tenants(): empty list, single tenant, multiple tenants, filter by is_active (active/inactive/all), search functionality (case-insensitive name/tenant_id match), pagination/performance with 50+ tenants</idea>
+      <idea ac="AC3,AC4">Test validate_tenant_form(): required fields missing (each field individually), invalid URL format (missing http/https, malformed), duplicate tenant_id, special characters in tenant_id (only alphanumeric+hyphens allowed), valid form data passes</idea>
+      <idea ac="AC3,AC8">Test create_tenant(): success case with all fields, auto-generate webhook secret, encrypt API key and webhook secret before INSERT, duplicate tenant_id raises error, missing required fields raises error, verify created_at and updated_at timestamps</idea>
+      <idea ac="AC5">Test test_servicedesk_connection(): HTTP 200 success returns (True, "Connection successful"), HTTP 401 returns (False, "Invalid API key"), HTTP 403 returns (False, "Invalid API key"), HTTP 404 returns (False, "Invalid URL"), Timeout returns (False, "Connection timeout"), Network error returns (False, "Connection failed")</idea>
+      <idea ac="AC6,AC8">Test update_tenant(): partial update (name only), partial update (URL only), update API key (re-encrypt), update webhook secret (re-encrypt), update enhancement_preferences, invalid tenant_id raises error, verify cache invalidation after update</idea>
+      <idea ac="AC7,AC8">Test soft_delete_tenant(): success marks is_active=False, tenant still in database (not physically deleted), verify hidden from default get_all_tenants(), verify visible with include_inactive=True, invalid tenant_id raises error, verify cache invalidation</idea>
+      <idea ac="AC2,AC8">Test encryption functions: encrypt_field() produces different ciphertext on each call (IV randomization), decrypt_field(encrypt_field(plaintext)) == plaintext (round-trip), mask_sensitive_field() shows last 4 chars only, mask_sensitive_field() on short string (≤4 chars) fully masks</idea>
+      <idea ac="AC9">Test webhook URL generation: correct format https://{ingress_host}/webhook/servicedesk?tenant_id={tenant_id}, ingress_host read from secrets/env, tenant_id properly URL-encoded</idea>
+    </ideas>
+  </tests>
+</story-context>

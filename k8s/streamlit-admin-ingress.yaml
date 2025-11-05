@@ -1,0 +1,39 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: streamlit-admin
+  namespace: ai-agents
+  labels:
+    app: streamlit-admin
+    component: admin-ui
+  annotations:
+    # Basic Authentication (MVP approach per AC#4)
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: streamlit-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: 'AI Agents Admin - Authentication Required'
+
+    # WebSocket support (critical for Streamlit)
+    nginx.ingress.kubernetes.io/websocket-services: streamlit-admin
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+
+    # SSL/TLS (optional - uncomment for production with cert-manager)
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  # tls:  # Uncomment for production HTTPS
+  # - hosts:
+  #   - admin.ai-agents.local
+  #   secretName: streamlit-admin-tls
+  rules:
+  - host: admin.ai-agents.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: streamlit-admin
+            port:
+              number: 8501

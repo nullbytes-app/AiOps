@@ -1,17 +1,8 @@
 """
 Tenant configuration service with caching and encryption.
 
-Provides CRUD operations for tenant configurations with:
-- Redis caching layer (5-minute TTL, invalidation on updates)
-- Transparent encryption/decryption of sensitive fields
-- Async/await support with SQLAlchemy
-- Graceful fallback if Redis unavailable
-- Comprehensive logging for monitoring
-
-Reason:
-    Centralizes tenant config management, separating database/cache logic
-    from API endpoints. Enables reuse in webhooks and Celery tasks.
-    Caching improves performance (target >90% hit ratio).
+CRUD operations for tenant configs with Redis caching (5min TTL),
+transparent encryption/decryption, and async SQLAlchemy support.
 """
 
 import json
@@ -33,15 +24,11 @@ from src.schemas.tenant import (
 )
 from src.utils.encryption import encrypt, decrypt, EncryptionError
 from src.utils.exceptions import TenantNotFoundException
+from src.plugins.registry import PluginManager, PluginNotFoundError
 
 
 class TenantService:
-    """
-    Service for managing tenant configurations.
-
-    Handles CRUD operations with automatic encryption/decryption of sensitive fields
-    and Redis caching with TTL-based invalidation.
-    """
+    """Service for managing tenant configurations with caching and encryption."""
 
     # Cache TTL in seconds (5 minutes)
     CACHE_TTL = 300
@@ -50,22 +37,13 @@ class TenantService:
     CACHE_KEY_PATTERN = "tenant:config:{tenant_id}"
 
     def __init__(self, db: AsyncSession, redis: aioredis.Redis):
-        """
-        Initialize TenantService with database and Redis clients.
-
-        Args:
-            db: SQLAlchemy AsyncSession for database operations
-            redis: Redis async client for caching
-        """
+        """Initialize with database and Redis clients."""
         self.db = db
         self.redis = redis
 
     async def get_tenant_config(self, tenant_id: str) -> TenantConfigInternal:
         """
-        Load tenant configuration with caching.
-
-        Checks Redis cache first; on cache miss, queries database,
-        decrypts sensitive fields, and caches result.
+        Load tenant configuration with caching and multi-tool support.
 
         Args:
             tenant_id: Unique tenant identifier
@@ -74,82 +52,67 @@ class TenantService:
             TenantConfigInternal: Configuration with decrypted credentials
 
         Raises:
-            TenantNotFoundException: If tenant not found in database
+            TenantNotFoundException: If tenant not found
             EncryptionError: If decryption fails
         """
         cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=tenant_id)
 
-        # Strategy 1: Check Redis cache
+        # Check Redis cache
         try:
             cached = await self.redis.get(cache_key)
             if cached:
                 logger.info(f"Cache HIT for tenant {tenant_id}")
-                config_dict = json.loads(cached)
-                return TenantConfigInternal(**config_dict)
+                return TenantConfigInternal(**json.loads(cached))
         except Exception as e:
-            # Log but don't fail; graceful fallback to database
             logger.warning(f"Cache read failed for {tenant_id}: {str(e)}")
 
-        # Strategy 2: Query database
-        logger.info(f"Cache MISS for tenant {tenant_id}, querying database")
-        stmt = select(TenantConfigModel).where(
-            TenantConfigModel.tenant_id == tenant_id
-        )
+        # Query database
+        logger.info(f"Cache MISS for tenant {tenant_id}")
+        stmt = select(TenantConfigModel).where(TenantConfigModel.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         db_config = result.scalar_one_or_none()
 
         if not db_config:
-            raise TenantNotFoundException(
-                f"Tenant '{tenant_id}' not found in database"
-            )
+            raise TenantNotFoundException(f"Tenant '{tenant_id}' not found")
 
-        # Decrypt sensitive fields
+        # Decrypt credentials based on tool_type
+        decrypted_webhook_secret = decrypt(db_config.webhook_signing_secret_encrypted)
+
+        config_data = {
+            "id": db_config.id,
+            "tenant_id": db_config.tenant_id,
+            "name": db_config.name,
+            "tool_type": db_config.tool_type,
+            "webhook_signing_secret": decrypted_webhook_secret,
+            "enhancement_preferences": db_config.enhancement_preferences,
+            "created_at": db_config.created_at,
+            "updated_at": db_config.updated_at,
+            "is_active": db_config.is_active,
+        }
+
+        if db_config.tool_type == "servicedesk_plus" and db_config.servicedesk_api_key_encrypted:
+            config_data["servicedesk_url"] = db_config.servicedesk_url
+            config_data["servicedesk_api_key"] = decrypt(db_config.servicedesk_api_key_encrypted)
+        elif db_config.tool_type == "jira" and db_config.jira_api_token_encrypted:
+            config_data["jira_url"] = db_config.jira_url
+            config_data["jira_api_token"] = decrypt(db_config.jira_api_token_encrypted)
+            config_data["jira_project_key"] = db_config.jira_project_key
+
+        config = TenantConfigInternal(**config_data)
+
+        # Cache result
         try:
-            decrypted_api_key = decrypt(db_config.servicedesk_api_key_encrypted)
-            decrypted_webhook_secret = decrypt(
-                db_config.webhook_signing_secret_encrypted
-            )
-        except EncryptionError as e:
-            logger.error(
-                f"Failed to decrypt credentials for tenant {tenant_id}: {str(e)}"
-            )
-            raise
-
-        # Build internal model with decrypted credentials
-        config = TenantConfigInternal(
-            id=db_config.id,
-            tenant_id=db_config.tenant_id,
-            name=db_config.name,
-            servicedesk_url=db_config.servicedesk_url,
-            servicedesk_api_key=decrypted_api_key,
-            webhook_signing_secret=decrypted_webhook_secret,
-            enhancement_preferences=db_config.enhancement_preferences,
-            created_at=db_config.created_at,
-            updated_at=db_config.updated_at,
-        )
-
-        # Strategy 3: Cache result (non-blocking failure)
-        try:
-            await self.redis.setex(
-                cache_key,
-                self.CACHE_TTL,
-                config.model_dump_json(),
-            )
-            logger.info(f"Cached tenant config for {tenant_id} (TTL: {self.CACHE_TTL}s)")
+            await self.redis.setex(cache_key, self.CACHE_TTL, config.model_dump_json())
         except Exception as e:
-            logger.warning(
-                f"Failed to cache tenant config for {tenant_id}: {str(e)}"
-            )
+            logger.warning(f"Failed to cache tenant {tenant_id}: {str(e)}")
 
         return config
 
-    async def create_tenant(
-        self, config: TenantConfigCreate
-    ) -> TenantConfigInternal:
+    async def create_tenant(self, config: TenantConfigCreate) -> TenantConfigInternal:
         """
-        Create new tenant configuration.
+        Create new tenant configuration with multi-tool support.
 
-        Encrypts sensitive fields before storage and caches the result.
+        Validates tool_type against registered plugins before creation.
 
         Args:
             config: TenantConfigCreate with plaintext credentials
@@ -158,52 +121,76 @@ class TenantService:
             TenantConfigInternal: Created configuration with decrypted credentials
 
         Raises:
+            PluginNotFoundError: If tool_type not registered
             SQLAlchemy.IntegrityError: If tenant_id already exists
             EncryptionError: If encryption fails
         """
+        # Validate tool_type registered
+        plugin_manager = PluginManager()
         try:
-            # Encrypt sensitive fields
-            encrypted_api_key = encrypt(config.servicedesk_api_key)
-            encrypted_webhook_secret = encrypt(config.webhook_signing_secret)
-        except EncryptionError as e:
-            logger.error(f"Failed to encrypt credentials: {str(e)}")
-            raise
+            plugin_manager.get_plugin(config.tool_type)
+        except PluginNotFoundError:
+            available = plugin_manager.list_registered_plugins()
+            raise ValueError(
+                f"Invalid tool_type '{config.tool_type}'. "
+                f"Available: {[p['tool_type'] for p in available]}"
+            )
 
-        # Create database model
-        db_config = TenantConfigModel(
-            tenant_id=config.tenant_id,
-            name=config.name,
-            servicedesk_url=str(config.servicedesk_url),
-            servicedesk_api_key_encrypted=encrypted_api_key,
-            webhook_signing_secret_encrypted=encrypted_webhook_secret,
-            enhancement_preferences=config.enhancement_preferences.model_dump() if config.enhancement_preferences else {},
-        )
+        # Encrypt credentials based on tool_type
+        encrypted_webhook_secret = encrypt(config.webhook_signing_secret)
 
-        # Insert into database
+        db_config_data = {
+            "tenant_id": config.tenant_id,
+            "name": config.name,
+            "tool_type": config.tool_type,
+            "webhook_signing_secret_encrypted": encrypted_webhook_secret,
+            "enhancement_preferences": (
+                config.enhancement_preferences.model_dump()
+                if config.enhancement_preferences
+                else {}
+            ),
+        }
+
+        # Add tool-specific encrypted fields
+        if config.tool_type == "servicedesk_plus":
+            db_config_data["servicedesk_url"] = str(config.servicedesk_url)
+            db_config_data["servicedesk_api_key_encrypted"] = encrypt(config.servicedesk_api_key)
+        elif config.tool_type == "jira":
+            db_config_data["jira_url"] = str(config.jira_url)
+            db_config_data["jira_api_token_encrypted"] = encrypt(config.jira_api_token)
+            db_config_data["jira_project_key"] = config.jira_project_key
+
+        db_config = TenantConfigModel(**db_config_data)
         self.db.add(db_config)
-        await self.db.flush()  # Populate id and timestamps
-        logger.info(f"Created tenant config for {config.tenant_id}")
+        await self.db.flush()
+        logger.info(f"Created {config.tool_type} tenant: {config.tenant_id}")
 
-        # Build and cache result
-        result = TenantConfigInternal(
-            id=db_config.id,
-            tenant_id=db_config.tenant_id,
-            name=db_config.name,
-            servicedesk_url=db_config.servicedesk_url,
-            servicedesk_api_key=config.servicedesk_api_key,
-            webhook_signing_secret=config.webhook_signing_secret,
-            enhancement_preferences=db_config.enhancement_preferences,
-            created_at=db_config.created_at,
-            updated_at=db_config.updated_at,
-        )
+        # Build result with decrypted credentials
+        result_data = {
+            "id": db_config.id,
+            "tenant_id": db_config.tenant_id,
+            "name": db_config.name,
+            "tool_type": db_config.tool_type,
+            "webhook_signing_secret": config.webhook_signing_secret,
+            "enhancement_preferences": db_config.enhancement_preferences,
+            "created_at": db_config.created_at,
+            "updated_at": db_config.updated_at,
+            "is_active": db_config.is_active,
+        }
+
+        if config.tool_type == "servicedesk_plus":
+            result_data["servicedesk_url"] = db_config.servicedesk_url
+            result_data["servicedesk_api_key"] = config.servicedesk_api_key
+        elif config.tool_type == "jira":
+            result_data["jira_url"] = db_config.jira_url
+            result_data["jira_api_token"] = config.jira_api_token
+            result_data["jira_project_key"] = db_config.jira_project_key
+
+        result = TenantConfigInternal(**result_data)
 
         cache_key = self.CACHE_KEY_PATTERN.format(tenant_id=config.tenant_id)
         try:
-            await self.redis.setex(
-                cache_key,
-                self.CACHE_TTL,
-                result.model_dump_json(),
-            )
+            await self.redis.setex(cache_key, self.CACHE_TTL, result.model_dump_json())
         except Exception as e:
             logger.warning(f"Failed to cache new tenant {config.tenant_id}: {str(e)}")
 
@@ -230,16 +217,12 @@ class TenantService:
             EncryptionError: If encryption fails
         """
         # Load existing config
-        stmt = select(TenantConfigModel).where(
-            TenantConfigModel.tenant_id == tenant_id
-        )
+        stmt = select(TenantConfigModel).where(TenantConfigModel.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         db_config = result.scalar_one_or_none()
 
         if not db_config:
-            raise TenantNotFoundException(
-                f"Tenant '{tenant_id}' not found"
-            )
+            raise TenantNotFoundException(f"Tenant '{tenant_id}' not found")
 
         # Apply updates
         update_data = updates.model_dump(exclude_unset=True)
@@ -270,7 +253,9 @@ class TenantService:
 
         if "enhancement_preferences" in update_data:
             prefs = update_data["enhancement_preferences"]
-            db_config.enhancement_preferences = prefs.model_dump() if isinstance(prefs, EnhancementPreferences) else prefs
+            db_config.enhancement_preferences = (
+                prefs.model_dump() if isinstance(prefs, EnhancementPreferences) else prefs
+            )
 
         # Commit changes
         await self.db.flush()
@@ -287,13 +272,9 @@ class TenantService:
         # Decrypt and return updated config
         try:
             decrypted_api_key = decrypt(db_config.servicedesk_api_key_encrypted)
-            decrypted_webhook_secret = decrypt(
-                db_config.webhook_signing_secret_encrypted
-            )
+            decrypted_webhook_secret = decrypt(db_config.webhook_signing_secret_encrypted)
         except EncryptionError as e:
-            logger.error(
-                f"Failed to decrypt updated credentials for {tenant_id}: {str(e)}"
-            )
+            logger.error(f"Failed to decrypt updated credentials for {tenant_id}: {str(e)}")
             raise
 
         return TenantConfigInternal(
@@ -320,16 +301,12 @@ class TenantService:
         Raises:
             TenantNotFoundException: If tenant not found
         """
-        stmt = select(TenantConfigModel).where(
-            TenantConfigModel.tenant_id == tenant_id
-        )
+        stmt = select(TenantConfigModel).where(TenantConfigModel.tenant_id == tenant_id)
         result = await self.db.execute(stmt)
         db_config = result.scalar_one_or_none()
 
         if not db_config:
-            raise TenantNotFoundException(
-                f"Tenant '{tenant_id}' not found"
-            )
+            raise TenantNotFoundException(f"Tenant '{tenant_id}' not found")
 
         # Note: Soft delete would require adding 'active' column to schema
         # For now, perform hard delete as per AC
@@ -444,14 +421,14 @@ class TenantService:
             TenantNotFoundException: If tenant not found
         """
         import secrets
-        
+
         # Generate new secret: 64 characters base64-encoded
         new_secret = secrets.token_urlsafe(48)  # 48 bytes -> 64 chars base64
-        
+
         # Update tenant config
         updates = TenantConfigUpdate(webhook_signing_secret=new_secret)
         updated_config = await self.update_tenant(tenant_id, updates)
-        
+
         logger.info(f"Rotated webhook secret for tenant {tenant_id}")
         return updated_config.webhook_signing_secret
 
@@ -463,26 +440,64 @@ class TenantService:
             tenant_id: Tenant identifier
 
         Returns:
-            Rate limit configuration dictionary with structure:
-            {"webhooks": {"ticket_created": 100, "ticket_resolved": 100}}
+            Rate limit configuration dict
 
         Raises:
             TenantNotFoundException: If tenant not found
         """
         config = await self.get_tenant_config(tenant_id)
-        
-        # Get rate limits from config, with sensible defaults
-        rate_limits = config.enhancement_preferences.get('rate_limits') if hasattr(config, 'enhancement_preferences') else None
-        
-        # Check if rate_limits column exists in the returned config
-        # This will be set by the model after migration
+        rate_limits = (
+            config.enhancement_preferences.get("rate_limits")
+            if hasattr(config, "enhancement_preferences")
+            else None
+        )
+
         if not rate_limits:
-            # Return default rate limits
-            rate_limits = {
-                "webhooks": {
-                    "ticket_created": 100,
-                    "ticket_resolved": 100
-                }
-            }
-        
+            rate_limits = {"webhooks": {"ticket_created": 100, "ticket_resolved": 100}}
+
         return rate_limits
+
+    async def get_tool_preferences(self, tenant_id: str, tool_type: str) -> dict:
+        """
+        Retrieve tool-specific preferences from enhancement_preferences JSONB.
+
+        Args:
+            tenant_id: Tenant identifier
+            tool_type: Tool type (e.g., 'jira', 'servicedesk_plus')
+
+        Returns:
+            Tool-specific configuration dict from enhancement_preferences
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+        """
+        config = await self.get_tenant_config(tenant_id)
+        if hasattr(config, "enhancement_preferences") and config.enhancement_preferences:
+            return config.enhancement_preferences.get("tool_config", {})
+        return {}
+
+    async def update_tool_preferences(
+        self, tenant_id: str, preferences: dict
+    ) -> TenantConfigInternal:
+        """
+        Update tool-specific preferences in enhancement_preferences JSONB.
+
+        Args:
+            tenant_id: Tenant identifier
+            preferences: Tool-specific configuration dict
+
+        Returns:
+            Updated TenantConfigInternal
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+        """
+        current_config = await self.get_tenant_config(tenant_id)
+        current_prefs = current_config.enhancement_preferences or {}
+        current_prefs["tool_config"] = preferences
+
+        updates = TenantConfigUpdate(enhancement_preferences=current_prefs)
+        updated_config = await self.update_tenant(tenant_id, updates)
+
+        logger.info(f"Updated tool preferences for tenant {tenant_id}")
+        return updated_config

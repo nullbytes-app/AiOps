@@ -144,7 +144,27 @@ jobs:
           path: htmlcov/
           retention-days: 30
 
-      # Step 12: Run security tests (Story 3.8 - AC1, AC2, AC3, AC4)
+      # Step 12: Run plugin unit tests (Story 7.6 - AC7)
+      # Reason: Isolated execution of plugin unit tests for better visibility
+      # Tests MockTicketingToolPlugin and plugin test utilities
+      # Uses pytest markers: -m "unit and plugin"
+      # Expected: 10+ tests covering factory methods, call tracking, custom configuration
+      - name: Run plugin unit tests
+        run: |
+          pytest -m "unit and plugin" -v --tb=short
+        continue-on-error: false
+
+      # Step 13: Run plugin integration tests (Story 7.6 - AC7)
+      # Reason: Tests full enhancement workflow with mock plugins
+      # Validates integration between plugin, PluginManager, workflow components
+      # Uses pytest markers: -m "integration and plugin"
+      # Expected: 10+ tests covering success paths, failure modes, edge cases
+      - name: Run plugin integration tests
+        run: |
+          pytest -m "integration and plugin" -v --tb=short
+        continue-on-error: false
+
+      # Step 14: Run security tests (Story 3.8 - AC1, AC2, AC3, AC4)
       # Reason: Automated security testing for OWASP Top 10 vulnerabilities
       # Security tests validate tenant isolation, input validation, webhook signatures
       # Tests must pass (exit code 0) to block merge on failures

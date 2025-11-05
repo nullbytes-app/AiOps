@@ -1406,6 +1406,390 @@ So that I can create new ticketing tool plugins independently.
 
 ---
 
+**Story 7.8: Create Plugin Management UI**
+
+As a system administrator,
+I want a plugin management interface in the Streamlit admin UI,
+So that I can install, configure, and assign plugins to tenants without database access.
+
+**Acceptance Criteria:**
+1. Plugin registry API endpoint created: GET /api/plugins (returns list of registered plugins with metadata)
+2. Plugin details API endpoint created: GET /api/plugins/{plugin_id} (returns full plugin configuration schema)
+3. Streamlit page created at src/admin/pages/03_Plugin_Management.py
+4. UI displays all installed plugins in table format (name, type, version, status, description)
+5. Plugin configuration form implemented with dynamic field generation based on plugin schema
+6. Connection testing feature: "Test Connection" button validates plugin credentials before saving
+7. Tenant-plugin assignment interface integrated with existing tenant management (Story 6.3)
+8. All plugin management operations logged to audit_log table (who, what, when)
+9. Documentation created: docs/plugins/plugin-administration-guide.md with admin workflows
+
+**Prerequisites:** Stories 7.1-7.7 (plugin architecture complete), Story 6.3 (tenant management UI)
+
+---
+
+## Epic 8: AI Agent Orchestration Platform _(Added 2025-11-05 for MVP v2.5)_
+
+**Goal:** Enable users to create, configure, and manage AI agents through UI without code changes
+
+**Value:** Transforms platform from single-purpose (ticket enhancement) to general-purpose agent orchestration with self-service agent creation, multi-tenant cost control, and dynamic tool integration
+
+**Estimated Complexity:** 17 stories, 12-14 weeks
+
+**Target Milestone:** MVP v2.5 (after Epic 7 complete)
+
+**Technologies:** LiteLLM Gateway, OpenAPI/Swagger, MCP (Model Context Protocol), Streamlit
+
+**Prerequisites:** Epic 6 (Admin UI) and Epic 7 (Plugin Architecture) complete
+
+**Key Architectural Decisions:**
+- LiteLLM proxy as Docker service for multi-provider LLM management
+- Agent-centric design: triggers and tools are properties of agents
+- OpenAPI-first tool integration with auto-generated MCP wrappers
+- Hybrid provider config: Platform defaults + tenant BYOK (Bring Your Own Key)
+- Budget enforcement with grace period: Warn at 80%, block at 110%
+
+---
+
+**Story 8.1: LiteLLM Proxy Integration**
+
+As a platform engineer,
+I want LiteLLM proxy integrated as a Docker service,
+So that the platform can route LLM requests through a unified gateway with multi-provider support, cost tracking, and automatic fallbacks.
+
+**Acceptance Criteria:**
+1. LiteLLM service added to docker-compose.yml (image: ghcr.io/berriai/litellm-database:main-stable)
+2. config/litellm-config.yaml created with default providers (OpenAI, Anthropic, Azure fallback)
+3. LiteLLM uses existing PostgreSQL database for virtual key storage
+4. Environment variables configured: LITELLM_MASTER_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
+5. Fallback chain configured: gpt-4 → azure-gpt-4 → claude-3-5-sonnet
+6. Retry logic configured: 3 attempts, exponential backoff, 30s timeout
+7. Health check endpoint verified: /health returns 200
+8. Documentation updated: README.md with LiteLLM setup instructions
+
+**Prerequisites:** None (foundation story)
+
+---
+
+**Story 8.2: Agent Database Schema and Models**
+
+As a platform engineer,
+I want database tables and Pydantic models for agents,
+So that agents can be stored, retrieved, and managed via API.
+
+**Acceptance Criteria:**
+1. Alembic migration created: agents table with columns (id, tenant_id, name, description, status, system_prompt, llm_config JSONB, created_at, updated_at, created_by)
+2. Alembic migration created: agent_triggers table with columns (id, agent_id, trigger_type, webhook_url, hmac_secret, schedule_cron, payload_schema JSONB)
+3. Alembic migration created: agent_tools junction table (agent_id, tool_id)
+4. SQLAlchemy models created: Agent, AgentTrigger with relationships
+5. Pydantic schemas created: AgentCreate, AgentUpdate, AgentResponse with validation
+6. Enum created: AgentStatus (draft, active, suspended, inactive)
+7. Index created on agents.tenant_id and agents.status for fast queries
+8. Migration tested: upgrade applies cleanly, downgrade rolls back
+
+**Prerequisites:** None (foundation story)
+
+---
+
+**Story 8.3: Agent CRUD API Endpoints**
+
+As a system administrator,
+I want API endpoints to create, read, update, and delete agents,
+So that the admin UI can manage agents programmatically.
+
+**Acceptance Criteria:**
+1. POST /api/agents endpoint created: creates agent with validation, returns agent_id and generated webhook URL
+2. GET /api/agents endpoint created: returns paginated agent list with filters (tenant_id, status, search by name)
+3. GET /api/agents/{agent_id} endpoint created: returns full agent details with assigned tools and triggers
+4. PUT /api/agents/{agent_id} endpoint created: updates agent properties, validates changes
+5. DELETE /api/agents/{agent_id} endpoint created: soft delete (sets status=inactive), preserves audit trail
+6. POST /api/agents/{agent_id}/activate endpoint created: changes status draft→active, validates required fields
+7. All endpoints enforce tenant_id filtering for multi-tenancy isolation
+8. OpenAPI documentation generated for all endpoints
+
+**Prerequisites:** Story 8.2 (database schema)
+
+---
+
+**Story 8.4: Agent Management UI (Basic)**
+
+As a system administrator,
+I want a Streamlit admin page to manage agents,
+So that I can create and configure agents through a visual interface.
+
+**Acceptance Criteria:**
+1. Streamlit page created: src/admin/pages/05_Agent_Management.py
+2. Agent list view displays: name, status, assigned tools count, last execution time with search/filter controls
+3. "Create Agent" button opens multi-tab form: Basic Info (name, description), LLM Config (model, temperature, max_tokens), System Prompt, Triggers, Tools
+4. Agent detail view shows: all properties, webhook URL with copy button, edit/delete buttons
+5. Status toggle buttons: Activate, Suspend, Deactivate with confirmation dialogs
+6. Form validation: required fields, valid temperature range (0-2), valid max_tokens (1-32000)
+7. Success/error messages displayed with st.success() and st.error()
+8. Agent list refreshes after create/update/delete operations
+
+**Prerequisites:** Story 8.3 (API endpoints)
+
+---
+
+**Story 8.5: System Prompt Editor**
+
+As a system administrator,
+I want a rich text editor for agent system prompts with templates,
+So that I can easily configure agent behavior without writing prompts from scratch.
+
+**Acceptance Criteria:**
+1. System prompt text area with syntax highlighting (markdown format)
+2. Template library with 5 pre-built prompts: Ticket Enhancement, Root Cause Analysis, Knowledge Base Assistant, Monitoring Alert Responder, General Purpose Agent
+3. Variable substitution support: {{tenant_name}}, {{tools}}, {{current_date}}, {{agent_name}} replaced at runtime
+4. Prompt preview mode: shows rendered prompt with substituted variables
+5. Character count displayed: shows length with warning at 8000+ chars
+6. Prompt versioning: save prompt history, revert to previous versions
+7. "Test Prompt" button: sends sample input to LLM, displays response (uses LiteLLM proxy)
+8. Template editing: admins can create custom templates, save to database
+
+**Prerequisites:** Story 8.4 (Agent Management UI)
+
+---
+
+**Story 8.6: Agent Webhook Endpoint Generation**
+
+As a system administrator,
+I want unique webhook URLs auto-generated for each agent,
+So that external systems can trigger specific agents securely.
+
+**Acceptance Criteria:**
+1. Webhook URL auto-generated on agent creation: /agents/{agent_id}/webhook or /tenants/{tenant_id}/agents/{agent_id}/webhook
+2. HMAC secret auto-generated (32-byte random, base64-encoded) and stored in agent_triggers table
+3. Webhook URL displayed in agent detail UI with "Copy URL" button
+4. HMAC secret displayed with "Show/Hide" toggle (masked by default)
+5. "Regenerate Secret" button creates new HMAC secret, invalidates old webhooks
+6. Webhook endpoint implemented: POST /agents/{agent_id}/webhook validates HMAC signature, enqueues agent execution task
+7. Payload validation: validates against payload_schema (if defined), rejects invalid payloads
+8. Webhook testing UI: "Send Test Webhook" form with sample payload, displays response
+
+**Prerequisites:** Story 8.3 (API endpoints)
+
+---
+
+**Story 8.7: Tool Assignment UI**
+
+As a system administrator,
+I want to assign MCP tools to agents via checkboxes,
+So that agents can access the specific tools they need.
+
+**Acceptance Criteria:**
+1. "Tools" tab in agent create/edit form displays available MCP tools
+2. Checkboxes for each tool: ServiceDesk Plus, Jira, CMDB, AD, Knowledge Base (existing + future tools)
+3. Tool description displayed on hover/expand: shows tool capabilities, operations available
+4. Tool assignment saved to agent_tools junction table on form submit
+5. Agent detail view displays assigned tools with badges/chips
+6. Unassigning tools removes junction table entries (soft delete, preserves audit)
+7. Tool usage tracking: count how many agents use each tool
+8. Validation: at least one tool must be assigned (or show warning)
+
+**Prerequisites:** Story 8.4 (Agent Management UI)
+
+---
+
+**Story 8.8: OpenAPI Tool Upload and Auto-Generation**
+
+As a system administrator,
+I want to upload OpenAPI/Swagger specs to auto-generate MCP tools,
+So that I can integrate new APIs without writing custom code.
+
+**Acceptance Criteria:**
+1. "Add Tool" page with file upload: accepts .yaml, .json, .yml files (OpenAPI 2.0/3.0)
+2. OpenAPI parser validates spec: checks required fields, validates paths/operations
+3. Tool metadata extracted: tool name, description, base URL, authentication scheme, available operations
+4. MCP tool wrapper generated dynamically: creates Python class implementing MCP protocol
+5. Authentication config form generated based on spec: API key (header/query), OAuth 2.0, Basic Auth
+6. "Test Connection" button: validates credentials, tests sample operation, displays success/failure
+7. Tool saved to tools table with metadata: spec_url, auth_config (encrypted), status (active/inactive)
+8. Error handling: invalid specs show user-friendly errors with line numbers
+
+**Prerequisites:** Story 8.7 (Tool Assignment UI)
+
+---
+
+**Story 8.9: Virtual Key Management**
+
+As a platform engineer,
+I want LiteLLM virtual keys created per tenant,
+So that LLM usage and costs can be tracked and controlled at tenant level.
+
+**Acceptance Criteria:**
+1. Service created: src/services/llm_service.py with function create_virtual_key_for_tenant(tenant_id, max_budget)
+2. Virtual key created on tenant creation: calls LiteLLM API POST /key/generate with user_id=tenant_id
+3. Virtual key stored in tenant_configs table: litellm_virtual_key column (encrypted)
+4. Function created: get_llm_client_for_tenant(tenant_id) returns AsyncOpenAI client with tenant's virtual key
+5. Agents use tenant's virtual key: all LLM calls route through tenant's key for tracking
+6. Virtual key rotation: admin UI button to regenerate key, updates tenant_configs, notifies agents
+7. Key validation: health check endpoint tests virtual key validity
+8. Audit logging: track all virtual key operations (create, rotate, delete)
+
+**Prerequisites:** Story 8.1 (LiteLLM Proxy Integration)
+
+---
+
+**Story 8.10: Budget Enforcement with Grace Period**
+
+As a system administrator,
+I want budget limits enforced per tenant with alerts and grace periods,
+So that LLM costs are controlled while allowing flexibility.
+
+**Acceptance Criteria:**
+1. Budget configuration UI: tenant settings page includes max_budget ($), alert_threshold (%), grace_threshold (%)
+2. Default thresholds configured: alert at 80% ($400 of $500), block at 110% ($550 of $500)
+3. LiteLLM webhook endpoint created: /api/budget-alerts receives alerts from LiteLLM proxy
+4. Alert logic implemented: at 80%, send email/Slack notification to tenant admin
+5. Blocking logic implemented: at 110%, LiteLLM blocks requests, agent calls fail gracefully with "budget exceeded" error
+6. Budget dashboard created: real-time usage display, progress bar, days remaining in period
+7. Budget reset automation: resets monthly on anniversary of tenant creation (configurable period: 30d, 60d, 90d)
+8. Override mechanism: platform admin can temporarily increase budget or disable enforcement
+
+**Prerequisites:** Story 8.9 (Virtual Key Management)
+
+---
+
+**Story 8.11: Provider Configuration UI**
+
+As a platform administrator,
+I want a UI to configure LLM providers and models,
+So that I can manage API keys and available models without editing config files.
+
+**Acceptance Criteria:**
+1. Provider configuration page created: src/admin/pages/06_LLM_Providers.py
+2. Provider list displays: OpenAI, Anthropic, Azure OpenAI with status (connected/disconnected)
+3. "Add Provider" form: provider name, API endpoint URL, API key input (encrypted on save)
+4. Model selection UI: checkboxes to enable/disable specific models (gpt-4, claude-3-5-sonnet, etc.)
+5. Model configuration: cost per input/output token, context window size, display name
+6. "Test Connection" button: validates API key, lists available models, displays success/failure
+7. Provider config saved to database: providers table with encrypted API keys
+8. litellm-config.yaml auto-generated: updates config file on provider changes, reloads LiteLLM proxy
+
+**Prerequisites:** Story 8.1 (LiteLLM Proxy Integration)
+
+---
+
+**Story 8.12: Fallback Chain Configuration**
+
+As a platform administrator,
+I want to configure fallback chains for LLM providers,
+So that the system automatically switches to backup providers when primary fails.
+
+**Acceptance Criteria:**
+1. Fallback configuration UI: drag-and-drop interface to order providers (primary → fallback1 → fallback2)
+2. Model-specific fallbacks: configure different fallbacks per model (gpt-4 → azure-gpt-4 → claude-3-5-sonnet)
+3. Fallback triggers configured: on 429 Rate Limit, 500 Server Error, 503 Timeout, connection failures
+4. Retry before fallback: 3 retry attempts with exponential backoff before switching providers
+5. Fallback status displayed: shows which provider is currently active, fallback trigger history
+6. litellm-config.yaml updated: fallback chains written to config file, reloads LiteLLM proxy
+7. Testing interface: "Test Fallback" button simulates primary failure, verifies fallback works
+8. Metrics tracked: fallback trigger count per provider, success rate after fallback
+
+**Prerequisites:** Story 8.11 (Provider Configuration UI)
+
+---
+
+**Story 8.13: BYOK (Bring Your Own Key)**
+
+As a tenant administrator,
+I want to use my own OpenAI/Anthropic API keys instead of platform keys,
+So that I have full control over LLM costs and data sovereignty.
+
+**Acceptance Criteria:**
+1. Tenant settings page includes "LLM Configuration" section with radio buttons: "Use platform keys" (default) or "Use own keys (BYOK)"
+2. BYOK mode displays input fields: OpenAI API Key, Anthropic API Key (encrypted on save)
+3. "Test Keys" button validates tenant-provided keys: calls provider API, displays available models
+4. Custom virtual key creation: on BYOK enable, creates LiteLLM virtual key using tenant's API keys
+5. Agent execution uses tenant keys: all LLM calls use tenant's custom virtual key when BYOK enabled
+6. Cost tracking separated: BYOK tenants see "N/A" for platform costs, display "using own keys" badge
+7. Key rotation: tenant can update keys, system creates new virtual key, migrates agents
+8. Revert to platform keys: tenant can switch back, system creates standard virtual key
+
+**Prerequisites:** Story 8.9 (Virtual Key Management), Story 8.11 (Provider Configuration UI)
+
+---
+
+**Story 8.14: Agent Testing Sandbox**
+
+As a system administrator,
+I want to test agents before activation,
+So that I can verify behavior and catch errors without affecting production.
+
+**Acceptance Criteria:**
+1. "Test Agent" tab in agent detail page with test interface
+2. Sample payload input: JSON editor for webhook payload or scheduled trigger simulation
+3. "Run Test" button: executes agent in sandbox mode (dry-run, no side effects)
+4. Execution trace displayed: shows step-by-step agent execution (tool calls, LLM requests, responses)
+5. Token usage displayed: input tokens, output tokens, estimated cost
+6. Execution time displayed: total duration, breakdown by step (tool call latency, LLM latency)
+7. Result comparison: save test results, compare against previous tests
+8. Error display: shows detailed error messages, stack traces for debugging
+
+**Prerequisites:** Story 8.4 (Agent Management UI), Story 8.9 (Virtual Key Management)
+
+---
+
+**Story 8.15: Memory Configuration UI**
+
+As a system administrator,
+I want to configure agent memory settings,
+So that agents can maintain context across conversations.
+
+**Acceptance Criteria:**
+1. "Memory" tab in agent create/edit form with memory configuration options
+2. Short-term memory config: context window size (tokens), conversation history length (messages)
+3. Long-term memory config: enable/disable checkbox, vector DB selection (PostgreSQL with pgvector, external vector DB)
+4. Agentic memory config: enable structured note-taking, note retention period (days)
+5. Memory testing interface: "View Memory" button displays agent's current memory state
+6. Memory clearing: "Clear Memory" button resets agent memory (with confirmation)
+7. Memory persistence: agent memory stored in agent_memory table (agent_id, memory_type, content, timestamp)
+8. Memory retrieval: agents load memory on execution, append new context, save after completion
+
+**Prerequisites:** Story 8.4 (Agent Management UI)
+
+---
+
+**Story 8.16: LLM Cost Dashboard**
+
+As a platform administrator,
+I want a cost dashboard showing LLM usage and spending,
+So that I can track costs per tenant, agent, and model.
+
+**Acceptance Criteria:**
+1. Cost dashboard page created: src/admin/pages/07_LLM_Costs.py
+2. Overview metrics displayed: total spend (today, this week, this month), spend by tenant (top 10), spend by agent (top 10), spend by model
+3. Cost trends chart: line chart showing daily spending over last 30 days
+4. Token usage breakdown: pie chart of input tokens vs output tokens by model
+5. Budget utilization: progress bars for each tenant showing % of budget used
+6. Cost per agent: table showing agent name, execution count, total cost, avg cost per execution
+7. Export functionality: "Export CSV" button downloads cost report with filters (date range, tenant, agent)
+8. Real-time updates: dashboard refreshes every 60 seconds, displays last updated timestamp
+
+**Prerequisites:** Story 8.9 (Virtual Key Management), Story 8.10 (Budget Enforcement)
+
+---
+
+**Story 8.17: Agent Performance Metrics Dashboard**
+
+As a system administrator,
+I want performance metrics for agents,
+So that I can identify slow or failing agents and optimize performance.
+
+**Acceptance Criteria:**
+1. Agent performance page created: src/admin/pages/08_Agent_Performance.py
+2. Per-agent metrics displayed: execution count (total, successful, failed), success rate (%), average duration (seconds), P50/P95/P99 latency
+3. Agent execution history: table with columns (timestamp, status, duration, tokens used, cost, error message if failed)
+4. Performance trends: line charts showing execution count and duration over time (last 7 days)
+5. Error analysis: pie chart of error types (timeout, rate limit, validation error, tool failure)
+6. Token usage per agent: bar chart showing input/output tokens by agent
+7. Slowest agents: table sorted by P95 latency, identify optimization candidates
+8. Filters: date range, tenant, status (success/failure), agent name search
+
+**Prerequisites:** Story 8.3 (Agent CRUD API), Story 8.16 (LLM Cost Dashboard)
+
+---
+
 ## Story Guidelines Reference
 
 **Story Format:**

@@ -1,0 +1,343 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>2</storyId>
+    <title>Agent Database Schema and Models</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-2-agent-database-schema-and-models.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a platform engineer</asA>
+    <iWant>database tables and Pydantic models for agents</iWant>
+    <soThat>agents can be stored, retrieved, and managed via API</soThat>
+    <tasks>
+### Task 1: Design Agent Database Schema (AC: #1, #2, #3, #7)
+- Review existing database schema patterns in src/database/models.py
+- Design agents table schema with all required columns
+- Design agent_triggers table schema
+- Design agent_tools junction table schema
+- Design indexes for query optimization
+
+### Task 2: Create Alembic Migration for Agent Tables (AC: #1, #2, #3, #7, #8)
+- Generate Alembic migration: alembic revision -m "add_agent_tables"
+- Implement agents table creation with constraints
+- Implement agent_triggers table creation
+- Implement agent_tools junction table creation
+- Implement downgrade function
+- Test migration upgrade and downgrade
+
+### Task 3: Create SQLAlchemy Models (AC: #4)
+- Create Agent model in src/database/models.py
+- Create AgentTrigger model
+- Create AgentTool model
+- Add Google-style docstrings to all models
+- Verify model imports in __all__
+
+### Task 4: Create AgentStatus Enum (AC: #6)
+- Create src/schemas/agent.py file
+- Define AgentStatus enum class
+- Create TriggerType enum class
+
+### Task 5: Create Pydantic Schemas (AC: #5)
+- Create LLMConfig nested schema
+- Create AgentTriggerCreate schema
+- Create AgentCreate schema
+- Create AgentUpdate schema
+- Create AgentResponse schema
+- Add json_schema_extra examples
+
+### Task 6: Create Unit Tests for Models (Testing)
+- Create tests/unit/test_agent_models.py
+- Test Agent model creation
+- Test AgentTrigger model
+- Test AgentTool model
+
+### Task 7: Create Unit Tests for Pydantic Schemas (Testing)
+- Create tests/unit/test_agent_schemas.py
+- Test LLMConfig schema
+- Test AgentCreate schema
+- Test AgentUpdate schema
+- Test AgentResponse schema
+- Test AgentStatus enum
+
+### Task 8: Create Integration Tests (Testing)
+- Create tests/integration/test_agent_database.py
+- Setup test database fixture
+- Test agent CRUD operations
+- Test tenant isolation
+- Test JSONB llm_config
+- Test relationships
+
+### Task 9: Update Documentation (AC: #8)
+- Update docs/database-schema.md
+- Update README.md
+- Create inline code comments
+
+### Task 10: Quality Assurance and Validation
+- Verify all acceptance criteria met
+- Run all tests
+- Code quality checks
+- Security validation
+- Performance validation
+- Migration validation
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Alembic migration created: agents table with columns (id, tenant_id, name, description, status, system_prompt, llm_config JSONB, created_at, updated_at, created_by)
+
+AC2: Alembic migration created: agent_triggers table with columns (id, agent_id, trigger_type, webhook_url, hmac_secret, schedule_cron, payload_schema JSONB)
+
+AC3: Alembic migration created: agent_tools junction table (agent_id, tool_id)
+
+AC4: SQLAlchemy models created: Agent, AgentTrigger with relationships
+
+AC5: Pydantic schemas created: AgentCreate, AgentUpdate, AgentResponse with validation
+
+AC6: Enum created: AgentStatus (draft, active, suspended, inactive)
+
+AC7: Index created on agents.tenant_id and agents.status for fast queries
+
+AC8: Migration tested: upgrade applies cleanly, downgrade rolls back
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/epics.md</path>
+        <title>Epic 8: AI Agent Orchestration Platform</title>
+        <section>Story 8.2 Definition (lines 1473-1490)</section>
+        <snippet>As a platform engineer, I want database tables and Pydantic models for agents, so that agents can be stored, retrieved, and managed via API. Acceptance Criteria include agents table with tenant_id, llm_config JSONB, agent_triggers table, agent_tools junction table, SQLAlchemy models with relationships, Pydantic schemas with validation, AgentStatus enum, and indexes for tenant isolation.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/database-schema.md</path>
+        <title>Database Schema Documentation</title>
+        <section>Tenant Configs Table Pattern (lines 1-130)</section>
+        <snippet>Shows existing multi-tenant database pattern: UUID primary key, tenant_id VARCHAR(100) unique indexed, tool_type for plugin routing, JSONB for flexible configs (enhancement_preferences), created_at/updated_at timestamps with server defaults, is_active for soft delete, Fernet encryption for secrets. Row-Level Security policies enforce tenant isolation. Composite indexes for query optimization.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>Row-Level Security Implementation (lines 523-606)</section>
+        <snippet>PostgreSQL RLS provides database-level multi-tenant isolation using session variable pattern: CREATE POLICY tenant_isolation_policy USING (tenant_id = current_setting('app.current_tenant_id')). All tenant_id columns indexed. Helper function set_tenant_context() sets session variable before queries. Minimal performance overhead with proper indexing.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>Testing Standards (lines 55, 593-596)</section>
+        <snippet>Testing framework: Pytest + pytest-asyncio for async support. Unit tests in tests/unit/, integration tests in tests/integration/. Test fixtures in conftest.py. Minimum coverage standards apply. RLS integration tests verify cross-tenant isolation.</snippet>
+      </artifact>
+      <artifact>
+        <path>src/schemas/tenant.py</path>
+        <title>Existing Pydantic Schema Patterns</title>
+        <section>2025 Pydantic v2 Validation Patterns (lines 1-100)</section>
+        <snippet>Demonstrates latest Pydantic v2 patterns: @field_validator with @classmethod decorator, @model_validator(mode="after") for cross-field validation, Field() with constraints (min_length, max_length, pattern, ge/le for numeric ranges), nested BaseModel schemas, ConfigDict for ORM mode. Shows multi-tool validation pattern where required fields depend on tool_type enum value.</snippet>
+      </artifact>
+      <artifact>
+        <path>alembic/versions/002217a1f0a8_add_jira_fields_to_tenant_configs.py</path>
+        <title>Recent Alembic Migration Pattern</title>
+        <section>Migration Structure (lines 1-57)</section>
+        <snippet>Shows Alembic migration pattern: op.add_column() with sa.Column() for nullable tool-specific fields, op.drop_column() in downgrade() for clean rollback, docstrings explaining purpose and impact, nullable=True for optional fields, LargeBinary() for encrypted BYTEA fields, String(length=N) for VARCHAR columns.</snippet>
+      </artifact>
+      <artifact>
+        <path>Context7 MCP: /pydantic/pydantic</path>
+        <title>Pydantic v2 Latest Documentation (Trust Score 9.6)</title>
+        <section>Field Validation, Model Validation, Enum Handling</section>
+        <snippet>2025 Pydantic v2 patterns: @field_validator(mode='after') replaces @validator, @model_validator(mode='after') replaces @root_validator, Enum handling with str mixin (class Status(str, Enum)), Field() with ge/le for numeric constraints, ValidationError for custom validation failures, model_config = ConfigDict(from_attributes=True) replaces orm_mode.</snippet>
+      </artifact>
+      <artifact>
+        <path>Context7 MCP: /sqlalchemy/alembic</path>
+        <title>Alembic Latest Documentation</title>
+        <section>Migrations, Indexes, Constraints, JSONB</section>
+        <snippet>2025 Alembic patterns: op.create_index() with unique=True for unique indexes, composite indexes with multiple columns in list, op.create_foreign_key() with ondelete='CASCADE' for cascade deletes, op.create_check_constraint() for enum validation, server_default='{}' for JSONB columns, postgresql.JSONB() for type-specific columns.</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>database_model</kind>
+        <symbol>TenantConfig</symbol>
+        <lines>31-130</lines>
+        <reason>Reference pattern for UUID primary key, tenant_id foreign key, JSONB columns, created_at/updated_at timestamps, server defaults, is_active soft delete flag, tool_type for plugin routing. Shows Column() syntax with doc parameter for inline documentation.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>database_model</kind>
+        <symbol>EnhancementHistory</symbol>
+        <lines>131-214</lines>
+        <reason>Shows composite index pattern using __table_args__ with Index() for (tenant_id, ticket_id). Demonstrates JSON Column type for flexible data, Optional[dict] typing, server_default=func.now() for timestamps.</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/tenant.py</path>
+        <kind>pydantic_schema</kind>
+        <symbol>TenantConfigCreate</symbol>
+        <lines>28-78</lines>
+        <reason>Reference for 2025 Pydantic v2 patterns: Field() with pattern/min_length/max_length validation, @field_validator with @classmethod decorator, @model_validator(mode="after") for cross-field validation, nested BaseModel (EnhancementPreferences), multi-tool validation logic.</reason>
+      </artifact>
+      <artifact>
+        <path>src/plugins/base.py</path>
+        <kind>interface</kind>
+        <symbol>TicketingToolPlugin</symbol>
+        <lines>52-80</lines>
+        <reason>Shows plugin interface pattern. Agent tool_id references will use plugin tool_type values like "servicedesk_plus", "jira". The agent_tools junction table links agents to tools via tool_id VARCHAR(100) matching registered plugin identifiers.</reason>
+      </artifact>
+      <artifact>
+        <path>src/plugins/registry.py</path>
+        <kind>service</kind>
+        <symbol>PluginManager</symbol>
+        <lines>1-50</lines>
+        <reason>Singleton pattern for plugin registration. Shows list_registered_plugins() returns tool_type identifiers. Agent tool assignment will reference these registered plugin tool_type values via agent_tools junction table.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/conftest.py</path>
+        <kind>test_fixture</kind>
+        <symbol>register_servicedesk_plugin</symbol>
+        <lines>1-30</lines>
+        <reason>Shows pytest fixture pattern: @pytest.fixture(scope="session", autouse=True) for session-wide setup, imports from src.plugins, registration with PluginManager. Pattern to follow for test fixtures in Story 8.2.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/conftest.py</path>
+        <kind>test_configuration</kind>
+        <symbol>pytest_configure</symbol>
+        <lines>1-50</lines>
+        <reason>Shows test environment setup pattern: os.environ.setdefault() for test database URLs, encryption keys, API keys. Database URL pattern: "postgresql+asyncpg://aiagents:password@localhost:5433/ai_agents". Integration tests will need similar setup.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python ecosystem="pyproject.toml">
+        <package name="sqlalchemy[asyncio]" version="2.0.23+" purpose="ORM with async support for Agent, AgentTrigger, AgentTool models" />
+        <package name="alembic" version="1.12.1+" purpose="Database migrations - create agents, agent_triggers, agent_tools tables" />
+        <package name="pydantic" version="2.5.0+" purpose="Data validation - AgentCreate, AgentUpdate, AgentResponse schemas with 2025 v2 patterns" />
+        <package name="asyncpg" version="0.29.0+" purpose="Async PostgreSQL driver for database connections" />
+        <package name="psycopg2-binary" version="2.9.9+" purpose="PostgreSQL adapter for Alembic migrations" />
+        <package name="pytest" version="7.4.3+" purpose="Testing framework - 10+ unit tests, 6+ integration tests" />
+        <package name="pytest-asyncio" version="0.21.1+" purpose="Async test support for database operations" />
+        <package name="pytest-mock" version="3.12.0+" purpose="Mock fixtures for testing" />
+        <package name="black" version="23.11.0+" purpose="Code formatter (AC10 quality validation)" />
+        <package name="mypy" version="1.7.1+" purpose="Type checking (AC10 quality validation)" />
+      </python>
+      <database>
+        <system name="PostgreSQL" version="17" purpose="Primary database - agents, agent_triggers, agent_tools tables with RLS policies" />
+        <extension name="uuid-ossp" purpose="UUID generation for agent IDs via uuid_generate_v4()" />
+      </database>
+      <frameworks>
+        <framework name="SQLAlchemy ORM" version="2.0.23+" pattern="declarative_base" purpose="Agent model definitions with relationships" />
+        <framework name="Alembic Migrations" version="1.12.1+" pattern="op.create_table/index/foreign_key" purpose="Schema versioning and rollback" />
+        <framework name="Pydantic v2" version="2.5.0+" pattern="@field_validator, @model_validator" purpose="Schema validation with latest 2025 patterns" />
+      </frameworks>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="CLAUDE.md">File size ≤500 lines - If agent schema files approach limit, split into multiple focused files</constraint>
+    <constraint id="C2" source="Architecture">Multi-tenant isolation required - All agent tables MUST have tenant_id foreign key referencing tenant_configs.tenant_id with composite index (tenant_id, status)</constraint>
+    <constraint id="C3" source="Architecture">Row-Level Security - Agent tables MUST enable RLS policies for database-level tenant isolation</constraint>
+    <constraint id="C4" source="Database Schema">UUID primary keys - Use Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4) pattern from TenantConfig model</constraint>
+    <constraint id="C5" source="Database Schema">Timestamps - created_at and updated_at MUST use DateTime(timezone=True) with server_default=func.now() and onupdate=func.now()</constraint>
+    <constraint id="C6" source="Database Schema">JSONB columns - llm_config and payload_schema MUST use postgresql.JSONB type with server_default='{}' for default empty object</constraint>
+    <constraint id="C7" source="Database Schema">CASCADE delete - Foreign keys to agents table MUST use ondelete='CASCADE' to prevent orphaned triggers/tools</constraint>
+    <constraint id="C8" source="Epic 7">Tool ID references - agent_tools.tool_id references PluginManager registered tool_type values like "servicedesk_plus", "jira" (VARCHAR 100, not FK to plugins table)</constraint>
+    <constraint id="C9" source="Pydantic v2">Use latest patterns - @field_validator(mode='after'), @model_validator(mode='after'), ConfigDict(from_attributes=True) replaces orm_mode=True</constraint>
+    <constraint id="C10" source="Testing">Minimum test coverage - 10+ unit tests (models + schemas), 6+ integration tests (CRUD + relationships + tenant isolation)</constraint>
+    <constraint id="C11" source="CLAUDE.md">Google-style docstrings - All models, schemas, and functions MUST have comprehensive docstrings explaining purpose, attributes, and examples</constraint>
+    <constraint id="C12" source="Alembic">Migration patterns - Use op.create_table(), op.create_index(), op.create_foreign_key() with proper downgrade() for rollback</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>tenant_configs.tenant_id</name>
+      <kind>foreign_key</kind>
+      <signature>VARCHAR(100) REFERENCES tenant_configs(tenant_id)</signature>
+      <path>src/database/models.py (TenantConfig.tenant_id)</path>
+      <reason>Agents table MUST reference this for multi-tenant isolation. All agent queries filtered by tenant_id.</reason>
+    </interface>
+    <interface>
+      <name>PluginManager.list_registered_plugins()</name>
+      <kind>service_method</kind>
+      <signature>Returns list[dict] with tool_type identifiers</signature>
+      <path>src/plugins/registry.py</path>
+      <reason>Agent tool assignment validates tool_id against registered plugins. Returns entries like [{"tool_type": "servicedesk_plus"}, {"tool_type": "jira"}].</reason>
+    </interface>
+    <interface>
+      <name>UUID generation pattern</name>
+      <kind>database_convention</kind>
+      <signature>Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)</signature>
+      <path>src/database/models.py (all models)</path>
+      <reason>Standardized UUID primary key pattern used across all database models. Agents table MUST follow same pattern for consistency.</reason>
+    </interface>
+    <interface>
+      <name>Timestamp defaults pattern</name>
+      <kind>database_convention</kind>
+      <signature>DateTime(timezone=True), server_default=func.now(), onupdate=func.now()</signature>
+      <path>src/database/models.py (all models)</path>
+      <reason>Standardized timestamp pattern for created_at and updated_at. Ensures consistency and automatic timestamp management.</reason>
+    </interface>
+    <interface>
+      <name>Composite index pattern</name>
+      <kind>database_convention</kind>
+      <signature>__table_args__ = (Index("idx_name", "col1", "col2"),)</signature>
+      <path>src/database/models.py (EnhancementHistory)</path>
+      <reason>Pattern for creating composite indexes. Agents table needs idx_agents_tenant_id_status for query optimization.</reason>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+Testing framework: pytest>=7.4.3 + pytest-asyncio>=0.21.1 for async database tests.
+
+Test structure:
+- Unit tests in tests/unit/ for model instantiation, Pydantic schema validation, enum serialization
+- Integration tests in tests/integration/ for database CRUD, relationships, tenant isolation, index performance
+- Fixtures in conftest.py using @pytest.fixture(scope="session") for database setup, environment config
+
+Patterns from existing tests:
+- Use pytest.fixture with scope="session" for one-time setup (database, plugin registration)
+- Set environment variables in pytest_configure() before imports (database URLs, encryption keys)
+- Test database URL: "postgresql+asyncpg://aiagents:password@localhost:5433/ai_agents"
+- Use AsyncMock for async service methods, Mock for sync operations
+- Test naming: test_<function>_<scenario>() pattern (e.g., test_create_agent_valid(), test_agent_model_defaults())
+
+Coverage requirements (AC per Story 8.2 Dev Notes):
+- Minimum 10+ unit tests (models, schemas, enums)
+- Minimum 6+ integration tests (CRUD, relationships, tenant isolation, JSONB operations)
+- All tests must pass before story marked done
+    </standards>
+    <locations>
+tests/unit/test_agent_models.py (NEW - Agent, AgentTrigger, AgentTool model tests)
+tests/unit/test_agent_schemas.py (NEW - Pydantic schemas, validation, enum tests)
+tests/integration/test_agent_database.py (NEW - Database CRUD, relationships, RLS, indexes)
+tests/unit/conftest.py (EXISTING - Shared fixtures, environment setup)
+tests/conftest.py (EXISTING - Global pytest configuration, database URL setup)
+    </locations>
+    <ideas>
+Unit Test Ideas (tests/unit/test_agent_models.py):
+- AC4: test_create_agent_model() - Instantiate Agent with all fields, verify __repr__()
+- AC4: test_agent_model_defaults() - Verify created_at auto-populated, llm_config default {}
+- AC4: test_agent_trigger_model() - Create AgentTrigger with webhook trigger_type
+- AC4: test_agent_tool_model() - Create AgentTool with composite primary key (agent_id, tool_id)
+- AC4: test_agent_relationships() - Verify agent.triggers and agent.tools relationships work
+
+Unit Test Ideas (tests/unit/test_agent_schemas.py):
+- AC5: test_llm_config_validation() - Validate temperature 0-2 range, max_tokens 1-32000 range
+- AC5: test_agent_create_valid() - Create valid AgentCreate with all required fields
+- AC5: test_agent_create_missing_fields() - ValidationError when name/system_prompt missing
+- AC5: test_agent_trigger_schedule_requires_cron() - ValidationError if trigger_type=schedule without cron
+- AC5: test_agent_update_partial() - Partial update with subset of fields allowed
+- AC5: test_agent_update_invalid_transition() - Block active→draft status transition
+- AC6: test_agent_status_enum_values() - Verify draft/active/suspended/inactive enum values
+- AC6: test_agent_status_json_serialization() - Enum serializes to JSON string
+
+Integration Test Ideas (tests/integration/test_agent_database.py):
+- AC1,AC8: test_insert_agent() - Insert agent via SQLAlchemy, query back, verify all columns
+- AC1,AC7: test_query_agents_by_tenant() - Filter by tenant_id, verify index usage (<5ms)
+- AC1: test_update_agent_status() - Update agent status from draft→active, verify change
+- AC1,AC3,AC7: test_delete_agent_cascade() - Delete agent, verify triggers/tools auto-deleted (CASCADE)
+- AC2: test_agent_trigger_relationship() - Create agent with 2 triggers (webhook + schedule), query via relationship
+- AC3: test_agent_tools_junction() - Assign 3 tools to agent, verify junction table entries
+- AC1: test_jsonb_llm_config_query() - Query agents by llm_config->>'model' = 'gpt-4'
+- AC1,AC7: test_tenant_isolation() - Create agents for 2 tenants, verify RLS filtering
+- AC7: test_composite_index_performance() - Query by (tenant_id, status), verify <5ms with EXPLAIN
+    </ideas>
+  </tests>
+</story-context>

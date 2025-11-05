@@ -70,6 +70,7 @@ services:
       context: .
       dockerfile: docker/backend.dockerfile
     container_name: ai-agents-worker
+    entrypoint: []
     command: celery -A src.workers.celery_app worker --loglevel=info --concurrency=4
     depends_on:
       postgres:
@@ -106,7 +107,7 @@ services:
       - ./alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
       - ./data/prometheus:/prometheus
     ports:
-      - "9090:9090"
+      - "9091:9090"
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
       interval: 10s
@@ -159,13 +160,18 @@ services:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
       GF_PATHS_PROVISIONING: /etc/grafana/provisioning
-      GF_SERVER_ROOT_URL: "http://localhost:3000"
+      GF_SERVER_ROOT_URL: "http://localhost:3002"
     volumes:
-      - ./k8s/grafana-datasource.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml:ro
-      - ./k8s/grafana-dashboard.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml:ro
+      # Provision Prometheus datasource (plain Grafana provisioning YAML, not a K8s ConfigMap)
+      - ./k8s/grafana-datasource-provision.yaml:/etc/grafana/provisioning/datasources/prometheus.yaml:ro
+      # Provision dashboards provider config (points to /var/lib/grafana/dashboards)
+      - ./k8s/grafana-dashboard-provision.yaml:/etc/grafana/provisioning/dashboards/dashboard.yaml:ro
+      # Mount dashboards JSON definitions
+      - ./dashboards:/var/lib/grafana/dashboards:ro
+      # Persistent Grafana data volume
       - grafana_data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "3002:3000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
       interval: 30s
@@ -199,6 +205,72 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+    restart: unless-stopped
+
+  # Streamlit Admin UI
+  # Story 6.1-6.5: Admin interface for operations management
+  streamlit:
+    build:
+      context: .
+      dockerfile: docker/streamlit.dockerfile
+    container_name: ai-agents-streamlit
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      # Override database URL to use docker-compose postgres service (async driver for imports)
+      AI_AGENTS_DATABASE_URL: postgresql+asyncpg://aiagents:password@postgres:5432/ai_agents
+      AI_AGENTS_REDIS_URL: redis://redis:6379/1
+      AI_AGENTS_CELERY_BROKER_URL: redis://redis:6379/1
+      AI_AGENTS_CELERY_RESULT_BACKEND: redis://redis:6379/1
+      API_BASE_URL: http://api:8000
+      STREAMLIT_LOCAL_DEV: "true"
+    volumes:
+      - ./src:/app/src
+      - ./.streamlit:/home/appuser/.streamlit
+    ports:
+      - "8501:8501"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8501/_stcore/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # LiteLLM Proxy - Unified LLM Gateway
+  # Story 8.1: LiteLLM Proxy Integration
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-stable
+    container_name: litellm-proxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://aiagents:password@postgres:5432/ai_agents
+      LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
+      LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      AZURE_API_KEY: ${AZURE_API_KEY:-}
+      AZURE_API_BASE: ${AZURE_API_BASE:-}
+    volumes:
+      - ./config/litellm-config.yaml:/app/config.yaml:ro
+    ports:
+      - "4000:4000"
+    command: ["--config", "/app/config.yaml", "--detailed_debug"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
     restart: unless-stopped
 
 volumes:

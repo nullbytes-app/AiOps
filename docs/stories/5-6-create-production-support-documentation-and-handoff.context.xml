@@ -1,0 +1,527 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>6</storyId>
+    <title>Create Production Support Documentation and Handoff</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/5-6-create-production-support-documentation-and-handoff.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a support engineer</asA>
+    <iWant>comprehensive documentation for operating the production system</iWant>
+    <soThat>I can support clients and respond to incidents effectively</soThat>
+    <tasks>
+      <task id="1" ac="1">Create Production Support Guide
+        <subtask>1.1 Document system architecture overview for support team context</subtask>
+        <subtask>1.2 Compile comprehensive list of common issues from Epic 4-5 learnings</subtask>
+        <subtask>1.3 Create troubleshooting decision tree for first-response scenarios</subtask>
+        <subtask>1.4 Document escalation paths: L1 → L2 → Engineering → Executive</subtask>
+        <subtask>1.5 Include system health check procedures and success criteria</subtask>
+        <subtask>1.6 Add quick reference for Kubernetes operations (kubectl commands, log access)</subtask>
+      </task>
+      <task id="2" ac="2">Document Client Support Procedures
+        <subtask>2.1 Create ticket investigation workflow with step-by-step procedures</subtask>
+        <subtask>2.2 Document configuration management: tenant_configs changes, webhook rotation, API credentials</subtask>
+        <subtask>2.3 Create performance tuning guide: queue depth optimization, worker scaling, database tuning</subtask>
+        <subtask>2.4 Document client onboarding support process (for future clients after MVP client)</subtask>
+        <subtask>2.5 Create tenant troubleshooting cheatsheet with common client-specific scenarios</subtask>
+        <subtask>2.6 Include data access procedures with RLS considerations</subtask>
+      </task>
+      <task id="3" ac="3">Create Incident Response Playbook
+        <subtask>3.1 Define severity levels (P0-P3) with clear examples and response time SLAs</subtask>
+        <subtask>3.2 Create incident response workflow: detection → triage → mitigation → resolution → postmortem</subtask>
+        <subtask>3.3 Document communication templates for client notifications (status updates, incident reports, RCA summaries)</subtask>
+        <subtask>3.4 Create escalation matrix with contact information and escalation criteria</subtask>
+        <subtask>3.5 Include incident commander role definition and handoff procedures</subtask>
+        <subtask>3.6 Add postmortem template with focus on learning and prevention</subtask>
+      </task>
+      <task id="4" ac="4">Establish On-Call Rotation Schedule
+        <subtask>4.1 Define on-call coverage model (follow-the-sun vs 24x7, primary + backup)</subtask>
+        <subtask>4.2 Create rotation schedule template with handoff checklist</subtask>
+        <subtask>4.3 Document on-call responsibilities: alert monitoring, first response, escalation triggers</subtask>
+        <subtask>4.4 Set up on-call notification system (PagerDuty, Opsgenie, or Alertmanager routing)</subtask>
+        <subtask>4.5 Define on-call handoff procedures and knowledge transfer requirements</subtask>
+        <subtask>4.6 Create on-call runbook with critical procedures for common P0/P1 scenarios</subtask>
+      </task>
+      <task id="5" ac="5">Conduct Support Team Training
+        <subtask>5.1 Prepare training materials: architecture diagrams, system flows, operational procedures</subtask>
+        <subtask>5.2 Schedule and conduct knowledge transfer session (2-4 hours)</subtask>
+        <subtask>5.3 Cover key topics: system architecture, monitoring/alerting, common issues, escalation</subtask>
+        <subtask>5.4 Conduct hands-on walkthrough: Grafana dashboards, Prometheus queries, kubectl basics, log investigation</subtask>
+        <subtask>5.5 Review client-specific context: MVP client configuration, known issues, special considerations</subtask>
+        <subtask>5.6 Collect training feedback and create follow-up action items</subtask>
+        <subtask>5.7 Record training session for future onboarding of new support team members</subtask>
+      </task>
+      <task id="6" ac="6">Seed Support Knowledge Base
+        <subtask>6.1 Extract FAQs from Epic 4-5 operational documentation and dev completion notes</subtask>
+        <subtask>6.2 Document known issues from code reviews and validation testing</subtask>
+        <subtask>6.3 Create troubleshooting articles for top 10 most likely support scenarios</subtask>
+        <subtask>6.4 Include links to relevant runbooks, metrics dashboards, and code references</subtask>
+        <subtask>6.5 Organize knowledge base with clear categorization (by severity, by component, by client impact)</subtask>
+        <subtask>6.6 Establish knowledge base maintenance process (when to update, who owns updates)</subtask>
+      </task>
+      <task id="7" ac="7">Validate Support Readiness with Mock Incident Drill
+        <subtask>7.1 Design realistic incident scenario (e.g., "API timeout spike causing webhook failures")</subtask>
+        <subtask>7.2 Conduct tabletop exercise with support team walking through response procedures</subtask>
+        <subtask>7.3 Validate on-call notification system triggers correctly</subtask>
+        <subtask>7.4 Test escalation procedures and communication templates</subtask>
+        <subtask>7.5 Measure response times against defined SLAs (detection time, mitigation time, resolution time)</subtask>
+        <subtask>7.6 Document drill findings: gaps identified, procedures needing refinement, team readiness assessment</subtask>
+        <subtask>7.7 Create action items to address gaps before declaring 24x7 support operational</subtask>
+      </task>
+      <task id="8" ac="meta">Document and Save All Deliverables
+        <subtask>8.1 Save production support guide to docs/support/production-support-guide.md</subtask>
+        <subtask>8.2 Save client support procedures to docs/support/client-support-procedures.md</subtask>
+        <subtask>8.3 Save incident response playbook to docs/support/incident-response-playbook.md</subtask>
+        <subtask>8.4 Save on-call rotation documentation to docs/support/on-call-rotation.md</subtask>
+        <subtask>8.5 Save support knowledge base to docs/support/knowledge-base/ (multiple articles)</subtask>
+        <subtask>8.6 Save mock incident drill results to docs/support/support-readiness-validation.md</subtask>
+        <subtask>8.7 Create README.md in docs/support/ with overview and navigation</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Production support guide created: architecture overview, common issues, troubleshooting steps, escalation paths</criterion>
+    <criterion id="2">Client support procedures documented: ticket investigation, configuration changes, performance tuning</criterion>
+    <criterion id="3">Incident response playbook created: severity definitions, response SLAs, communication templates</criterion>
+    <criterion id="4">On-call rotation schedule established</criterion>
+    <criterion id="5">Support team trained on platform (knowledge transfer session conducted)</criterion>
+    <criterion id="6">Support knowledge base seeded with FAQs and known issues</criterion>
+    <criterion id="7">24x7 support readiness validated with mock incident drill</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Primary Project Documentation -->
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Epic 5 - Production Deployment & Validation</section>
+        <snippet>Defines production deployment requirements, client onboarding process, validation testing, baseline metrics establishment, and support documentation handoff.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Executive Summary & Technology Stack</section>
+        <snippet>Multi-tenant AI-powered ticket enhancement platform with FastAPI, LangGraph, Kubernetes. Stack: Python 3.12, PostgreSQL 17 with RLS, Redis 7.x, Celery 5.x, OpenRouter/OpenAI, Prometheus/Grafana observability.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Epic 5: Production Deployment & Validation</section>
+        <snippet>Epic 5 transitions platform from development to live operations. Stories: 5.1 provision cluster, 5.2 deploy application, 5.3 onboard first client, 5.4 validation testing, 5.5 baseline metrics, 5.6 support documentation, 5.7 retrospective.</snippet>
+      </doc>
+
+      <!-- Existing Operational Documentation (Foundation for Support Docs) -->
+      <doc>
+        <path>docs/operations/README.md</path>
+        <title>Operational Documentation Index</title>
+        <section>Complete Navigation</section>
+        <snippet>Comprehensive operational guide index covering setup (Prometheus, Grafana, Alertmanager, tracing), alert configuration, troubleshooting, and production procedures. 19 operational documents organized by use case.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/alert-runbooks.md</path>
+        <title>Alert Response Runbooks</title>
+        <section>All Alert Scenarios</section>
+        <snippet>27,978 bytes of alert-specific runbooks covering 11 scenarios: high error rate, high queue depth, worker failures, database connection issues, API timeouts, high latency, low success rate, security violations, data integrity issues, tenant isolation violations, configuration errors.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/production-deployment-runbook.md</path>
+        <title>Production Deployment Procedures</title>
+        <section>Story 5.2 Deployment Guide</section>
+        <snippet>Step-by-step production deployment procedures: environment preparation, container registry, secrets configuration, Kubernetes manifest application, database migrations, smoke testing, rollback procedures.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/production-cluster-setup.md</path>
+        <title>Production Cluster Setup</title>
+        <section>Infrastructure Configuration</section>
+        <snippet>Production Kubernetes cluster provisioning guide from Story 5.1: cloud provider setup, node configuration, auto-scaling, network policies, RBAC, managed database/Redis, ingress controller, TLS certificates.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/client-onboarding-runbook.md</path>
+        <title>Client Onboarding Procedures</title>
+        <section>Tenant Provisioning</section>
+        <snippet>32,999 bytes comprehensive client onboarding from Story 5.3: tenant creation, ServiceDesk Plus webhook configuration, API credentials, namespace creation, validation testing, checklist for future clients.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/tenant-troubleshooting-guide.md</path>
+        <title>Tenant-Specific Troubleshooting</title>
+        <section>Multi-Tenant Support</section>
+        <snippet>24,087 bytes of tenant-specific troubleshooting: RLS enforcement verification, configuration management, webhook debugging, API credential rotation, performance tuning, data access procedures.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/client-handoff-guide.md</path>
+        <title>Client Handoff Procedures</title>
+        <section>Post-Onboarding Handoff</section>
+        <snippet>19,463 bytes guide for transitioning client from onboarding to steady-state operations: training completion, documentation delivery, support contact establishment, SLA confirmation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/production-validation-report.md</path>
+        <title>Production Validation Results</title>
+        <section>Story 5.4 Testing Outcomes</section>
+        <snippet>32,077 bytes validation testing report: 10 real tickets processed, enhancement quality reviewed, performance metrics (p50/p95/p99), error scenarios tested, monitoring alerts verified, multi-tenant isolation validated.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/distributed-tracing-setup.md</path>
+        <title>OpenTelemetry Distributed Tracing</title>
+        <section>Story 4.6 Tracing Implementation</section>
+        <snippet>31,973 bytes tracing setup guide: OpenTelemetry instrumentation, trace context propagation, span creation, Jaeger/Uptrace integration, debugging end-to-end request flows.</snippet>
+      </doc>
+      <doc>
+        <path>docs/operations/alertmanager-setup.md</path>
+        <title>Alertmanager Configuration</title>
+        <section>Story 4.5 Alert Routing</section>
+        <snippet>18,901 bytes alert routing setup: Alertmanager configuration, notification channels (email, Slack, PagerDuty), alert grouping, inhibition rules, silencing, escalation routing.</snippet>
+      </doc>
+
+      <!-- Scenario-Specific Runbooks (Troubleshooting References) -->
+      <doc>
+        <path>docs/runbooks/README.md</path>
+        <title>Runbook Index</title>
+        <section>Runbook Structure & Navigation</section>
+        <snippet>Operational runbooks organized by scenario: high queue depth, worker failures, database issues, API timeouts, tenant onboarding. Standard format: overview, symptoms, diagnosis, resolution, escalation, prevention.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/enhancement-failures.md</path>
+        <title>Enhancement Pipeline Troubleshooting</title>
+        <section>Enhancement Processing Failures</section>
+        <snippet>15,104 bytes runbook for diagnosing enhancement failures: LangGraph workflow errors, GPT-4 API issues, context gathering timeouts, partial results, resolution procedures.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/worker-failures.md</path>
+        <title>Celery Worker Troubleshooting</title>
+        <section>Worker Crashes and Degradation</section>
+        <snippet>13,609 bytes worker diagnostics: worker crash investigation, memory/CPU issues, restart procedures, log analysis, scaling decisions, health check failures.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/database-connection-issues.md</path>
+        <title>Database Connectivity Troubleshooting</title>
+        <section>PostgreSQL Connection Problems</section>
+        <snippet>13,686 bytes database diagnostics: connection pool exhaustion, slow queries, RLS performance, connection limit issues, query optimization, index recommendations.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/high-queue-depth.md</path>
+        <title>Queue Backlog Troubleshooting</title>
+        <section>Redis Queue Depth Issues</section>
+        <snippet>12,921 bytes queue diagnostics: queue depth investigation, worker scaling, backpressure analysis, priority queue tuning, clearing stuck jobs.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/api-timeout.md</path>
+        <title>API Performance Troubleshooting</title>
+        <section>External API Failures</section>
+        <snippet>16,321 bytes API diagnostics: ServiceDesk Plus timeouts, OpenAI rate limits, retry logic, circuit breaker patterns, timeout tuning, fallback strategies.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/WEBHOOK_TROUBLESHOOTING_RUNBOOK.md</path>
+        <title>Webhook Validation Issues</title>
+        <section>Webhook Signature Validation</section>
+        <snippet>18,659 bytes webhook diagnostics: signature mismatch, timestamp validation, secret rotation, payload parsing errors, debugging webhook delivery.</snippet>
+      </doc>
+      <doc>
+        <path>docs/runbooks/tenant-onboarding.md</path>
+        <title>Tenant Provisioning Procedures</title>
+        <section>Step-by-Step Client Setup</section>
+        <snippet>16,910 bytes tenant provisioning: tenant_configs creation, namespace setup, API credential generation, webhook configuration, RLS policy enforcement, validation testing.</snippet>
+      </doc>
+
+      <!-- Metrics and Baseline Documentation -->
+      <doc>
+        <path>docs/metrics/baseline-metrics-collection-plan.md</path>
+        <title>Baseline Metrics Methodology</title>
+        <section>7-Day Measurement Plan</section>
+        <snippet>12,000+ word guide from Story 5.5: success criteria definition (>20% research time reduction, >4/5 satisfaction, >95% success rate, p95 <60s), measurement methodology, data collection procedures.</snippet>
+      </doc>
+      <doc>
+        <path>docs/metrics/weekly-metrics-review-template.md</path>
+        <title>Weekly Metrics Review Process</title>
+        <section>Stakeholder Review</section>
+        <snippet>Weekly review template for baseline metrics: KPI tracking, trend analysis, client feedback review, action items, escalation criteria.</snippet>
+      </doc>
+
+      <!-- External Best Practices (2025 SRE Standards) -->
+      <doc>
+        <path>external:google-sre-incident-management</path>
+        <title>Google SRE Incident Management Guide</title>
+        <section>Three Cs Framework</section>
+        <snippet>Industry standard incident management based on Incident Command System: coordinate, communicate, control. Roles, escalation, postmortem templates, learning from incidents.</snippet>
+      </doc>
+      <doc>
+        <path>external:rootly-2025-sre-best-practices</path>
+        <title>2025 SRE Best Practices Checklist</title>
+        <section>Modern SRE Principles</section>
+        <snippet>2025 best practices: automate incident response, maintain up-to-date playbooks, 5 principles of trustworthy runbooks (Actionable, Accessible, Accurate, Authoritative, Adaptable), postmortem culture, continuous improvement.</snippet>
+      </doc>
+      <doc>
+        <path>external:picerl-incident-response-model</path>
+        <title>PICERL Incident Response Framework</title>
+        <section>Cybersecurity Incident Response</section>
+        <snippet>Prescriptive incident response model: Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned. Battle card approach for rapid response playbooks.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- API Endpoints (Support Team Access Points) -->
+      <artifact>
+        <path>src/api/webhooks.py</path>
+        <kind>api-endpoint</kind>
+        <symbol>receive_webhook</symbol>
+        <lines>N/A</lines>
+        <reason>Primary webhook receiver endpoint that support team troubleshoots when webhook delivery fails or signature validation errors occur</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/feedback.py</path>
+        <kind>api-endpoint</kind>
+        <symbol>submit_feedback, get_feedback, get_feedback_stats</symbol>
+        <lines>N/A</lines>
+        <reason>Feedback API endpoints for client satisfaction investigation - support can query feedback trends to identify client-reported issues (Story 5.5)</reason>
+      </artifact>
+
+      <!-- Database Models (Support Data Access Context) -->
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>database-model</kind>
+        <symbol>EnhancementFeedback</symbol>
+        <lines>377-460</lines>
+        <reason>Feedback data model with RLS enforcement - support must use tenant-scoped queries when investigating client feedback, cannot access cross-tenant data</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>database-model</kind>
+        <symbol>TenantConfig</symbol>
+        <lines>N/A</lines>
+        <reason>Tenant configuration table containing API credentials, webhook secrets, per-client settings - support needs to understand this for configuration troubleshooting</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>database-model</kind>
+        <symbol>AuditLog</symbol>
+        <lines>N/A</lines>
+        <reason>Audit log table tracking all operations with tenant_id - support uses for incident investigation and forensics</reason>
+      </artifact>
+
+      <!-- Observability Instrumentation (Monitoring Integration) -->
+      <artifact>
+        <path>src/observability/tracing.py</path>
+        <kind>service</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>OpenTelemetry tracing instrumentation from Story 4.6 - support team uses traces for debugging end-to-end request flows during incidents</reason>
+      </artifact>
+
+      <!-- Kubernetes Manifests (Infrastructure Context) -->
+      <artifact>
+        <path>k8s/prometheus-config.yaml</path>
+        <kind>k8s-config</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Prometheus scrape configuration - support references when investigating metrics collection issues or adding new scrape targets</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/prometheus-alert-rules.yaml</path>
+        <kind>k8s-config</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Alert rule definitions - support must understand alert thresholds and conditions to respond appropriately to triggered alerts</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/alertmanager-deployment.yaml</path>
+        <kind>k8s-deployment</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Alertmanager deployment with routing config - support troubleshoots notification delivery failures (Story 4.5)</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/grafana-dashboard-baseline-metrics.yaml</path>
+        <kind>k8s-configmap</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Baseline metrics dashboard (686 lines, 9 panels) - support uses for performance troubleshooting and success criteria tracking (Story 5.5)</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/grafana-dashboard-operations.yaml</path>
+        <kind>k8s-configmap</kind>
+        <symbol>N/A</symbol>
+        <reason>Operational metrics dashboard - support primary dashboard for real-time system health monitoring during incident response</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/production/*.yaml</path>
+        <kind>k8s-manifests</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Production deployment manifests (namespace, secrets, configmap, api/worker deployments, ingress, HPA) - support references for production troubleshooting (Story 5.2)</reason>
+      </artifact>
+
+      <!-- Worker and Queue Processing -->
+      <artifact>
+        <path>src/workers/enhancement_worker.py</path>
+        <kind>celery-worker</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>Celery worker processing enhancement jobs - support troubleshoots worker crashes, memory issues, task failures using worker-failures.md runbook</reason>
+      </artifact>
+
+      <!-- LangGraph Workflow (Enhancement Pipeline) -->
+      <artifact>
+        <path>src/workflows/enhancement_workflow.py</path>
+        <kind>langgraph-workflow</kind>
+        <symbol>N/A</symbol>
+        <lines>N/A</lines>
+        <reason>LangGraph orchestration for enhancement processing - support investigates workflow errors, GPT-4 API failures, context gathering timeouts</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python version="3.12">
+        <package name="fastapi" version="0.104+">Async web framework - webhook receiver and feedback API endpoints</package>
+        <package name="sqlalchemy" version="2.0+">ORM with RLS support - database queries must use tenant-scoped sessions</package>
+        <package name="celery" version="5.x">Task queue - worker scaling and queue management for support troubleshooting</package>
+        <package name="redis-py" version="Latest">Redis client - queue depth monitoring and investigation</package>
+        <package name="langgraph" version="1.0+">AI workflow orchestration - enhancement pipeline troubleshooting</package>
+        <package name="openai" version="Latest">OpenAI/OpenRouter API client - API timeout and rate limit troubleshooting</package>
+        <package name="loguru" version="Latest">Logging library - log analysis and investigation tools</package>
+        <package name="prometheus-client" version="Latest">Metrics instrumentation - understanding metric definitions and collection</package>
+        <package name="opentelemetry-sdk" version="Latest">Distributed tracing - trace-based debugging for end-to-end request flows</package>
+      </python>
+      <infrastructure>
+        <component name="PostgreSQL" version="17">Managed database with RLS - connection troubleshooting, query optimization, backup/restore procedures</component>
+        <component name="Redis" version="7.x">Message broker + cache - queue depth monitoring, clearing stuck jobs, connection issues</component>
+        <component name="Kubernetes" version="1.28+">Container orchestration - kubectl operations, pod management, namespace isolation, HPA scaling</component>
+        <component name="Prometheus" version="Latest">Metrics collection - scrape target configuration, PromQL queries, storage management</component>
+        <component name="Grafana" version="Latest">Metrics visualization - dashboard usage, panel queries, alert visualization, datasource configuration</component>
+        <component name="Alertmanager" version="Latest">Alert routing - notification troubleshooting, routing config, silencing, inhibition rules</component>
+        <component name="Jaeger/Uptrace" version="Latest">Trace storage - distributed trace viewing and analysis for debugging</component>
+      </infrastructure>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">No code changes: This is a pure documentation and operational process story. All deliverables are markdown documentation files and procedural artifacts (training materials, knowledge base, mock drill results).</constraint>
+    <constraint id="C2">Consolidate existing docs: EXTENSIVE operational documentation already exists (20+ files, 300KB+ total from Epics 4-5). MUST consolidate and cross-reference existing docs rather than duplicating content. Create navigation layer and fill gaps only where support-specific procedures are missing.</constraint>
+    <constraint id="C3">RLS awareness: Support team documentation must emphasize Row-Level Security constraints. Support engineers can only query tenant-scoped data, cannot access cross-tenant information without explicit multi-tenant admin privileges.</constraint>
+    <constraint id="C4">2025 SRE best practices: Follow modern SRE standards researched via Ref MCP and web search - runbooks must be Actionable, Accessible, Accurate, Authoritative, Adaptable; incident response follows Google's "Three Cs" (coordinate, communicate, control); postmortem culture for continuous learning.</constraint>
+    <constraint id="C5">Align with existing runbook structure: All new runbooks follow established format from docs/runbooks/README.md: Overview, Quick Links, Symptoms, Diagnosis, Resolution, Escalation, Prevention. Maintain consistency for rapid incident response.</constraint>
+    <constraint id="C6">Link to existing operational docs: Support guide MUST include comprehensive cross-references to docs/operations/, docs/runbooks/, docs/metrics/, k8s/ manifests. Support engineers navigate via links, not duplicated content.</constraint>
+    <constraint id="C7">Training validation: AC5 (support team training) requires documented knowledge transfer session with hands-on walkthrough. Training must be recorded for future team member onboarding.</constraint>
+    <constraint id="C8">Support readiness drill: AC7 (mock incident drill) is the validation mechanism for all support procedures. Drill must measure response times against SLAs, identify gaps, and generate action items before declaring 24x7 support operational.</constraint>
+    <constraint id="C9">File locations: All deliverables save to docs/support/ following unified project structure. README.md provides navigation, subdirectory knowledge-base/ contains FAQ articles.</constraint>
+    <constraint id="C10">PICERL framework: Incident response playbook should incorporate PICERL model (Preparation, Identification, Containment, Eradication, Recovery, Lessons Learned) researched from external best practices.</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>Feedback API - GET /api/v1/feedback</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/feedback?tenant_id=&lt;client&gt;&amp;start_date=&lt;date&gt;&amp;end_date=&lt;date&gt;&amp;feedback_type=&lt;type&gt;</signature>
+      <path>src/api/feedback.py</path>
+      <usage>Support engineers query client feedback trends to identify technician satisfaction issues and enhancement quality problems. Requires tenant_id for RLS enforcement.</usage>
+    </interface>
+    <interface>
+      <name>Feedback API - GET /api/v1/feedback/stats</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/feedback/stats?tenant_id=&lt;client&gt;&amp;start_date=&lt;date&gt;&amp;end_date=&lt;date&gt;</signature>
+      <path>src/api/feedback.py</path>
+      <usage>Support retrieves aggregated feedback statistics (average rating, thumbs up/down counts, satisfaction trends) for client health checks and weekly reviews.</usage>
+    </interface>
+    <interface>
+      <name>Grafana Baseline Metrics Dashboard</name>
+      <kind>Grafana dashboard</kind>
+      <signature>Access at http://localhost:3000 or production Grafana URL</signature>
+      <path>k8s/grafana-dashboard-baseline-metrics.yaml</path>
+      <usage>Support team primary dashboard for success criteria tracking: average rating, success rate %, p95 latency, throughput, feedback sentiment. 9 panels visualizing Story 5.5 metrics.</usage>
+    </interface>
+    <interface>
+      <name>Grafana Operations Dashboard</name>
+      <kind>Grafana dashboard</kind>
+      <signature>Access at http://localhost:3000 or production Grafana URL</signature>
+      <path>k8s/grafana-dashboard-operations.yaml</path>
+      <usage>Support team real-time system health monitoring during incident response: API latency, queue depth, worker health, database connections, error rates.</usage>
+    </interface>
+    <interface>
+      <name>Prometheus Alert Rules</name>
+      <kind>Prometheus AlertManager</kind>
+      <signature>Defined in prometheus-alert-rules.yaml, routed via Alertmanager</signature>
+      <path>k8s/prometheus-alert-rules.yaml</path>
+      <usage>Support must understand 11 alert scenarios and their thresholds: high error rate, high queue depth, worker failures, database issues, API timeouts, high latency, low success rate, security violations, data integrity issues, tenant isolation violations, config errors. Each has corresponding runbook in docs/operations/alert-runbooks.md.</usage>
+    </interface>
+    <interface>
+      <name>kubectl Commands for Support</name>
+      <kind>CLI</kind>
+      <signature>kubectl get pods, kubectl logs, kubectl describe, kubectl top, kubectl exec</signature>
+      <path>N/A - Kubernetes CLI</path>
+      <usage>Support team uses kubectl for production troubleshooting: viewing pod status, accessing logs, debugging resource issues, scaling workers, restarting failed pods. Quick reference guide needed in production support guide (AC1, Task 1.6).</usage>
+    </interface>
+    <interface>
+      <name>Database Query Interface (psql/SQL)</name>
+      <kind>Database CLI</kind>
+      <signature>psql connection with RLS session variable: SET app.current_tenant_id = '&lt;tenant&gt;'</signature>
+      <path>N/A - PostgreSQL CLI</path>
+      <usage>Support queries enhancement_feedback, tenant_configs, audit_log tables for investigation. MUST set RLS session variable before queries to respect multi-tenant isolation. Data access procedures documented in AC2, Task 2.6.</usage>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+This is a pure documentation and operational process story (Constraint C1). No code changes are expected, therefore no automated unit/integration tests are required following CLAUDE.md testing standards.
+
+Validation approach differs from code-focused stories:
+1. Mock Incident Drill (AC7, Task 7) serves as functional validation - tabletop exercise walking through support procedures to identify gaps
+2. Documentation Quality Review - existing operational docs (300KB+ from Epics 4-5) serve as quality benchmark for new support documentation
+3. Training Session Feedback (AC5, Task 5.6) - support team validates documentation clarity and completeness during knowledge transfer
+4. Support Readiness Assessment (AC7, Task 7.6) - formal evaluation of team readiness before declaring 24x7 support operational
+
+Story completion criteria measured by deliverable completeness (7 ACs, 8 task groups) and drill outcomes (response times vs SLAs, gap identification, action item generation).
+    </standards>
+    <locations>
+No test code locations - documentation story. Validation artifacts saved to:
+- docs/support/ - All support documentation deliverables (7 main files + knowledge base articles)
+- docs/support/support-readiness-validation.md - Mock incident drill results and gap analysis (AC7 validation)
+- docs/support/knowledge-base/ - FAQ articles and troubleshooting guides (AC6 deliverable)
+    </locations>
+    <ideas>
+Validation ideas mapped to acceptance criteria:
+
+AC1 (Production Support Guide):
+- Verify architecture overview accuracy by cross-referencing docs/architecture.md and PRD.md
+- Validate common issues list completeness using Epic 4-5 completion notes and code review findings
+- Test troubleshooting decision tree with 3-5 sample scenarios from existing runbooks
+- Confirm escalation paths align with organizational structure (verify with stakeholders)
+- Validate health check procedures against Grafana dashboards and Prometheus queries
+
+AC2 (Client Support Procedures):
+- Walk through ticket investigation workflow with sample ticket from Story 5.4 validation report
+- Test configuration management procedures against tenant_configs table schema and RLS enforcement
+- Validate performance tuning guide using baseline metrics from Story 5.5
+- Cross-reference client onboarding support with docs/operations/client-onboarding-runbook.md
+
+AC3 (Incident Response Playbook):
+- Validate severity definitions (P0-P3) against industry standards (Google SRE, PICERL framework)
+- Test communication templates with sample incident scenario
+- Verify escalation matrix completeness with organizational contacts
+- Compare postmortem template with existing runbook prevention sections
+
+AC4 (On-Call Rotation):
+- Validate on-call coverage model feasibility with team size and availability
+- Test notification system integration with Alertmanager routing config
+- Verify handoff checklist completeness against operational knowledge requirements
+
+AC5 (Support Team Training):
+- Test training materials clarity with dry-run presentation
+- Validate hands-on walkthrough steps using production/staging environment
+- Confirm coverage of all critical operational areas (monitoring, troubleshooting, escalation)
+
+AC6 (Knowledge Base):
+- Extract and categorize FAQs from Epic 4-5 operational docs (validate comprehensiveness)
+- Cross-reference known issues with code review findings and validation testing results
+- Verify article organization supports rapid search during incident response
+
+AC7 (Mock Incident Drill) - Primary Validation Mechanism:
+- Design realistic scenario (e.g., "High queue depth + worker failures causing enhancement backlog")
+- Measure detection time, triage time, mitigation time, resolution time against defined SLAs
+- Test on-call notification delivery through configured channels
+- Validate runbook accuracy and completeness during execution
+- Document gaps: missing procedures, unclear instructions, incomplete escalation paths
+- Generate action items for refinement before 24x7 support go-live
+- Target: 80%+ readiness score, all P0/P1 procedures validated, <5 critical gaps identified
+    </ideas>
+  </tests>
+</story-context>

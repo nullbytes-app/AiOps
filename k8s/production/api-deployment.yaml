@@ -1,0 +1,229 @@
+# Production API Deployment
+# Story 5.2: Deploy Application to Production Environment
+# FastAPI webhook receiver with health probes and database migration init container
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-agents-api
+  namespace: production
+  labels:
+    app: ai-agents
+    component: api
+    tier: backend
+spec:
+  replicas: 2  # Production redundancy
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deployments
+  selector:
+    matchLabels:
+      app: ai-agents
+      component: api
+  template:
+    metadata:
+      labels:
+        app: ai-agents
+        component: api
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: app-sa  # From Story 5.1 namespace.yaml
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      # Init container: Run database migrations before API starts
+      initContainers:
+        - name: migration-runner
+          image: REPLACE_WITH_REGISTRY/ai-agents-migrations:v1.0.0  # Replace with actual registry
+          imagePullPolicy: Always
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DATABASE_URL
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: ai-agents-config
+                  key: LOG_LEVEL
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              echo "Checking database connectivity..."
+              for i in {1..30}; do
+                if python -c "import asyncpg; import asyncio; asyncio.run(asyncpg.connect('${DATABASE_URL}'))"; then
+                  echo "Database connection successful"
+                  break
+                fi
+                echo "Waiting for database... (attempt $i/30)"
+                sleep 2
+              done
+              echo "Running Alembic migrations..."
+              alembic upgrade head
+              echo "Migrations complete"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false  # Alembic needs write access to alembic/versions
+            capabilities:
+              drop:
+                - ALL
+
+      containers:
+        # Main FastAPI application container
+        - name: api
+          image: REPLACE_WITH_REGISTRY/ai-agents-api:v1.0.0  # Replace with actual registry
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: ai-agents-config
+
+          # Environment variables from Secrets
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: REDIS_URL
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-credentials
+                  key: OPENAI_API_KEY
+            - name: WEBHOOK_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: servicedesk-credentials
+                  key: WEBHOOK_SECRET
+            - name: SERVICEDESK_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: servicedesk-credentials
+                  key: SERVICEDESK_API_URL
+            - name: SERVICEDESK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servicedesk-credentials
+                  key: SERVICEDESK_API_KEY
+
+          # Startup probe: Allow 5 minutes for application initialization
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8000
+              httpHeaders:
+                - name: User-Agent
+                  value: "Kubernetes-Startup-Probe"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 30  # 30 * 10s = 5 minutes max startup time
+            successThreshold: 1
+
+          # Liveness probe: Detect deadlocks and hung processes
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+              httpHeaders:
+                - name: User-Agent
+                  value: "Kubernetes-Liveness-Probe"
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+
+          # Readiness probe: Prevent routing traffic to unready pods
+          readinessProbe:
+            httpGet:
+              path: /api/v1/ready
+              port: 8000
+              httpHeaders:
+                - name: User-Agent
+                  value: "Kubernetes-Readiness-Probe"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+            successThreshold: 1
+
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
+
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+
+          # Volume mounts for temporary files
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
+
+          # Graceful shutdown
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 15"]  # Allow 15s for connection draining
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+
+      # Pod placement preferences
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - api
+                topologyKey: kubernetes.io/hostname
+
+      # Termination grace period
+      terminationGracePeriodSeconds: 30

@@ -63,3 +63,7 @@ build/
 # Kubernetes secrets (NEVER commit - only .example template)
 k8s/secrets.yaml
 !k8s/secrets.yaml.example
+
+# Streamlit secrets (NEVER commit - only .template)
+.streamlit/secrets.toml
+!.streamlit/secrets.toml.template

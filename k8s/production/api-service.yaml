@@ -1,0 +1,33 @@
+# Production API Service
+# Story 5.2: Deploy Application to Production Environment
+# ClusterIP service exposing API pods to ingress controller
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-agents-api
+  namespace: production
+  labels:
+    app: ai-agents
+    component: api
+    tier: backend
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"  # Network Load Balancer for AWS
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9090"
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-agents
+    component: api
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      protocol: TCP
+    - name: metrics
+      port: 9090
+      targetPort: 9090
+      protocol: TCP
+  sessionAffinity: None

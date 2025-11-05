@@ -1,0 +1,86 @@
+# Kubernetes RBAC for Streamlit Admin Pod
+# Story 6.7: Add Worker Health and Resource Monitoring
+#
+# This manifest creates a ServiceAccount, Role, and RoleBinding to grant
+# the Streamlit admin pod permissions to:
+#   - List and get pods (for worker discovery and logs)
+#   - Read pod logs (for worker logs viewer)
+#   - Delete pods (for worker restart, alternative to deployment patch)
+#   - Get and patch deployments (for graceful rolling restart)
+#
+# Security: Follows principle of least privilege - only grants necessary
+# permissions for worker monitoring and operations within the namespace.
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: streamlit-admin
+  namespace: ai-agents
+  labels:
+    app: streamlit-admin
+    component: admin-ui
+    epic: "6"
+    story: "6.7"
+  annotations:
+    description: "ServiceAccount for Streamlit admin UI to access Kubernetes API"
+    created-by: "Story 6.7 - Add Worker Health and Resource Monitoring"
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: streamlit-admin-role
+  namespace: ai-agents
+  labels:
+    app: streamlit-admin
+    component: admin-ui
+    epic: "6"
+    story: "6.7"
+  annotations:
+    description: "Role with permissions for worker monitoring and operations"
+    created-by: "Story 6.7 - Add Worker Health and Resource Monitoring"
+rules:
+  # Pod operations: list, get, watch for worker discovery
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+
+  # Pod logs: read worker logs for troubleshooting
+  - apiGroups: [""]
+    resources: ["pods/log"]
+    verbs: ["get", "list"]
+
+  # Pod delete: alternative restart method (more disruptive but faster)
+  # Can be removed if only using deployment patch for restart
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
+
+  # Deployment operations: get and patch for graceful rolling restart
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "patch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: streamlit-admin-binding
+  namespace: ai-agents
+  labels:
+    app: streamlit-admin
+    component: admin-ui
+    epic: "6"
+    story: "6.7"
+  annotations:
+    description: "RoleBinding for streamlit-admin ServiceAccount"
+    created-by: "Story 6.7 - Add Worker Health and Resource Monitoring"
+subjects:
+  - kind: ServiceAccount
+    name: streamlit-admin
+    namespace: ai-agents
+roleRef:
+  kind: Role
+  name: streamlit-admin-role
+  apiGroup: rbac.authorization.k8s.io

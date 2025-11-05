@@ -1,0 +1,346 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>5.5</storyId>
+    <title>Establish Baseline Metrics and Success Criteria</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/5-5-establish-baseline-metrics-and-success-criteria.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>product manager</asA>
+    <iWant>baseline performance metrics documented over a 7-day measurement period</iWant>
+    <soThat>we can measure platform improvement over time, demonstrate ROI to stakeholders, and prioritize the improvement roadmap based on data-driven insights</soThat>
+    <tasks>
+### AC1: Baseline Metrics Collected (7-Day Period)
+- Task 1.1: Create baseline-metrics-collection-plan.md documenting 7-day measurement methodology
+- Task 1.2: Configure Prometheus to collect extended baseline metrics over 7-day period
+- Task 1.3: Add custom business impact metrics to Prometheus
+- Task 1.4: Execute 7-day baseline collection period with daily health checks
+- Task 1.5: Execute client feedback surveys during 7-day period
+- Task 1.6: Document baseline findings in baseline-metrics-7-day-report.md
+
+### AC2: Success Criteria Defined
+- Task 2.1: Define quantitative success criteria for key performance metrics
+- Task 2.2: Define business impact success criteria
+- Task 2.3: Document success criteria rationale and measurement methodology
+- Task 2.4: Socialize success criteria with stakeholders
+
+### AC3: Metrics Dashboard Created
+- Task 3.1: Design stakeholder-facing Grafana dashboard layout
+- Task 3.2: Create Grafana dashboard configuration as Kubernetes ConfigMap
+- Task 3.3: Deploy baseline metrics dashboard to Grafana
+- Task 3.4: Create dashboard user guide
+- Task 3.5: Schedule weekly stakeholder dashboard review session
+
+### AC4: Weekly Review Process Established
+- Task 4.1: Create weekly-metrics-review-template.md
+- Task 4.2: Define review cadence and schedule
+- Task 4.3: Create metrics review checklist
+- Task 4.4: Document escalation path for critical issues
+- Task 4.5: Conduct first weekly review session during 7-day baseline period
+
+### AC5: Client Feedback Mechanism Implemented
+- Task 5.1: Design enhancement_feedback database schema
+- Task 5.2: Create Alembic migration for enhancement_feedback table
+- Task 5.3: Implement feedback API endpoints
+- Task 5.4: Implement feedback business logic
+- Task 5.5: Add feedback UI integration point
+- Task 5.6: Create integration tests for feedback API
+- Task 5.7: Deploy feedback mechanism to production
+
+### AC6: Improvement Roadmap Prioritized
+- Task 6.1: Analyze baseline metrics to identify improvement opportunities
+- Task 6.2: Synthesize client feedback themes
+- Task 6.3: Create improvement opportunity backlog
+- Task 6.4: Prioritize improvement roadmap using data-driven framework
+- Task 6.5: Document roadmap prioritization rationale
+- Task 6.6: Share prioritized roadmap with stakeholders
+
+### AC7: Metrics Report Created and Shared
+- Task 7.1: Create comprehensive baseline-metrics-7-day-report.md
+- Task 7.2: Calculate ROI and business impact metrics
+- Task 7.3: Create executive presentation summarizing baseline findings
+- Task 7.4: Share baseline metrics report with stakeholders
+- Task 7.5: Publish metrics report to internal knowledge base
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. **Baseline Metrics Collected:** Comprehensive baseline metrics collected over 7-day measurement period including: average resolution time (before/after enhancement), ticket quality improvement score, technician satisfaction ratings, enhancement success rate, and platform performance metrics (latency, throughput)
+
+2. **Success Criteria Defined:** Quantitative success criteria documented for key metrics: >20% reduction in technician research time per ticket, >4/5 average technician satisfaction score (Likert scale), >95% enhancement success rate, p95 latency <60 seconds
+
+3. **Metrics Dashboard Created:** Stakeholder-facing metrics dashboard created in Grafana with baseline KPIs, trend visualization, and comparison targets for executive visibility and weekly review meetings
+
+4. **Weekly Review Process Established:** Weekly metric review process documented and scheduled with defined attendees (product manager, operations lead, engineering lead), review template, and decision-making framework for roadmap prioritization
+
+5. **Client Feedback Mechanism Implemented:** In-product feedback mechanism implemented allowing technicians to rate enhancement quality (thumbs up/down or 1-5 scale) with data collection, storage, and reporting infrastructure
+
+6. **Improvement Roadmap Prioritized:** Product improvement roadmap prioritized based on baseline findings, client feedback themes, and identified performance gaps with documented rationale linking metrics to feature decisions
+
+7. **Metrics Report Created and Shared:** Comprehensive baseline metrics report created documenting 7-day findings, success criteria achievement status, client feedback analysis, and improvement recommendations, shared with stakeholders (executive team, operations, client account managers)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Non-Functional Requirements - Performance & Observability</section>
+        <snippet>NFR001: p95 latency <60s target. NFR003: 99% success rate. NFR005: Prometheus metrics and Grafana dashboards for real-time visibility. FR022-023: System exposes Prometheus metrics with Grafana dashboards for monitoring.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture</title>
+        <section>Monitoring Stack (Prometheus, Grafana)</section>
+        <snippet>Prometheus for metrics collection with pull-based model, Grafana for rich visualization with MSP-friendly dashboards. Industry standard for observability with Kubernetes native integration.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 5 - Production Deployment & Validation</title>
+        <section>Story 5.5 - Establish Baseline Metrics and Success Criteria</section>
+        <snippet>7-day baseline metrics collection: resolution time before/after enhancement, ticket quality score, technician satisfaction. Success criteria: >20% research time reduction, >4/5 satisfaction, >95% success rate. Client feedback mechanism (thumbs up/down), metrics dashboard, weekly review process.</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing/performance-baseline-metrics.md</path>
+        <title>Performance Baseline Metrics Template (Story 5.4)</title>
+        <section>Prometheus Queries & Metric Collection Methodology</section>
+        <snippet>24-48h validation testing template with PromQL queries for p50/p95/p99 latency, success rate, queue depth, worker utilization. Extends to 7-day baseline for Story 5.5 statistical significance.</snippet>
+      </doc>
+      <doc>
+        <path>External: Grafana Documentation</path>
+        <title>Grafana Dashboards Overview (2025)</title>
+        <section>Dashboard Component Architecture & Best Practices</section>
+        <snippet>Grafana dashboard = data source + plugin + query + transformation + panel. Data flows through gates: source → plugin (data frames) → query (filtering) → transformation (manipulation) → panel (visualization). Best practice: customize dashboards for stakeholder needs (operations vs executives).</snippet>
+      </doc>
+      <doc>
+        <path>External: SaaS Metrics Research (2025)</path>
+        <title>SaaS KPIs & Customer Success Metrics</title>
+        <section>Industry Best Practices for Baseline Measurement</section>
+        <snippet>Essential SaaS metrics: MRR, NRR (>100% = growth), customer churn (<2% excellent, >5% problematic), customer health score, NPS, CSAT. 5% retention increase = 25% revenue increase. Dashboard best practices: start with basic KPIs, build customer health tracking, customize by stakeholder (executive ROI vs operations SLA).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/monitoring/metrics.py</path>
+        <kind>service</kind>
+        <symbol>Prometheus metrics definitions</symbol>
+        <lines>1-110</lines>
+        <reason>Existing Prometheus metrics for enhancement_requests_total, enhancement_duration_seconds, enhancement_success_rate, queue_depth, worker_active_count. Reuse these metrics for 7-day baseline collection.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>TenantConfig, EnhancementHistory</symbol>
+        <lines>30-180</lines>
+        <reason>Existing SQLAlchemy models with UUID primary keys, RLS support, tenant_id labels. Pattern to follow for new enhancement_feedback model (AC5).</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/webhooks.py</path>
+        <kind>controller</kind>
+        <symbol>WebhookRouter</symbol>
+        <lines>35-60</lines>
+        <reason>Existing FastAPI router pattern with Pydantic validation, async dependencies, tenant context injection. Pattern to follow for feedback API endpoints (AC5).</reason>
+      </artifact>
+      <artifact>
+        <path>k8s/grafana-dashboard.yaml</path>
+        <kind>config</kind>
+        <symbol>Grafana Dashboard ConfigMap</symbol>
+        <lines>1-80</lines>
+        <reason>Existing operational dashboard ConfigMap structure with Prometheus datasource, panels, queries. Template for baseline metrics dashboard ConfigMap (AC3).</reason>
+      </artifact>
+      <artifact>
+        <path>alembic/versions/*.py</path>
+        <kind>migration</kind>
+        <symbol>Database migrations with RLS policies</symbol>
+        <lines>N/A</lines>
+        <reason>Existing Alembic migration pattern with RLS policy creation, indexes, constraints. Pattern to follow for enhancement_feedback table migration (AC5, Task 5.2).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="prometheus-client" version="latest">Metrics instrumentation (existing from Epic 4)</package>
+        <package name="fastapi" version="0.104+">REST API framework for feedback endpoints (existing)</package>
+        <package name="sqlalchemy" version="2.0+">ORM for enhancement_feedback model (existing)</package>
+        <package name="alembic" version="latest">Database migrations for new table (existing)</package>
+        <package name="pydantic" version="2.x">Request/response validation (existing with FastAPI)</package>
+        <package name="httpx" version="latest">HTTP client for Grafana API operations if needed (existing)</package>
+      </python>
+      <kubernetes>
+        <resource>Grafana deployment (existing from Epic 4)</resource>
+        <resource>Prometheus server (existing from Epic 4)</resource>
+        <resource>PostgreSQL database with RLS (existing from Epic 1, 3)</resource>
+      </kubernetes>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+1. **Measurement Infrastructure Operational (Epic 4):** Prometheus and Grafana fully operational from Epic 4. No new infrastructure deployment required. Reuse existing metrics, extend dashboards.
+
+2. **7-Day Baseline Period Required:** Story 5.4 used 24-48h validation testing. Story 5.5 requires 7-day period for statistical significance and stakeholder credibility per 2025 SaaS best practices.
+
+3. **RLS Enforcement on New Tables:** enhancement_feedback table MUST implement row-level security policies matching existing tenant_configs and enhancement_history patterns (tenant isolation requirement from Epic 3).
+
+4. **Non-Destructive Dashboard Addition:** New baseline metrics dashboard must be separate ConfigMap from operational dashboards. Do not modify existing grafana-dashboard.yaml - create grafana-dashboard-baseline-metrics.yaml (separation of concerns).
+
+5. **Backward Compatible API Extension:** Feedback endpoints are NEW routes under /api/v1/feedback. Do not modify existing webhook or admin routes. Follow existing FastAPI async pattern with tenant context injection.
+
+6. **Documentation-First Approach (From Story 5.4):** Create baseline-metrics-collection-plan.md BEFORE starting 7-day collection period. Document methodology, success criteria, PromQL queries upfront for stakeholder alignment.
+
+7. **Prometheus Query Reusability:** Reuse exact PromQL queries from Story 5.4 performance-baseline-metrics.md template. Only change time range from [24h] to [7d]. Do not reinvent queries - proven accuracy from validation testing.
+
+8. **Testing Requirements:** Feedback API requires >90% test coverage matching project standards. Integration tests must validate RLS enforcement, API CRUD operations, duplicate prevention (Epic 2-3 testing patterns).
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>POST /api/v1/feedback</name>
+      <kind>REST endpoint</kind>
+      <signature>
+Request Body (Pydantic):
+{
+  "tenant_id": "UUID",
+  "ticket_id": "string",
+  "enhancement_id": "UUID",
+  "technician_email": "string | null",
+  "feedback_type": "thumbs_up | thumbs_down | rating",
+  "rating_value": "1-5 | null",
+  "feedback_comment": "string | null"
+}
+
+Response: 201 Created
+{
+  "id": "UUID",
+  "status": "created",
+  "message": "Feedback submitted successfully"
+}
+
+Errors: 400 (validation), 403 (tenant access denied), 422 (unprocessable)
+      </signature>
+      <path>src/api/feedback_routes.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/feedback</name>
+      <kind>REST endpoint</kind>
+      <signature>
+Query Parameters:
+- tenant_id: UUID (required, enforced via RLS)
+- start_date: ISO8601 datetime (optional)
+- end_date: ISO8601 datetime (optional)
+- feedback_type: thumbs_up | thumbs_down | rating (optional)
+
+Response: 200 OK
+{
+  "feedback": [
+    {
+      "id": "UUID",
+      "ticket_id": "string",
+      "enhancement_id": "UUID",
+      "feedback_type": "string",
+      "rating_value": "int | null",
+      "created_at": "ISO8601"
+    }
+  ],
+  "count": 123
+}
+      </signature>
+      <path>src/api/feedback_routes.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>enhancement_feedback Table Schema</name>
+      <kind>Database table</kind>
+      <signature>
+CREATE TABLE enhancement_feedback (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID NOT NULL REFERENCES tenant_configs(id),
+  ticket_id VARCHAR(255) NOT NULL,
+  enhancement_id UUID NOT NULL REFERENCES enhancement_history(id),
+  technician_email VARCHAR(255),
+  feedback_type VARCHAR(50) NOT NULL CHECK (feedback_type IN ('thumbs_up', 'thumbs_down', 'rating')),
+  rating_value INTEGER CHECK (rating_value BETWEEN 1 AND 5),
+  feedback_comment TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX idx_enhancement_feedback_tenant_id ON enhancement_feedback(tenant_id);
+CREATE INDEX idx_enhancement_feedback_created_at ON enhancement_feedback(created_at);
+
+-- RLS Policy
+ALTER TABLE enhancement_feedback ENABLE ROW LEVEL SECURITY;
+CREATE POLICY tenant_isolation_policy_enhancement_feedback ON enhancement_feedback
+  USING (tenant_id::TEXT = current_setting('app.current_tenant_id', TRUE));
+      </signature>
+      <path>alembic/versions/&lt;timestamp&gt;_add_enhancement_feedback_table.py (NEW)</path>
+    </interface>
+    <interface>
+      <name>Prometheus Metrics (Existing - Reuse)</name>
+      <kind>Metrics API</kind>
+      <signature>
+# Reuse from src/monitoring/metrics.py:
+- enhancement_duration_seconds{tenant_id, status} [Histogram] → p50/p95/p99 latency
+- enhancement_success_rate{tenant_id} [Gauge] → Success rate %
+- queue_depth{queue_name} [Gauge] → Redis queue backlog
+- worker_active_count{worker_type} [Gauge] → Active Celery workers
+
+# New metrics to add for feedback (if instrumenting):
+- feedback_submissions_total{tenant_id, feedback_type} [Counter] → Feedback submission rate
+- feedback_rating_avg{tenant_id} [Gauge] → Average 1-5 rating score
+      </signature>
+      <path>src/monitoring/metrics.py (EXTEND)</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+Testing framework: Pytest with pytest-asyncio for async tests. Target >90% code coverage for all new code (feedback API, models, services). Test structure: tests/unit/ for isolated component tests, tests/integration/ for API endpoint and database tests, tests/security/ for RLS validation. Use fixtures for mock data, AsyncMock for async dependencies. Follow existing pattern: class-based test suites, @pytest.mark.asyncio for async tests, descriptive test method names (test_<scenario>_<expected_outcome>). Integration tests must validate multi-tenant isolation via RLS policies. All database tests use test database with transaction rollback for cleanup.
+    </standards>
+    <locations>
+- tests/unit/test_feedback_service.py (NEW - AC5, Task 5.6)
+- tests/integration/test_feedback_endpoints.py (NEW - AC5, Task 5.6)
+- tests/security/test_feedback_rls.py (NEW - AC5, Task 5.6)
+- docs/metrics/ (NEW - AC1, AC7 - documentation deliverables)
+- k8s/grafana-dashboard-baseline-metrics.yaml (NEW - AC3, Task 3.2)
+    </locations>
+    <ideas>
+**AC1 (Baseline Metrics Collected):**
+- Manual execution test: Run 7-day baseline collection period with daily data quality checks (verify Prometheus scraping, no metric gaps, outliers documented)
+- Validation test: Execute PromQL queries from Story 5.4 template with [7d] time range, verify results populate baseline-metrics-7-day-report.md
+
+**AC2 (Success Criteria Defined):**
+- Documentation review: Verify baseline-metrics-collection-plan.md contains all 4 quantitative success criteria (research time reduction, satisfaction score, success rate, latency) with measurement methodology
+- Stakeholder alignment test: Confirm success criteria socialized with stakeholders per Task 2.4
+
+**AC3 (Metrics Dashboard Created):**
+- Deployment test: Apply grafana-dashboard-baseline-metrics.yaml ConfigMap, verify dashboard appears in Grafana UI (dashboard name, panels load correctly)
+- Query validation test: Verify all PromQL queries return data (no "No Data" errors), time range set to 7d, visualizations render (line charts, gauges, pie charts)
+- Access control test: Verify stakeholders can access dashboard with proper Grafana permissions
+
+**AC4 (Weekly Review Process Established):**
+- Process dry run test: Conduct first weekly review session during baseline period (Day 5-6) using weekly-metrics-review-template.md agenda, gather participant feedback
+- Template completeness test: Verify template includes attendee list, agenda structure, decision framework, escalation path per Tasks 4.1-4.4
+
+**AC5 (Client Feedback Mechanism Implemented):**
+- Unit tests (test_feedback_service.py): Test feedback storage logic, aggregation queries (avg rating, thumbs up/down counts), validation (rating 1-5, feedback_type enum), duplicate prevention
+- Integration tests (test_feedback_endpoints.py):
+  * POST /api/v1/feedback with valid inputs (thumbs_up, rating=4 with comment, technician_email) → verify 201 Created, record in database
+  * POST /api/v1/feedback with invalid inputs (rating=6, invalid feedback_type, missing required fields) → verify 400/422 errors
+  * GET /api/v1/feedback with filters (tenant_id, date range, feedback_type) → verify correct filtering, pagination
+  * RLS enforcement: POST feedback for Tenant A with Tenant B credentials → verify 403 Forbidden
+  * RLS enforcement: GET Tenant A feedback with Tenant B credentials → verify empty result set (RLS blocks cross-tenant access)
+- Database migration test: Run Alembic migration on test database, verify enhancement_feedback table created with correct schema (columns, constraints, indexes, RLS policy)
+- RLS policy validation (test_feedback_rls.py): Set app.current_tenant_id session variable to Tenant A UUID, insert feedback, query table, verify only Tenant A records visible; switch to Tenant B UUID, verify no Tenant A records returned
+
+**AC6 (Improvement Roadmap Prioritized):**
+- Documentation review: Verify baseline-metrics-7-day-report.md includes improvement opportunity backlog (Task 6.3), prioritized roadmap (Task 6.4), and rationale linking metrics to features (Task 6.5)
+- Client feedback analysis test: Verify client-feedback-analysis.md synthesizes themes, quantifies frequency, identifies top 3 improvement requests per Task 6.2
+
+**AC7 (Metrics Report Created and Shared):**
+- Report completeness test: Verify baseline-metrics-7-day-report.md includes all sections (executive summary, detailed metrics, client feedback, performance gaps, recommendations, appendices) per Task 7.1
+- ROI calculation test: Verify report includes ROI metrics (time savings, cost savings, satisfaction improvement) per Task 7.2
+- Stakeholder distribution test: Confirm report shared with executive team, operations, engineering, client account managers per Task 7.4
+
+**Coverage Target:** >90% for feedback API (feedback_routes.py, feedback_service.py, enhancement_feedback model). Existing monitoring infrastructure (Prometheus, Grafana) already validated in Epic 4, no additional testing required for metric collection.
+    </ideas>
+  </tests>
+</story-context>

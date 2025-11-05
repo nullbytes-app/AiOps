@@ -8,7 +8,7 @@ from typing import Optional
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, HttpUrl, ConfigDict
+from pydantic import BaseModel, Field, field_validator, model_validator, HttpUrl, ConfigDict
 
 
 class EnhancementPreferences(BaseModel):
@@ -28,19 +28,23 @@ class EnhancementPreferences(BaseModel):
 class TenantConfigCreate(BaseModel):
     """Request model for creating tenant configuration.
 
-    Attributes:
-        tenant_id: Unique tenant identifier (lowercase alphanumeric + hyphens)
-        name: Human-readable tenant name
-        servicedesk_url: ServiceDesk Plus instance URL
-        servicedesk_api_key: Plaintext API key (encrypted before storage)
-        webhook_signing_secret: Plaintext webhook secret (encrypted before storage)
-        enhancement_preferences: Optional preferences, defaults applied if omitted
+    Supports multiple ticketing tools via plugin architecture.
+    Tool-specific fields required based on tool_type.
     """
 
     tenant_id: str = Field(..., pattern=r"^[a-z0-9\-]+$", max_length=100)
     name: str = Field(..., min_length=1, max_length=255)
-    servicedesk_url: HttpUrl
-    servicedesk_api_key: str = Field(..., min_length=1)
+    tool_type: str = Field(default="servicedesk_plus")
+
+    # ServiceDesk Plus fields (required if tool_type='servicedesk_plus')
+    servicedesk_url: Optional[HttpUrl] = None
+    servicedesk_api_key: Optional[str] = Field(None, min_length=1)
+
+    # Jira fields (required if tool_type='jira')
+    jira_url: Optional[HttpUrl] = None
+    jira_api_token: Optional[str] = Field(None, min_length=1)
+    jira_project_key: Optional[str] = Field(None, min_length=1)
+
     webhook_signing_secret: str = Field(..., min_length=1)
     enhancement_preferences: Optional[EnhancementPreferences] = None
 
@@ -52,7 +56,18 @@ class TenantConfigCreate(BaseModel):
             raise ValueError("Tenant ID cannot start/end with hyphen")
         return v.lower()
 
-    def model_post_init(self, __context):
+    @model_validator(mode="after")
+    def validate_tool_specific_fields(self) -> "TenantConfigCreate":
+        """Validate required fields present for tool_type."""
+        if self.tool_type == "servicedesk_plus":
+            if not self.servicedesk_url or not self.servicedesk_api_key:
+                raise ValueError("ServiceDesk Plus requires: servicedesk_url, servicedesk_api_key")
+        elif self.tool_type == "jira":
+            if not self.jira_url or not self.jira_api_token or not self.jira_project_key:
+                raise ValueError("Jira requires: jira_url, jira_api_token, jira_project_key")
+        return self
+
+    def model_post_init(self, __context: any) -> None:
         """Apply defaults to enhancement preferences."""
         if self.enhancement_preferences is None:
             self.enhancement_preferences = EnhancementPreferences()
@@ -60,7 +75,7 @@ class TenantConfigCreate(BaseModel):
     @property
     def servicedesk_url_str(self) -> str:
         """Get servicedesk_url as string for storage."""
-        return str(self.servicedesk_url)
+        return str(self.servicedesk_url) if self.servicedesk_url else ""
 
 
 class TenantConfigUpdate(BaseModel):
@@ -70,26 +85,45 @@ class TenantConfigUpdate(BaseModel):
     """
 
     name: Optional[str] = Field(None, min_length=1, max_length=255)
+    tool_type: Optional[str] = None
+
+    # ServiceDesk Plus fields
     servicedesk_url: Optional[HttpUrl] = None
     servicedesk_api_key: Optional[str] = Field(None, min_length=1)
+
+    # Jira fields
+    jira_url: Optional[HttpUrl] = None
+    jira_api_token: Optional[str] = Field(None, min_length=1)
+    jira_project_key: Optional[str] = Field(None, min_length=1)
+
     webhook_signing_secret: Optional[str] = Field(None, min_length=1)
-    enhancement_preferences: Optional[EnhancementPreferences] = None
+    enhancement_preferences: Optional[dict] = None
 
 
 class TenantConfigResponse(BaseModel):
     """Response model for GET endpoints.
 
     Sensitive fields (api_key, webhook_secret) are masked in responses.
-    Used for all GET endpoints and list operations.
+    Supports multi-tool architecture with tool-specific fields.
     """
 
     id: UUID
     tenant_id: str
     name: str
-    servicedesk_url: str
-    servicedesk_api_key_encrypted: str = Field(default="***encrypted***")
+    tool_type: str
+
+    # ServiceDesk Plus fields
+    servicedesk_url: Optional[str] = None
+    servicedesk_api_key_encrypted: Optional[str] = Field(default="***encrypted***")
+
+    # Jira fields
+    jira_url: Optional[str] = None
+    jira_api_token_encrypted: Optional[str] = Field(default="***encrypted***")
+    jira_project_key: Optional[str] = None
+
     webhook_signing_secret_encrypted: str = Field(default="***encrypted***")
     enhancement_preferences: EnhancementPreferences
+    is_active: bool
     created_at: datetime
     updated_at: datetime
 
@@ -101,18 +135,33 @@ class TenantConfigInternal(BaseModel):
 
     Used internally by TenantService after decryption.
     Never exposed in API responses.
+
+    Supports multiple ticketing tools via plugin architecture:
+    - ServiceDesk Plus: servicedesk_url, servicedesk_api_key
+    - Jira Service Management: jira_url, jira_api_token, jira_project_key
     """
 
     id: UUID
     tenant_id: str
     name: str
-    servicedesk_url: str
-    servicedesk_api_key: str  # Decrypted
+
+    # ServiceDesk Plus fields (optional for Jira tenants)
+    servicedesk_url: Optional[str] = None
+    servicedesk_api_key: Optional[str] = None  # Decrypted
+
+    # Jira Service Management fields (optional for ServiceDesk Plus tenants)
+    jira_url: Optional[str] = None
+    jira_api_token: Optional[str] = None  # Decrypted
+    jira_project_key: Optional[str] = None
+
+    # Common fields
     webhook_signing_secret: str  # Decrypted
     enhancement_preferences: EnhancementPreferences
     created_at: datetime
     updated_at: datetime
 
+    tool_type: str = "servicedesk_plus"  # Default for backward compatibility
+    is_active: bool = True  # Default for backward compatibility
     model_config = ConfigDict(from_attributes=True)
 
 

@@ -1,0 +1,193 @@
+# Production Celery Worker Deployment
+# Story 5.2: Deploy Application to Production Environment
+# Celery enhancement workers with auto-scaling support
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-agents-worker
+  namespace: production
+  labels:
+    app: ai-agents
+    component: worker
+    tier: backend
+spec:
+  replicas: 3  # Initial replicas (HPA will scale 3-10)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: ai-agents
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: ai-agents
+        component: worker
+        tier: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: app-sa  # From Story 5.1 namespace.yaml
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: worker
+          image: REPLACE_WITH_REGISTRY/ai-agents-worker:v1.0.0  # Replace with actual registry
+          imagePullPolicy: Always
+
+          # Celery worker command
+          command: ["celery"]
+          args:
+            - "-A"
+            - "src.workers.celery_app"
+            - "worker"
+            - "--loglevel=info"
+            - "--concurrency=4"
+            - "--max-tasks-per-child=100"  # Restart worker after 100 tasks (prevent memory leaks)
+            - "--time-limit=120"  # Hard timeout for tasks
+            - "--soft-time-limit=110"  # Soft timeout (allows graceful cleanup)
+
+          ports:
+            - name: metrics
+              containerPort: 9090
+              protocol: TCP
+
+          # Environment variables from ConfigMap
+          envFrom:
+            - configMapRef:
+                name: ai-agents-config
+
+          # Environment variables from Secrets
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: DATABASE_URL
+            - name: REDIS_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: REDIS_URL
+            - name: CELERY_BROKER_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: CELERY_BROKER_URL
+            - name: CELERY_RESULT_BACKEND
+              valueFrom:
+                secretKeyRef:
+                  name: redis-credentials
+                  key: CELERY_RESULT_BACKEND
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-credentials
+                  key: OPENAI_API_KEY
+            - name: SERVICEDESK_API_URL
+              valueFrom:
+                secretKeyRef:
+                  name: servicedesk-credentials
+                  key: SERVICEDESK_API_URL
+            - name: SERVICEDESK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: servicedesk-credentials
+                  key: SERVICEDESK_API_KEY
+
+          # Liveness probe: Check worker process is responsive
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "celery -A src.workers.celery_app inspect ping -d celery@$HOSTNAME | grep -q 'pong'"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+            successThreshold: 1
+
+          # Readiness probe: Check worker can accept tasks
+          readinessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - "celery -A src.workers.celery_app inspect active -d celery@$HOSTNAME"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+            successThreshold: 1
+
+          # Resource limits and requests
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 1000m
+              memory: 2Gi
+
+          # Security context
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            capabilities:
+              drop:
+                - ALL
+
+          # Volume mounts for temporary files
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /app/.cache
+            - name: celery-runtime
+              mountPath: /var/run/celery
+
+          # Graceful shutdown: Allow tasks to complete
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "celery -A src.workers.celery_app control shutdown && sleep 30"]
+
+      # Volumes
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
+        - name: celery-runtime
+          emptyDir: {}
+
+      # Pod placement preferences: Spread workers across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - worker
+                topologyKey: kubernetes.io/hostname
+
+      # Termination grace period: Allow 60s for task completion
+      terminationGracePeriodSeconds: 60

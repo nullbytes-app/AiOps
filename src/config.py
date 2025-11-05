@@ -98,6 +98,32 @@ class Settings(BaseSettings):
         description="Logging level",
     )
 
+    # Monitoring Configuration
+    prometheus_url: str = Field(
+        default="http://prometheus:9090",
+        description="Prometheus server URL for metrics queries (HTTP API)",
+    )
+
+    # Kubernetes Configuration
+    kubernetes_namespace: str = Field(
+        default="ai-agents",
+        description="Kubernetes namespace for worker operations",
+    )
+    kubernetes_in_cluster: bool = Field(
+        default=True,
+        description="Whether running inside Kubernetes cluster (use in-cluster config)",
+    )
+    worker_log_lines: int = Field(
+        default=100,
+        description="Number of log lines to fetch from worker pods",
+        ge=10,
+        le=1000,
+    )
+    celery_app_name: str = Field(
+        default="ai_agents",
+        description="Celery application name for worker discovery",
+    )
+
     # Security Configuration
     webhook_secret: str = Field(
         ...,

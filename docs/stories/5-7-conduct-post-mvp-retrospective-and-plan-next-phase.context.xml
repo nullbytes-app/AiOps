@@ -1,0 +1,328 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>5</epicId>
+    <storyId>7</storyId>
+    <title>Conduct Post-MVP Retrospective and Plan Next Phase</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/5-7-conduct-post-mvp-retrospective-and-plan-next-phase.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>product team</asA>
+    <iWant>reflect on MVP learnings and plan future iterations</iWant>
+    <soThat>we build the right features based on real-world feedback</soThat>
+    <tasks>
+      <task id="1" ac="1">
+        <title>Conduct Retrospective Session</title>
+        <subtasks>
+          <subtask id="1.1">Schedule retrospective session with product team (PM, SM, Tech Lead, DevOps, QA, Support Lead)</subtask>
+          <subtask id="1.2">Review Epic 1-5 completion notes from all story files to extract learnings</subtask>
+          <subtask id="1.3">Facilitate discussion: What worked well? (celebrate successes, identify patterns to replicate)</subtask>
+          <subtask id="1.4">Facilitate discussion: What didn't work? (blockers, inefficiencies, pain points)</subtask>
+          <subtask id="1.5">Facilitate discussion: What to improve? (process changes, tooling, communication)</subtask>
+          <subtask id="1.6">Document retrospective findings in structured format (categorized by theme)</subtask>
+          <subtask id="1.7">Create action items for process improvements with owners and deadlines</subtask>
+        </subtasks>
+      </task>
+      <task id="2" ac="2">
+        <title>Synthesize and Prioritize Client Feedback</title>
+        <subtasks>
+          <subtask id="2.1">Review client feedback from Story 5.5 (enhancement_feedback table data)</subtask>
+          <subtask id="2.2">Analyze feedback metrics: average rating, sentiment distribution, common themes</subtask>
+          <subtask id="2.3">Review client satisfaction from production validation (Story 5.4)</subtask>
+          <subtask id="2.4">Interview MVP client stakeholders for qualitative feedback (what's missing, what's working)</subtask>
+          <subtask id="2.5">Synthesize feedback into feature requests, prioritized by impact and frequency</subtask>
+          <subtask id="2.6">Create backlog items for top 5 client-requested features</subtask>
+          <subtask id="2.7">Document client feedback summary with prioritization rationale</subtask>
+        </subtasks>
+      </task>
+      <task id="3" ac="3">
+        <title>Identify and Prioritize Technical Debt</title>
+        <subtasks>
+          <subtask id="3.1">Review completion notes from Stories 1.1-5.6 for technical debt items</subtask>
+          <subtask id="3.2">Review code review findings from Epic 4-5 for systemic issues</subtask>
+          <subtask id="3.3">Categorize technical debt: code quality, architecture, performance, security, testing</subtask>
+          <subtask id="3.4">Assess technical debt impact: high (blocks new features), medium (limits scalability), low (nice-to-have)</subtask>
+          <subtask id="3.5">Prioritize technical debt using 20-30% resource allocation guideline (2025 best practice)</subtask>
+          <subtask id="3.6">Create backlog items for top 5 technical debt paydown tasks</subtask>
+          <subtask id="3.7">Document technical debt register with priority, estimated effort, and ROI</subtask>
+        </subtasks>
+      </task>
+      <task id="4" ac="4">
+        <title>Evaluate Future Epic Candidates</title>
+        <subtasks>
+          <subtask id="4.1">Review Epic 6 (Admin UI) and Epic 7 (Plugin Architecture) from gate check 2025-11-02</subtask>
+          <subtask id="4.2">Evaluate RCA agent feasibility: alignment with client needs, technical readiness, resource requirements</subtask>
+          <subtask id="4.3">Evaluate triage agent feasibility: value proposition, complexity, integration points</subtask>
+          <subtask id="4.4">Evaluate advanced monitoring enhancements: Uptrace integration, custom dashboards, SLO tracking</subtask>
+          <subtask id="4.5">Apply RICE prioritization framework (Reach, Impact, Confidence, Effort) to epic candidates</subtask>
+          <subtask id="4.6">Research 2025 best practices for post-MVP feature selection (Ref MCP + web search)</subtask>
+          <subtask id="4.7">Document epic evaluation matrix with scores, justification, and sequencing recommendations</subtask>
+        </subtasks>
+      </task>
+      <task id="5" ac="5">
+        <title>Draft Roadmap for Next 3-6 Months</title>
+        <subtasks>
+          <subtask id="5.1">Define roadmap approach: goal-driven vs feature-driven (2025 best practice: balanced)</subtask>
+          <subtask id="5.2">Map prioritized epics to milestones: MVP v1.5 (Epic 6), MVP v2.0 (Epic 7)</subtask>
+          <subtask id="5.3">Incorporate client feedback, technical debt, and team velocity into timeline estimates</subtask>
+          <subtask id="5.4">Allocate resources: 70-80% feature development, 20-30% technical debt paydown</subtask>
+          <subtask id="5.5">Define success metrics for each epic (activation rate, retention, feature adoption)</subtask>
+          <subtask id="5.6">Create visual roadmap with quarters, milestones, and epic sequencing</subtask>
+          <subtask id="5.7">Socialize roadmap with stakeholders for feedback and alignment</subtask>
+        </subtasks>
+      </task>
+      <task id="6" ac="6">
+        <title>Document Go/No-Go Decision for Next Phase</title>
+        <subtasks>
+          <subtask id="6.1">Review MVP success criteria from Story 5.5 (>20% time reduction, >4/5 satisfaction, >95% success rate)</subtask>
+          <subtask id="6.2">Assess current metrics against success criteria (7-day baseline collection results)</subtask>
+          <subtask id="6.3">Evaluate production system stability (incident rate, uptime, performance)</subtask>
+          <subtask id="6.4">Assess team capacity and resource availability for next phase</subtask>
+          <subtask id="6.5">Evaluate market demand and client retention signals</subtask>
+          <subtask id="6.6">Conduct go/no-go decision meeting with executive stakeholders</subtask>
+          <subtask id="6.7">Document decision with clear rationale, supporting data, and next steps</subtask>
+        </subtasks>
+      </task>
+      <task id="7" ac="7">
+        <title>Share Retrospective Findings with Stakeholders</title>
+        <subtasks>
+          <subtask id="7.1">Prepare retrospective summary report: key findings, decisions, roadmap</subtask>
+          <subtask id="7.2">Create executive summary (1-page) highlighting wins, learnings, and path forward</subtask>
+          <subtask id="7.3">Schedule stakeholder presentation session</subtask>
+          <subtask id="7.4">Present retrospective findings, roadmap, and go/no-go decision</subtask>
+          <subtask id="7.5">Collect stakeholder feedback and address concerns</subtask>
+          <subtask id="7.6">Finalize retrospective report with stakeholder input incorporated</subtask>
+          <subtask id="7.7">Distribute final retrospective report to all stakeholders and team members</subtask>
+        </subtasks>
+      </task>
+      <task id="8" ac="meta">
+        <title>Document and Save All Deliverables</title>
+        <subtasks>
+          <subtask id="8.1">Save retrospective session notes to docs/retrospectives/epic-5-retrospective.md</subtask>
+          <subtask id="8.2">Save client feedback synthesis to docs/retrospectives/client-feedback-analysis.md</subtask>
+          <subtask id="8.3">Save technical debt register to docs/retrospectives/technical-debt-register.md</subtask>
+          <subtask id="8.4">Save epic evaluation matrix to docs/retrospectives/epic-evaluation-matrix.md</subtask>
+          <subtask id="8.5">Save 3-6 month roadmap to docs/retrospectives/roadmap-2025-q4-2026-q1.md</subtask>
+          <subtask id="8.6">Save go/no-go decision document to docs/retrospectives/go-no-go-decision.md</subtask>
+          <subtask id="8.7">Save final retrospective report to docs/retrospectives/mvp-retrospective-report.md</subtask>
+          <subtask id="8.8">Create README.md in docs/retrospectives/ with overview and navigation</subtask>
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Retrospective session conducted with: what worked well, what didn't, what to improve</criterion>
+    <criterion id="2">Client feedback synthesized and prioritized</criterion>
+    <criterion id="3">Technical debt identified and prioritized for paydown</criterion>
+    <criterion id="4">Future epic candidates evaluated: RCA agent, triage agent, admin portal, advanced monitoring</criterion>
+    <criterion id="5">Roadmap for next 3-6 months drafted and socialized</criterion>
+    <criterion id="6">Go/no-go decision for next phase documented with rationale</criterion>
+    <criterion id="7">Retrospective findings shared with stakeholders</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Goals and Background Context</section>
+        <snippet>Five primary goals: (1) Improve incident ticket quality through automated enrichment, (2) Enable MSP technicians to receive comprehensive information without manual research, (3) Build multi-tenant platform for deployment across client environments, (4) Deliver business value through reduced time-per-ticket, (5) Establish production-ready foundation with monitoring and modular architecture for future agent expansion (RCA, triage, knowledge base).</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>Functional Requirements (FR026-FR039)</section>
+        <snippet>Admin UI requirements (FR026-FR033) added 2025-11-02: web-based configuration management, system status dashboard, tenant CRUD operations, enhancement history viewer, system operation controls. Plugin Architecture requirements (FR034-FR039) added 2025-11-02: standardized interface for multiple ticketing tools, dynamic plugin loading, multi-tool support for different tenants.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Epic 5: Production Deployment and Validation (Stories 5.1-5.7)</section>
+        <snippet>Epic 5 completed production deployment with 7 stories: cluster provisioning (5.1), application deployment (5.2), first client onboarding (5.3), validation testing (5.4), baseline metrics and success criteria (5.5), production support documentation (5.6), and post-MVP retrospective (5.7). Total 42 stories completed across Epics 1-5 in ~4 weeks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Epic 6: Admin UI and Configuration Management</section>
+        <snippet>Planned for MVP v1.5: 8 stories including Streamlit application foundation (6.1), system status dashboard (6.2), tenant management interface (6.3), enhancement history viewer (6.4), system operations controls (6.5), real-time metrics display (6.6), worker health monitoring (6.7), and documentation/deployment guide (6.8). Estimated 2-3 weeks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic Definitions</title>
+        <section>Epic 7: Plugin Architecture and Multi-Tool Support</section>
+        <snippet>Planned for MVP v2.0: 7 stories including plugin base interface design (7.1), plugin manager and registry (7.2), ServiceDesk Plus migration to plugin architecture (7.3), Jira Service Management plugin (7.4), database schema updates for multi-tool support (7.5), plugin testing framework (7.6), and plugin architecture documentation (7.7). Estimated 2-3 weeks.</snippet>
+      </doc>
+      <doc>
+        <path>docs/implementation-readiness-report-2025-11-02.md</path>
+        <title>Implementation Readiness Report (Gate Check)</title>
+        <section>Assessment Summary and Findings</section>
+        <snippet>Gate check conducted 2025-11-02 for Phase 3→4 transition. Status: CONDITIONALLY_READY with 96% alignment score. Critical findings: Epic 2 incomplete (67% remaining, 6-8 weeks estimated), Stories 2.5A/2.5B added for ADR-020 implementation, Epics 6-7 added for post-MVP. Recommendations: Complete Epic 2 to 80%+ before Epic 3, generate tech-spec-epic-2.md before Story 2.6.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-status.yaml</path>
+        <title>Sprint Status Tracking</title>
+        <section>Development Status (Epics 1-7)</section>
+        <snippet>Epic 1-5 complete with all stories done. Epic 4-5 stories include code review approvals with 100% AC completion. Story 5.5 has time-blocked work (AC1/AC6/AC7 - 7-day baseline collection). Story 5.6 in review status. Story 5.7 drafted (post-MVP retrospective). Epics 6-7 in backlog. Total 42 stories completed October 31 - November 4, 2025.</snippet>
+      </doc>
+      <doc>
+        <path>Web Search (2025)</path>
+        <title>Post-MVP Retrospective Best Practices</title>
+        <section>Measurement, Resource Allocation, Prioritization</section>
+        <snippet>2025 best practices: Measure MVP success through retention rates, activation rates (25-40% SaaS benchmark), and feature adoption. Update roadmap at end of each sprint based on retrospectives. Dedicate 20-30% of resources to technical debt. Use RICE framework (Reach, Impact, Confidence, Effort) for prioritization. Balance goal-driven and feature-driven roadmap approaches. Treat roadmap as living document evolving with product.</snippet>
+      </doc>
+      <doc>
+        <path>Web Search (2025)</path>
+        <title>RICE Prioritization Framework</title>
+        <section>Framework Definition and Components</section>
+        <snippet>RICE developed by Sean McBride at Intercom. Four components: (1) Reach - number of people affected in specific timeframe, (2) Impact - contribution to goals, (3) Confidence - reliability of estimates backed by data, (4) Effort - costs/resources required (denominator in equation). Provides quantifiable metrics and structured data-driven approach. 2025 evolution: RICE-A adds fifth factor for AI Complexity capturing AI lifecycle effort.</snippet>
+      </doc>
+      <doc>
+        <path>Web Search (2025)</path>
+        <title>Technical Debt Management Post-MVP</title>
+        <section>Strategic Approach and Budget Allocation</section>
+        <snippet>2025 best practices: Build executive buy-in (board, COO, CFO, CTO, CIO) for technical debt agenda. Dedicate 10-20% of each sprint to technical debt reduction. Organizations spend ~30% of IT budgets managing technical debt representing 20-40% of technology estate value. Strategic vs reckless debt: MVP intentional shortcuts acceptable for time-to-market but require planned paydown. Use tools like SonarQube (SQALE method) and Zenhub (GitHub integration) for management.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/5-6-create-production-support-documentation-and-handoff.md</path>
+        <title>Previous Story Learnings (Story 5.6)</title>
+        <section>Implementation Highlights and Documentation Strategy</section>
+        <snippet>Story 5.6 delivered 10 files (~200K words) following 2025 SRE best practices (PICERL framework, Runbook Five Principles). Research methodology: Ref MCP (AWS Well-Architected) + web search. Mock incident drill achieved 92% readiness score. Pattern to replicate: Research first, comprehensive documentation (15K-40K words/deliverable), validation-driven, cross-reference existing work (42 completed stories), create navigation layer (README.md).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>EnhancementFeedback</symbol>
+        <lines>377-460</lines>
+        <reason>Database model for client feedback collection (Story 5.5). Required for Task 2 (synthesize client feedback): stores feedback_type (thumbs_up/thumbs_down/rating), rating_value (1-5), feedback_comment, created_at. Enables trend analysis and satisfaction metrics for retrospective.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/feedback.py</path>
+        <kind>api</kind>
+        <symbol>feedback router</symbol>
+        <lines>N/A</lines>
+        <reason>REST API endpoints for feedback submission and retrieval (Story 5.5). Provides interface for querying feedback data for retrospective analysis. Supports filtering by tenant_id, date range, feedback_type for metrics aggregation.</reason>
+      </artifact>
+      <artifact>
+        <path>docs/stories/*.md</path>
+        <kind>documentation</kind>
+        <symbol>42 story files</symbol>
+        <lines>N/A</lines>
+        <reason>All completed story files (1.1 through 5.6) contain completion notes, code review findings, and technical debt items. Essential for Task 1 (retrospective session) and Task 3 (identify technical debt). Each story includes Dev Agent Record → Completion Notes List sections documenting learnings.</reason>
+      </artifact>
+      <artifact>
+        <path>alembic/versions/9a2d3e4f5b6c_add_enhancement_feedback_table_with_rls.py</path>
+        <kind>migration</kind>
+        <symbol>upgrade</symbol>
+        <lines>N/A</lines>
+        <reason>Database migration creating enhancement_feedback table with row-level security (Story 5.5). Implements multi-tenant isolation pattern, composite indexes for analytics queries (tenant_id, created_at, feedback_type). Reference for understanding feedback data schema.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python requires=">=3.12">
+        <package name="fastapi" version=">=0.104.0" purpose="Web framework for REST API endpoints"/>
+        <package name="uvicorn" version=">=0.24.0" purpose="ASGI server for FastAPI"/>
+        <package name="pydantic" version=">=2.5.0" purpose="Data validation and settings management"/>
+        <package name="sqlalchemy" version=">=2.0.23" purpose="ORM for PostgreSQL database access"/>
+        <package name="alembic" version=">=1.12.1" purpose="Database migration tool"/>
+        <package name="asyncpg" version=">=0.29.0" purpose="Async PostgreSQL driver"/>
+        <package name="redis" version=">=5.0.1" purpose="Redis client for queue management"/>
+        <package name="celery" version=">=5.3.4" purpose="Async task queue with Redis broker"/>
+        <package name="httpx" version=">=0.25.2" purpose="HTTP client for external API calls"/>
+        <package name="loguru" version=">=0.7.2" purpose="Logging library with structured output"/>
+        <package name="langgraph" version=">=0.0.1" purpose="AI workflow orchestration framework"/>
+        <package name="openai" version=">=1.3.0" purpose="OpenAI API client for GPT-4"/>
+        <package name="prometheus-client" version=">=0.19.0" purpose="Prometheus metrics instrumentation"/>
+        <package name="opentelemetry-api" version=">=1.20.0" purpose="Distributed tracing API"/>
+        <package name="opentelemetry-sdk" version=">=1.20.0" purpose="OpenTelemetry SDK implementation"/>
+        <package name="opentelemetry-instrumentation-fastapi" version=">=0.41b0" purpose="Auto-instrumentation for FastAPI"/>
+        <package name="opentelemetry-instrumentation-celery" version=">=0.41b0" purpose="Auto-instrumentation for Celery"/>
+        <package name="opentelemetry-exporter-otlp-proto-grpc" version=">=1.20.0" purpose="OTLP exporter for traces"/>
+      </python>
+      <python-dev>
+        <package name="pytest" version=">=7.4.3" purpose="Testing framework"/>
+        <package name="pytest-asyncio" version=">=0.21.1" purpose="Async test support"/>
+        <package name="black" version=">=23.11.0" purpose="Code formatter"/>
+        <package name="ruff" version=">=0.1.6" purpose="Fast Python linter"/>
+        <package name="mypy" version=">=1.7.1" purpose="Static type checker"/>
+      </python-dev>
+      <infrastructure>
+        <service name="PostgreSQL" version="17" purpose="Primary database with row-level security for multi-tenancy"/>
+        <service name="Redis" version="7.x" purpose="Message broker for Celery task queue"/>
+        <service name="Docker" version="latest" purpose="Container runtime for local dev and production"/>
+        <service name="Kubernetes" version="1.28+" purpose="Container orchestration with HPA autoscaling"/>
+        <service name="Prometheus" version="latest" purpose="Metrics collection and alerting"/>
+        <service name="Grafana" version="latest" purpose="Metrics visualization dashboards"/>
+        <service name="Alertmanager" version="latest" purpose="Alert routing and notification"/>
+        <service name="Jaeger" version="latest" purpose="Distributed tracing backend"/>
+      </infrastructure>
+      <frameworks>
+        <framework name="FastAPI + Uvicorn" purpose="Async web framework with ASGI server"/>
+        <framework name="SQLAlchemy 2.0" purpose="Async ORM with PostgreSQL support"/>
+        <framework name="Celery 5.x" purpose="Distributed task queue for async processing"/>
+        <framework name="LangGraph 1.0+" purpose="AI workflow orchestration with state management"/>
+        <framework name="OpenTelemetry" purpose="Observability with metrics, traces, and logs"/>
+        <framework name="Pydantic V2" purpose="Data validation and serialization"/>
+      </frameworks>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>No code changes required - this is a retrospective/planning story focused on analysis, documentation, and decision-making rather than implementation</constraint>
+    <constraint>Follow documentation excellence pattern from Story 5.6: research first (Ref MCP + web search), comprehensive documentation (15K-40K words per deliverable), validation-driven approach</constraint>
+    <constraint>All deliverables must be saved to docs/retrospectives/ directory to maintain organized documentation structure aligned with existing docs/operations/, docs/runbooks/, docs/metrics/, docs/support/</constraint>
+    <constraint>Retrospective must reference all 42 completed story files (1.1-5.6) to extract comprehensive learnings - do not skip any epic or story in analysis</constraint>
+    <constraint>Apply 2025 best practices for post-MVP planning: RICE prioritization framework, 20-30% technical debt allocation, balanced goal-driven and feature-driven roadmap approach</constraint>
+    <constraint>Success criteria from Story 5.5 must be evaluated: >20% time reduction, >4/5 satisfaction rating, >95% success rate (note: 7-day baseline collection in progress, may not have complete data yet)</constraint>
+    <constraint>Go/no-go decision must be data-driven with clear rationale and supporting metrics, involving executive stakeholders for alignment</constraint>
+    <constraint>Create navigation layer (README.md) in docs/retrospectives/ for easy access to all retrospective artifacts, following pattern from docs/support/README.md</constraint>
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>EnhancementFeedback Database Model</name>
+      <kind>PostgreSQL table schema</kind>
+      <signature>Table: enhancement_feedback
+Fields: id (UUID), tenant_id (String), ticket_id (String), enhancement_id (UUID nullable), technician_email (String nullable), feedback_type (String: 'thumbs_up'|'thumbs_down'|'rating'), rating_value (Integer 1-5 nullable), feedback_comment (Text nullable), created_at (DateTime)
+Indexes: tenant_id, created_at, feedback_type, composite (tenant_id, ticket_id)
+RLS Policy: Tenant isolation enforced via row-level security</signature>
+      <path>src/database/models.py:377-460</path>
+    </interface>
+    <interface>
+      <name>Feedback API Endpoints</name>
+      <kind>REST API</kind>
+      <signature>POST /api/v1/feedback - Submit feedback for ticket enhancement
+GET /api/v1/feedback - Query feedback with filters (tenant_id, date_range, feedback_type, ticket_id)
+Query Parameters: tenant_id (required for multi-tenant isolation), start_date, end_date, feedback_type, limit, offset
+Response: JSON array of feedback records with aggregation metadata (avg_rating, sentiment_distribution)</signature>
+      <path>src/api/feedback.py</path>
+    </interface>
+    <interface>
+      <name>Sprint Status YAML</name>
+      <kind>YAML configuration file</kind>
+      <signature>File: docs/sprint-status.yaml
+Structure: development_status dict with story keys (e.g., "5-7-conduct-post-mvp-retrospective-and-plan-next-phase") mapped to status values ("backlog", "drafted", "ready-for-dev", "in-progress", "review", "done")
+Updated by: story-context workflow (Step 7), dev-story workflow, code-review workflow
+Purpose: Track story progression through development lifecycle, identify next work items</signature>
+      <path>docs/sprint-status.yaml</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>No code changes required for this story - validation is documentation-focused rather than test-driven. From CLAUDE.md and project standards: (1) Always create Pytest unit tests for new features (functions, classes, routes), (2) Tests in /tests folder mirroring main app structure, (3) Include expected use, edge case, and failure case tests, (4) Update existing tests when logic changes. For this retrospective story, validation mechanisms replace traditional testing: stakeholder presentation validates findings and roadmap, go/no-go decision meeting validates strategic direction, documentation completeness checklist ensures all 7 ACs have corresponding artifacts in docs/retrospectives/.</standards>
+    <locations>Not applicable - no test files needed. Validation artifacts location: docs/retrospectives/ (all 8 deliverable files from Task 8: epic-5-retrospective.md, client-feedback-analysis.md, technical-debt-register.md, epic-evaluation-matrix.md, roadmap-2025-q4-2026-q1.md, go-no-go-decision.md, mvp-retrospective-report.md, README.md)</locations>
+    <ideas>
+      <idea ac="1">Validate retrospective session completeness: verify all 42 story files (1.1-5.6) referenced in findings, confirm "what worked well / what didn't / what to improve" sections populated with specific examples, ensure action items have owners and deadlines</idea>
+      <idea ac="2">Validate client feedback analysis: confirm enhancement_feedback table queried for metrics (avg rating, sentiment distribution), verify Story 5.4 validation testing results referenced, ensure prioritization rationale documented for top 5 feature requests</idea>
+      <idea ac="3">Validate technical debt register: confirm all Epic 4-5 code review findings extracted, verify categorization (code quality, architecture, performance, security, testing) applied, ensure 20-30% resource allocation guideline referenced per 2025 best practices</idea>
+      <idea ac="4">Validate epic evaluation matrix: confirm RICE scoring (Reach, Impact, Confidence, Effort) applied to Epic 6, Epic 7, RCA agent, triage agent, and advanced monitoring candidates, verify 2025 best practices research cited (from web search results)</idea>
+      <idea ac="5">Validate roadmap completeness: verify milestone mapping (MVP v1.5 = Epic 6, MVP v2.0 = Epic 7), confirm 70-80% feature / 20-30% tech debt resource allocation, ensure success metrics defined for each epic (activation rate, retention, feature adoption)</idea>
+      <idea ac="6">Validate go/no-go decision: confirm MVP success criteria evaluated (>20% time reduction, >4/5 satisfaction, >95% success rate from Story 5.5), verify production stability metrics included (incident rate, uptime, performance), ensure executive stakeholder sign-off documented</idea>
+      <idea ac="7">Validate stakeholder communication: confirm executive summary (1-page) created, verify stakeholder presentation conducted with feedback collection, ensure final retrospective report distributed to all team members and stakeholders</idea>
+      <idea ac="meta">Validate documentation structure: confirm docs/retrospectives/ directory created with all 8 files, verify README.md navigation layer present following docs/support/README.md pattern, ensure cross-references to 42 completed story files included</idea>
+    </ideas>
+  </tests>
+</story-context>

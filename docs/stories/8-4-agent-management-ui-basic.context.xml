@@ -1,0 +1,186 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>4</storyId>
+    <title>Agent Management UI (Basic)</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-4-agent-management-ui-basic.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system administrator</asA>
+    <iWant>a Streamlit admin page to manage agents</iWant>
+    <soThat>I can create and configure agents through a visual interface</soThat>
+    <tasks>
+      <task id="1">Set Up Streamlit Admin Page Structure (AC: #1)</task>
+      <task id="2">Implement Agent List View with Search/Filter (AC: #2)</task>
+      <task id="3">Implement Create Agent Form with Multi-Tab Interface (AC: #3)</task>
+      <task id="4">Implement Agent Detail View (AC: #4)</task>
+      <task id="5">Implement Status Toggle Buttons (AC: #5)</task>
+      <task id="6">Implement Form Validation (AC: #6)</task>
+      <task id="7">Implement Success/Error Messages (AC: #7)</task>
+      <task id="8">Implement List Auto-Refresh (AC: #8)</task>
+      <task id="9">Handle Async API Calls in Streamlit Context (Async Integration)</task>
+      <task id="10">Create Unit Tests for Streamlit Page Components</task>
+      <task id="11">Code Quality and Documentation</task>
+      <task id="12">Quality Assurance and Validation</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Streamlit page created: src/admin/pages/05_Agent_Management.py</criterion>
+    <criterion id="2">Agent list view displays: name, status, assigned tools count, last execution time with search/filter controls</criterion>
+    <criterion id="3">"Create Agent" button opens multi-tab form: Basic Info (name, description), LLM Config (model, temperature, max_tokens), System Prompt, Triggers, Tools</criterion>
+    <criterion id="4">Agent detail view shows: all properties, webhook URL with copy button, edit/delete buttons</criterion>
+    <criterion id="5">Status toggle buttons: Activate, Suspend, Deactivate with confirmation dialogs</criterion>
+    <criterion id="6">Form validation: required fields, valid temperature range (0-2), valid max_tokens (1-32000)</criterion>
+    <criterion id="7">Success/error messages displayed with st.success() and st.error()</criterion>
+    <criterion id="8">Agent list refreshes after create/update/delete operations</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Admin UI Framework (Epic 6) & Technology Stack Details</section>
+        <snippet>Streamlit 1.30+ selected for admin UI framework - rapid prototyping, built-in components, beginner-friendly, 5-10x faster than React alternatives. Python-native development with no JavaScript required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 8: AI Agent Orchestration Platform</title>
+        <section>Story 8.4: Agent Management UI (Basic) - lines 1513-1530</section>
+        <snippet>Story 8.4 provides Streamlit admin page for managing agents. User story: As system administrator, I want a Streamlit admin page to manage agents, So that I can create and configure agents through a visual interface. Prerequisites: Story 8.3 (API endpoints)</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-3-agent-crud-api-endpoints.md</path>
+        <title>Story 8.3: Agent CRUD API Endpoints (Approved/Done)</title>
+        <section>API Endpoints & Implementation</section>
+        <snippet>Story 8.3 provides REST API foundation: POST /api/agents (create), GET /api/agents (list), GET /api/agents/{id} (detail), PUT /api/agents/{id} (update), DELETE /api/agents/{id} (soft delete), POST /api/agents/{id}/activate (activate). All endpoints tested, production-ready, support pagination/filtering, enforce tenant isolation.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/api/agents.py</path>
+        <kind>API routes</kind>
+        <symbol>agent routes module</symbol>
+        <reason>Provides REST API endpoints for agent CRUD operations that the UI will call. Story 8.4 UI directly depends on these endpoints (POST, GET, PUT, DELETE)</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/agent_service.py</path>
+        <kind>service layer</kind>
+        <symbol>agent_service functions</symbol>
+        <reason>Business logic for agent operations. Referenced in Story 8.3 approved implementation showing service layer separation pattern to follow in Story 8.4</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/agent.py</path>
+        <kind>data models</kind>
+        <symbol>Agent, AgentCreate, AgentUpdate, AgentResponse, AgentStatus</symbol>
+        <reason>Pydantic validation models and response schemas. Story 8.4 form will map user inputs to AgentCreate/AgentUpdate schemas for API calls</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/1_Dashboard.py</path>
+        <kind>streamlit page pattern</kind>
+        <symbol>Dashboard page structure</symbol>
+        <reason>Existing Streamlit admin page showing session state management, auto-refresh patterns, caching with @st.cache_data, helper imports. Story 8.4 page structure should follow this pattern</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/2_Tenants.py</path>
+        <kind>streamlit CRUD pattern</kind>
+        <symbol>Tenant management UI pattern</symbol>
+        <reason>Existing Streamlit page with form-based CRUD operations. Demonstrates search/filter, create form with validation, detail view, list refresh patterns applicable to Story 8.4</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>SQLAlchemy models</kind>
+        <symbol>Agent, AgentTrigger, AgentTool models</symbol>
+        <reason>Database schema for agents (Story 8.2 completed). UI needs to understand these models for proper API integration</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <dependency name="streamlit" version=">=1.28.0">Admin UI framework - session state, caching, form components, data display</dependency>
+        <dependency name="httpx" version=">=0.25.0">Async HTTP client for API calls (non-blocking operations in Streamlit context)</dependency>
+        <dependency name="pandas" version=">=2.0.0">DataFrame support for agent list display and filtering</dependency>
+        <dependency name="pydantic" version=">=2.0.0">Data validation for form inputs (already in project via FastAPI)</dependency>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">File size ≤ 500 lines (Story 8.4 page may need helper modules: ui_helpers.py, api_client.py if exceeds limit)</constraint>
+    <constraint id="C2">Async API calls required - use httpx.AsyncClient via async_to_sync wrapper for Streamlit compatibility</constraint>
+    <constraint id="C3">Tenant isolation enforced - all API calls filtered by tenant_id (from session state or JWT token)</constraint>
+    <constraint id="C4">Session state pattern required - initialize all widgets with st.session_state keys for proper callback behavior</constraint>
+    <constraint id="C5">Form validation before API submission - validate all required fields and ranges client-side</constraint>
+    <constraint id="C6">Cache invalidation mechanism - increment refresh_trigger on state changes to invalidate @st.cache_data</constraint>
+    <constraint id="C7">Error resilience - cache API responses, allow viewing stale data if API fails temporarily</constraint>
+    <constraint id="C8">Testing required - unit tests (form validation, helpers) + integration tests (full workflows, API errors)</constraint>
+    <constraint id="C9">Documentation - Google-style docstrings for all functions, inline comments for complex Streamlit patterns</constraint>
+    <constraint id="C10">Code formatting - Black formatting + Mypy type checking required before PR submission</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Agent CRUD API</name>
+      <kind>REST endpoints</kind>
+      <signature>
+        POST /api/agents - Create agent
+        GET /api/agents - List agents with pagination/filtering
+        GET /api/agents/{agent_id} - Fetch agent details
+        PUT /api/agents/{agent_id} - Update agent
+        DELETE /api/agents/{agent_id} - Soft delete agent
+        POST /api/agents/{agent_id}/activate - Activate agent
+      </signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>Agent Pydantic Schemas</name>
+      <kind>Data validation models</kind>
+      <signature>
+        AgentCreate(name, description, status, system_prompt, llm_config, triggers, tools)
+        AgentUpdate(name, description, status, system_prompt, llm_config)
+        AgentResponse(id, tenant_id, name, description, status, system_prompt, llm_config, created_at, webhook_url, tools)
+        AgentStatus enum: draft, active, suspended, inactive
+      </signature>
+      <path>src/schemas/agent.py</path>
+    </interface>
+    <interface>
+      <name>Streamlit Session State</name>
+      <kind>UI state management</kind>
+      <signature>
+        st.session_state.agents_list - Cached agent list
+        st.session_state.selected_agent_id - Currently selected agent
+        st.session_state.show_create_form - Toggle create form visibility
+        st.session_state.refresh_trigger - Cache invalidation counter
+        st.session_state.messages - Message queue for success/error notifications
+      </signature>
+      <path>src/admin/pages/05_Agent_Management.py (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Pytest with pytest-asyncio for async test support. Unit tests for form validation, helper functions, component rendering. Integration tests for full workflows (list → create → detail → edit → delete), error handling (API failures), form validation (invalid data submission), refresh mechanism (list updates). Target: 20+ tests (12+ unit, 8+ integration). Test fixtures for mocking API responses, sample agent data, validation scenarios. All tests must pass before PR submission.
+    </standards>
+    <locations>
+      tests/unit/test_agent_management_ui.py - Unit tests for form validation, status badges, datetime formatting, helper functions
+      tests/integration/test_agent_management_integration.py - Integration tests for full workflows, API error handling, list refresh
+      tests/conftest.py - Shared fixtures (mock agents, API responses, session state)
+    </locations>
+    <ideas>
+      AC#1 Testing: Verify 05_Agent_Management.py created with correct imports and page config
+      AC#2 Testing: Mock GET /api/agents, verify list renders with search/filter controls functional
+      AC#3 Testing: Verify create form tabs render correctly, all inputs available, validation triggers
+      AC#4 Testing: Mock GET /api/agents/{id}, verify detail view displays all properties, webhook URL shown
+      AC#5 Testing: Verify status toggle buttons appear based on current status, confirmation dialogs work
+      AC#6 Testing: Validate form rejection on invalid temperature (outside 0-2), invalid max_tokens (outside 1-32000)
+      AC#7 Testing: Verify st.success() shown on create/update/delete, st.error() shown on API failures
+      AC#8 Testing: After POST /api/agents, verify list refreshes (refresh_trigger incremented, cache invalidated)
+      Async Testing: Verify async_to_sync wrapper works, no blocking operations on Streamlit thread
+      Error Scenarios: API timeout (display "Request timed out"), connection refused, 400 validation error, 500 server error
+    </ideas>
+  </tests>
+</story-context>

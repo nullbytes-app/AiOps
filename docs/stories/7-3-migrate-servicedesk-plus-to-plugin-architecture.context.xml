@@ -1,0 +1,271 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>7</epicId>
+    <storyId>3</storyId>
+    <title>Migrate ServiceDesk Plus to Plugin Architecture</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/7-3-migrate-servicedesk-plus-to-plugin-architecture.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a platform engineer</asA>
+    <iWant>existing ServiceDesk Plus integration extracted into a plugin</iWant>
+    <soThat>it follows the same pattern as future tool integrations</soThat>
+    <tasks>
+      - Task 1: Create ServiceDesk Plus Plugin Directory Structure
+      - Task 2: Implement ServiceDesk Plus Plugin Class
+      - Task 3: Migrate Webhook Validation Logic
+      - Task 4: Implement extract_metadata() Method
+      - Task 5: Implement ServiceDesk Plus API Client
+      - Task 6: Implement get_ticket() Plugin Method
+      - Task 7: Implement update_ticket() Plugin Method
+      - Task 8: Register Plugin on Application Startup
+      - Task 9: Update Webhook Endpoint to Use Plugin Manager
+      - Task 10: Maintain API Compatibility for Existing Code
+      - Task 11: Create Unit Tests for Plugin Methods
+      - Task 12: Create Integration Test for End-to-End Flow
+      - Task 13: Ensure No Breaking Changes to Tenant Configurations
+      - Task 14: Update Package Exports
+      - Task 15: Code Quality and Standards
+      - Task 16: Documentation Updates
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">ServiceDesk Plus plugin created at src/plugins/servicedesk_plus/plugin.py implementing TicketingToolPlugin</criterion>
+    <criterion id="AC2">Plugin implements all four required methods: validate_webhook(), get_ticket(), update_ticket(), extract_metadata()</criterion>
+    <criterion id="AC3">Existing code from src/services/webhook_validator.py migrated to plugin (webhook validation logic)</criterion>
+    <criterion id="AC4">Plugin registered in PluginManager on application startup (main.py and celery_app.py)</criterion>
+    <criterion id="AC5">Webhook endpoint updated to use plugin manager: plugin = manager.get_plugin(tenant.tool_type)</criterion>
+    <criterion id="AC6">All existing ServiceDesk Plus unit tests pass without modification (API compatibility maintained)</criterion>
+    <criterion id="AC7">Integration test: Send webhook through plugin → enhancement → ticket update (end-to-end)</criterion>
+    <criterion id="AC8">No breaking changes to existing tenant configurations (tool_type defaults to 'servicedesk_plus')</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR034 - Plugin Architecture Requirement</section>
+        <snippet>System shall implement plugin architecture to support multiple ticketing tools beyond ServiceDesk Plus. Enables market expansion to Jira Service Management, Zendesk, and other ITSM platforms.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-010: Plugin Architecture for Multi-Tool Support</section>
+        <snippet>Implement Abstract Base Class (ABC) plugin architecture for ticketing tool integrations. TicketingToolPlugin defines four abstract methods: validate_webhook(), get_ticket(), update_ticket(), extract_metadata(). Plugin Manager routes requests by tenant tool_type.</snippet>
+      </doc>
+      <doc>
+        <path>docs/plugin-architecture.md</path>
+        <title>Plugin Architecture Guide</title>
+        <section>Complete Plugin Design and Implementation Guide</section>
+        <snippet>Comprehensive 2,695-line guide covering plugin interface specification, implementation patterns, type safety with mypy, testing guidelines, security best practices, and ServiceDesk Plus plugin example. Defines TicketingToolPlugin ABC and TicketMetadata dataclass.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 7: Plugin Architecture & Multi-Tool Support</title>
+        <section>Story 7.3 - Migrate ServiceDesk Plus to Plugin Architecture</section>
+        <snippet>Extract existing ServiceDesk Plus integration into plugin following pattern established in Stories 7.1 (base interface) and 7.2 (plugin manager). Migrate code from webhook_validator.py to plugin. Maintain backward compatibility - all existing tests pass unchanged.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/7-1-design-and-implement-plugin-base-interface.md</path>
+        <title>Story 7.1 - Plugin Base Interface (Completed)</title>
+        <section>TicketingToolPlugin ABC Implementation</section>
+        <snippet>Abstract base class at src/plugins/base.py with four abstract methods. TicketMetadata dataclass for standardized ticket representation. Mypy strict mode validation (0 errors). Status: done (code review approved).</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/7-2-implement-plugin-manager-and-registry.md</path>
+        <title>Story 7.2 - Plugin Manager and Registry (Completed)</title>
+        <section>PluginManager Singleton Implementation</section>
+        <snippet>Plugin Manager at src/plugins/registry.py with register_plugin() and get_plugin() methods. Auto-discovery from src/plugins/*/plugin.py. Type-safe registration with validation. All 27 tests passing. Status: done (code review approved).</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/plugins/base.py</path>
+        <kind>ABC interface</kind>
+        <symbol>TicketingToolPlugin</symbol>
+        <lines>51-316</lines>
+        <reason>Plugin ABC with 4 abstract methods to implement: validate_webhook(), get_ticket(), update_ticket(), extract_metadata(). ServiceDesk Plus plugin must implement all 4 methods.</reason>
+      </artifact>
+      <artifact>
+        <path>src/plugins/base.py</path>
+        <kind>dataclass</kind>
+        <symbol>TicketMetadata</symbol>
+        <lines>18-48</lines>
+        <reason>Standardized metadata structure returned by extract_metadata(). Contains tenant_id, ticket_id, description, priority, created_at fields.</reason>
+      </artifact>
+      <artifact>
+        <path>src/plugins/registry.py</path>
+        <kind>singleton class</kind>
+        <symbol>PluginManager</symbol>
+        <lines>*</lines>
+        <reason>Plugin registry for registration and retrieval. Use register_plugin("servicedesk_plus", plugin) on startup and get_plugin(tool_type) in webhook endpoint.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/webhook_validator.py</path>
+        <kind>service</kind>
+        <symbol>compute_hmac_signature, secure_compare, extract_tenant_id_from_payload, validate_webhook_timestamp</symbol>
+        <lines>22-43, 46-60, 63-96, 99-142</lines>
+        <reason>Existing ServiceDesk Plus webhook validation logic to migrate to plugin. These functions become helpers for plugin's validate_webhook() method. Keep deprecated for backward compatibility.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/webhooks.py</path>
+        <kind>endpoint</kind>
+        <symbol>receive_webhook</symbol>
+        <lines>34-214</lines>
+        <reason>Main webhook endpoint that needs updating to use Plugin Manager. Replace direct webhook_validator calls with plugin.validate_webhook() and plugin.extract_metadata().</reason>
+      </artifact>
+      <artifact>
+        <path>src/main.py</path>
+        <kind>application</kind>
+        <symbol>startup_event</symbol>
+        <lines>*</lines>
+        <reason>FastAPI startup location to register ServiceDesk Plus plugin. Add @app.on_event("startup") handler to register plugin with PluginManager.</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/celery_app.py</path>
+        <kind>worker</kind>
+        <symbol>celery app initialization</symbol>
+        <lines>*</lines>
+        <reason>Celery worker startup location to register ServiceDesk Plus plugin. Each worker needs its own plugin registration on startup.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_webhook_validator.py</path>
+        <kind>test</kind>
+        <symbol>test functions</symbol>
+        <lines>*</lines>
+        <reason>Existing webhook validation tests that must pass unchanged (AC6). Validates backward compatibility maintained during migration.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_plugin_base.py</path>
+        <kind>test</kind>
+        <symbol>MockTicketingToolPlugin</symbol>
+        <lines>*</lines>
+        <reason>Mock plugin from Story 7.1 available for testing patterns. Reference implementation for plugin structure and testing approach.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python version="3.12">
+        <framework name="fastapi" version=">=0.104.0">Web framework for webhook endpoints and startup events</framework>
+        <framework name="httpx" version=">=0.25.2">Async HTTP client for ServiceDesk Plus API calls (get/update ticket)</framework>
+        <framework name="pydantic" version=">=2.5.0">Data validation for webhook payloads and TicketMetadata</framework>
+        <framework name="sqlalchemy" version=">=2.0.23">ORM for tenant_configs table access (retrieve credentials)</framework>
+        <framework name="celery" version=">=5.3.4">Task queue worker requiring plugin registration on startup</framework>
+        <framework name="cryptography" version=">=43.0.0">Fernet encryption for API keys and webhook secrets (Epic 3)</framework>
+        <test name="pytest" version=">=7.4.3">Test framework for unit and integration tests</test>
+        <test name="pytest-asyncio" version=">=0.21.1">Async test support for async plugin methods</test>
+        <test name="pytest-mock" version=">=3.12.0">Mocking for TenantService and API clients</test>
+        <dev name="mypy" version=">=1.7.1">Type checker for strict mode validation (0 errors required)</dev>
+        <dev name="black" version=">=23.11.0">Code formatter (Task 15)</dev>
+        <dev name="ruff" version=">=0.1.6">Linter (Task 15)</dev>
+        <dev name="bandit">Security scanner (Task 15)</dev>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - C1: File Size Limit - plugin.py &lt;500 lines, api_client.py &lt;500 lines (per CLAUDE.md modularity rules)
+    - C2: Type Safety - Mypy strict mode must pass with 0 errors on all plugin code (per Story 7.1, 7.2 standard)
+    - C3: Backward Compatibility - All existing ServiceDesk Plus unit tests must pass without modification (AC6)
+    - C4: No Breaking Changes - tool_type defaults to 'servicedesk_plus', existing tenant configs work unchanged (AC8)
+    - C5: Google-Style Docstrings - All public methods must have comprehensive Google-style docstrings (per CLAUDE.md)
+    - C6: Test Coverage - &gt;80% code coverage with unit tests for all plugin methods (per Story 7.2 standard)
+    - C7: Security - Constant-time signature comparison, no credential logging, HTTPS only for API calls
+    - C8: Stateless Plugin - No plugin instance state, retrieve credentials per-request via TenantService (per Story 7.1 design)
+    - C9: Code Quality - Black formatter, Ruff linter, Bandit security scan must pass (Task 15)
+    - C10: Retry Logic - 3 attempts with exponential backoff for API calls (per TicketingToolPlugin interface)
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>TicketingToolPlugin.validate_webhook</name>
+      <kind>async method</kind>
+      <signature>async def validate_webhook(self, payload: Dict[str, Any], signature: str) -&gt; bool</signature>
+      <path>src/plugins/base.py:104-147</path>
+    </interface>
+    <interface>
+      <name>TicketingToolPlugin.get_ticket</name>
+      <kind>async method</kind>
+      <signature>async def get_ticket(self, tenant_id: str, ticket_id: str) -&gt; Optional[Dict[str, Any]]</signature>
+      <path>src/plugins/base.py:149-201</path>
+    </interface>
+    <interface>
+      <name>TicketingToolPlugin.update_ticket</name>
+      <kind>async method</kind>
+      <signature>async def update_ticket(self, tenant_id: str, ticket_id: str, content: str) -&gt; bool</signature>
+      <path>src/plugins/base.py:203-256</path>
+    </interface>
+    <interface>
+      <name>TicketingToolPlugin.extract_metadata</name>
+      <kind>sync method</kind>
+      <signature>def extract_metadata(self, payload: Dict[str, Any]) -&gt; TicketMetadata</signature>
+      <path>src/plugins/base.py:258-316</path>
+    </interface>
+    <interface>
+      <name>PluginManager.register_plugin</name>
+      <kind>method</kind>
+      <signature>def register_plugin(self, tool_type: str, plugin: TicketingToolPlugin) -&gt; None</signature>
+      <path>src/plugins/registry.py</path>
+    </interface>
+    <interface>
+      <name>PluginManager.get_plugin</name>
+      <kind>method</kind>
+      <signature>def get_plugin(self, tool_type: str) -&gt; TicketingToolPlugin</signature>
+      <path>src/plugins/registry.py</path>
+    </interface>
+    <interface>
+      <name>ServiceDesk Plus API - Get Ticket</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v3/requests/{request_id} with authtoken header</signature>
+      <path>External ServiceDesk Plus API</path>
+    </interface>
+    <interface>
+      <name>ServiceDesk Plus API - Update Ticket</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/v3/requests/{request_id}/notes with JSON body {"description": "..."}</signature>
+      <path>External ServiceDesk Plus API</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Testing framework: Pytest with pytest-asyncio for async methods and pytest-mock for mocking.
+      Standards: Minimum 80% code coverage per Story 7.2 standard. Each plugin method requires:
+      (1) success case test, (2) failure case test, (3) edge case test. Use Google-style docstrings
+      in test functions. Test pattern from Story 7.1/7.2: MockTicketingToolPlugin fixtures,
+      AsyncMock for async methods, monkeypatch for dependency injection. Mypy strict mode must
+      validate all test code. Existing webhook validator tests (test_webhook_validator.py) must
+      pass unchanged to verify backward compatibility (AC6).
+    </standards>
+    <locations>
+      - tests/unit/test_servicedesk_plugin.py (new: 13 unit tests for plugin methods)
+      - tests/integration/test_servicedesk_plugin_integration.py (new: 2 integration tests)
+      - tests/unit/test_webhook_validator.py (existing: must pass unchanged)
+      - tests/unit/test_webhook_endpoint.py (existing: may need updates for Plugin Manager usage)
+      - tests/unit/test_plugin_base.py (existing: MockTicketingToolPlugin reference)
+      - tests/unit/test_plugin_registry.py (existing: PluginManager test patterns)
+    </locations>
+    <ideas>
+      <test ac="AC1,AC2">test_servicedesk_plugin_instantiation - Verify ServiceDeskPlusPlugin class exists, inherits from TicketingToolPlugin, implements all 4 methods</test>
+      <test ac="AC2,AC3">test_validate_webhook_success - Valid HMAC signature returns True, uses migrated webhook_validator helpers</test>
+      <test ac="AC2,AC3">test_validate_webhook_invalid_signature - Invalid signature returns False (constant-time comparison)</test>
+      <test ac="AC2,AC3">test_validate_webhook_expired_timestamp - Expired timestamp returns False (replay attack prevention)</test>
+      <test ac="AC2">test_extract_metadata_success - Valid payload returns TicketMetadata with correct fields (tenant_id, ticket_id, priority normalized)</test>
+      <test ac="AC2">test_extract_metadata_missing_fields - Missing required fields raises ValueError with clear message</test>
+      <test ac="AC2">test_get_ticket_success - API returns 200, plugin returns ticket dict, TenantService called for credentials</test>
+      <test ac="AC2">test_get_ticket_not_found - API returns 404, plugin returns None (not error)</test>
+      <test ac="AC2">test_get_ticket_api_error - API fails after 3 retries, plugin returns None and logs error</test>
+      <test ac="AC2">test_update_ticket_success - API returns 200/201, plugin returns True, note posted correctly</test>
+      <test ac="AC2">test_update_ticket_failure - API error after retries, plugin returns False and logs error</test>
+      <test ac="AC2">test_update_ticket_retry_logic - Verify exponential backoff (2s, 4s, 8s) on transient failures</test>
+      <test ac="AC4">test_plugin_registration_startup - Plugin registered in PluginManager on app startup (main.py and celery_app.py)</test>
+      <test ac="AC5">test_webhook_endpoint_uses_plugin_manager - receive_webhook calls manager.get_plugin(tool_type) and plugin.validate_webhook()</test>
+      <test ac="AC7">test_end_to_end_webhook_to_update - Full flow: validate webhook → extract metadata → get ticket → update ticket via plugin</test>
+      <test ac="AC7">test_plugin_manager_routing - Multiple plugins registered, correct one retrieved by tool_type</test>
+      <test ac="AC6">test_existing_webhook_validator_tests_pass - Run all tests in test_webhook_validator.py, verify 100% pass (backward compatibility)</test>
+      <test ac="AC8">test_tenant_config_tool_type_defaults - New tenant without tool_type defaults to 'servicedesk_plus'</test>
+    </ideas>
+  </tests>
+</story-context>

@@ -28,6 +28,9 @@ from loguru import logger
 
 from src.config import settings
 
+# Explicitly export logger for mypy type checking
+__all__ = ["logger", "AuditLogger", "configure_logging"]
+
 
 class SensitiveDataFilter:
     """

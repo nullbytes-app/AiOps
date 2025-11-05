@@ -1,0 +1,231 @@
+# ============================================================================
+# Example Terraform Variables for Production Kubernetes Cluster
+# ============================================================================
+#
+# INSTRUCTIONS:
+# 1. Copy this file: cp terraform.tfvars.example terraform.tfvars
+# 2. Edit terraform.tfvars with your actual values
+# 3. Never commit terraform.tfvars to git (it contains sensitive data)
+# 4. Use terraform -var-file=other.tfvars for multiple environments
+#
+
+# ============================================================================
+# Cloud Provider Configuration
+# ============================================================================
+# AWS Region for deployment
+# Common choices: us-east-1 (N. Virginia), eu-west-1 (Ireland), ap-southeast-1 (Singapore)
+aws_region = "us-east-1"
+
+# ============================================================================
+# Cluster Configuration
+# ============================================================================
+
+# Cluster name (used for all AWS resources)
+# Must be unique within your AWS account
+# Example patterns: ai-agents-prod, ai-agents-staging
+cluster_name = "ai-agents-prod"
+
+# Kubernetes version (must be supported by EKS)
+# Check available versions: aws eks describe-addon-versions
+kubernetes_version = "1.29"
+
+# VPC CIDR block (must be large enough for all subnets)
+# Example: 10.0.0.0/16 provides 65,536 IP addresses
+vpc_cidr_block = "10.0.0.0/16"
+
+# ============================================================================
+# Node Configuration (Auto-scaling)
+# ============================================================================
+
+# Minimum number of nodes (must be >= 1)
+# Recommendation: 3 for HA (spread across 3 AZs)
+min_node_count = 3
+
+# Maximum number of nodes (auto-scaling limit)
+# Recommendation: 10 allows 3-4x scale-out for spikes
+max_node_count = 10
+
+# Desired number of nodes at startup
+# Should be >= min_node_count
+desired_node_count = 3
+
+# EC2 instance types for worker nodes
+# Recommendation: Use mix of instance types for cost optimization
+# Examples:
+#   - Single type: ["t3.large"]
+#   - Mixed types (cost optimization): ["t3.large", "t3.xlarge"]
+#   - Compute optimized: ["c6i.large", "c6i.xlarge"]
+#   - Memory optimized: ["r6i.large", "r6i.xlarge"]
+node_instance_types = ["t3.large"]
+
+# ============================================================================
+# Database Configuration (AC3)
+# ============================================================================
+
+# Allocated storage in GB
+# Recommendation: Start with 100 GB for production, increase based on usage
+# Note: AWS allows on-the-fly storage expansion; plan for growth
+db_allocated_storage = 100
+
+# PostgreSQL version
+# Supported versions: 15.x, 16.x
+# Recommendation: Use latest stable version (currently 16.0)
+postgres_version = "16.0"
+
+# RDS instance class determines CPU, memory, and performance
+# Common choices:
+#   - db.t3.small     : 2 vCPU, 2 GB RAM  (dev/low traffic)
+#   - db.t3.medium    : 2 vCPU, 4 GB RAM  (small production)
+#   - db.t3.large     : 2 vCPU, 8 GB RAM  (medium production)
+#   - db.r6i.large    : 2 vCPU, 16 GB RAM (high memory production)
+# Recommendation: Start with db.t3.medium for production MVP
+db_instance_class = "db.t3.medium"
+
+# Database name (created automatically on instance)
+db_name = "aiagents"
+
+# Database master username
+# Recommendation: Use non-default username (not "postgres") for security
+db_username = "aiagents_admin"
+
+# Database master password
+# CRITICAL: Use strong password (minimum 8 characters)
+# Recommendation: Use AWS Secrets Manager in production
+# Example: $(openssl rand -base64 32)
+db_password = "CHANGE_ME_TO_STRONG_PASSWORD"
+
+# ============================================================================
+# Cache Configuration (AC4)
+# ============================================================================
+
+# Redis version
+# Supported versions: 7.0, 7.1
+# Recommendation: Use latest stable version (currently 7.1)
+redis_version = "7.1"
+
+# ElastiCache node type determines CPU, memory, network performance
+# Common choices:
+#   - cache.t3.micro   : 0.5 vCPU, 0.5 GB (dev)
+#   - cache.t3.small   : 1 vCPU, 1.4 GB    (small production)
+#   - cache.t3.medium  : 2 vCPU, 3.09 GB   (medium production)
+#   - cache.r6g.large  : 2 vCPU, 16 GB     (high memory production)
+# Recommendation: Start with cache.t3.small for production MVP
+cache_node_type = "cache.t3.small"
+
+# Number of cache clusters (must be >= 2 for high availability)
+# 2 = primary + replica with automatic failover
+# Recommendation: Use 2 for production HA, can increase for read scaling
+cache_num_clusters = 2
+
+# ============================================================================
+# Ingress and TLS Configuration (AC5)
+# ============================================================================
+
+# Helm chart version for nginx-ingress
+# Check available versions: helm search repo ingress-nginx
+nginx_ingress_version = "4.8.0"
+
+# Helm chart version for cert-manager
+# Check available versions: helm search repo jetstack
+cert_manager_version = "v1.13.0"
+
+# Email for Let's Encrypt certificate notifications
+# Used for ACME certificate expiration warnings
+# Recommendation: Use team email (e.g., devops@company.com)
+letsencrypt_email = "devops@company.com"
+
+# ============================================================================
+# Monitoring Configuration (AC6)
+# ============================================================================
+
+# CloudWatch log retention period in days
+# Compliance requirement: 90 days minimum (PRD NFR005)
+log_retention_days = 90
+
+# Prometheus endpoint for metrics collection
+# Used by OTEL collector to forward cluster metrics
+# Format: http://host:port
+# Recommendation: Points to existing Prometheus from Epic 4
+prometheus_endpoint = "http://prometheus.monitoring:9090"
+
+# Jaeger endpoint for distributed tracing
+# Used by OTEL collector to forward traces
+# Format: host:port (for gRPC endpoint)
+# Recommendation: Points to existing Jaeger from Epic 4
+jaeger_endpoint = "jaeger-collector.tracing:14268"
+
+# ============================================================================
+# Tags and Labels
+# ============================================================================
+
+# Common tags applied to all AWS resources
+# Useful for cost allocation and resource organization
+common_tags = {
+  Project     = "ai-agents"
+  Environment = "production"
+  ManagedBy   = "Terraform"
+  CostCenter  = "engineering"
+  Owner       = "platform-team"
+}
+
+# ============================================================================
+# IMPORTANT SECURITY NOTES
+# ============================================================================
+#
+# 1. DATABASE PASSWORD:
+#    - NEVER commit actual password to git
+#    - Use AWS Secrets Manager or similar in production
+#    - Rotate password every 90 days
+#    - Use terraform -var="db_password=..." for CI/CD
+#
+# 2. TERRAFORM STATE:
+#    - Enable S3 remote state backend (see main.tf)
+#    - Enable state file encryption
+#    - Enable DynamoDB for state locking
+#    - Restrict S3 bucket access
+#
+# 3. PERMISSIONS:
+#    - Only authorized engineers should run terraform apply
+#    - Use IAM roles with least privilege
+#    - Enable CloudTrail to audit changes
+#
+# 4. BACKUP & RECOVERY:
+#    - RDS: Automated 30-day backup retention enabled
+#    - Redis: Daily RDB snapshots enabled
+#    - Cluster: Multi-AZ deployment for failover
+#
+# ============================================================================
+
+# ============================================================================
+# ENVIRONMENT-SPECIFIC EXAMPLES
+# ============================================================================
+
+# AWS PRODUCTION EXAMPLE:
+# aws_region           = "us-east-1"
+# cluster_name         = "ai-agents-prod"
+# min_node_count       = 3
+# max_node_count       = 10
+# db_instance_class    = "db.t3.large"
+# cache_node_type      = "cache.t3.medium"
+# log_retention_days   = 90
+
+# AWS STAGING EXAMPLE:
+# aws_region           = "us-east-1"
+# cluster_name         = "ai-agents-staging"
+# min_node_count       = 2
+# max_node_count       = 5
+# db_instance_class    = "db.t3.small"
+# cache_node_type      = "cache.t3.small"
+# log_retention_days   = 30
+
+# GCP EXAMPLE (requires modified main.tf provider block):
+# Placeholder for future GCP implementation
+# google_project       = "ai-agents-prod"
+# google_region        = "us-central1"
+# kubernetes_version   = "1.29"
+
+# AZURE EXAMPLE (requires modified main.tf provider block):
+# Placeholder for future Azure implementation
+# azure_resource_group = "ai-agents-prod-rg"
+# azure_location       = "eastus"
+# kubernetes_version   = "1.29"

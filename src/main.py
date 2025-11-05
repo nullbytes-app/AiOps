@@ -13,7 +13,7 @@ import logging
 from fastapi import FastAPI, HTTPException, status
 from prometheus_client import make_asgi_app
 
-from src.api import health, webhooks
+from src.api import health, webhooks, feedback, plugins, agents, prompts
 from src.api.admin import tenants as admin_tenants
 from src.config import is_kubernetes_env, settings
 from src.cache.redis_client import check_redis_connection
@@ -48,6 +48,10 @@ FastAPIInstrumentor.instrument_app(app)
 app.include_router(webhooks.router)
 app.include_router(health.router)
 app.include_router(admin_tenants.router)  # Admin tenant management endpoints
+app.include_router(feedback.router)  # Story 5.5: Enhancement feedback endpoints
+app.include_router(plugins.router)  # Story 7.8: Plugin management endpoints
+app.include_router(agents.router)  # Story 8.3: Agent CRUD API endpoints
+app.include_router(prompts.router)  # Story 8.5: Prompt versioning and template management
 
 # Mount Prometheus metrics endpoint at /metrics
 # Returns metrics in Prometheus text format (text/plain; version=0.0.4)
@@ -62,7 +66,8 @@ async def startup_event() -> None:
     Application startup event handler.
 
     Validates that all required secrets are present and properly formatted
-    before the application accepts requests.
+    before the application accepts requests. Registers plugins with PluginManager
+    for multi-tool support (Story 7.3).
 
     Raises:
         EnvironmentError: If required secrets are missing or invalid
@@ -73,6 +78,30 @@ async def startup_event() -> None:
         logger.info(f"Secrets validated successfully. Running in {env_type} environment")
     except EnvironmentError as e:
         logger.error(f"Secrets validation failed: {str(e)}")
+        raise
+
+    # Story 7.3: Register ServiceDesk Plus plugin
+    try:
+        from src.plugins import PluginManager
+        from src.plugins.servicedesk_plus import ServiceDeskPlusPlugin
+
+        manager = PluginManager()
+        plugin = ServiceDeskPlusPlugin()
+        manager.register_plugin("servicedesk_plus", plugin)
+        logger.info("ServiceDesk Plus plugin registered successfully")
+    except Exception as e:
+        logger.error(f"Failed to register ServiceDesk Plus plugin: {str(e)}", exc_info=True)
+        raise
+
+    # Story 7.4: Register Jira Service Management plugin
+    try:
+        from src.plugins.jira import JiraServiceManagementPlugin
+
+        jira_plugin = JiraServiceManagementPlugin()
+        manager.register_plugin("jira", jira_plugin)
+        logger.info("Jira Service Management plugin registered successfully")
+    except Exception as e:
+        logger.error(f"Failed to register Jira plugin: {str(e)}", exc_info=True)
         raise
 
 

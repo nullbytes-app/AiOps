@@ -1,0 +1,77 @@
+# Production Kubernetes ConfigMap
+# Story 5.2: Deploy Application to Production Environment
+# Non-sensitive application configuration
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-agents-config
+  namespace: production
+  labels:
+    app: ai-agents
+    component: configuration
+data:
+  # Application Settings
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "info"
+  DEBUG: "false"
+
+  # API Configuration
+  API_HOST: "0.0.0.0"
+  API_PORT: "8000"
+  API_WORKERS: "1"  # Single Uvicorn process per container (Kubernetes handles replication)
+
+  # Celery Worker Configuration
+  CELERY_WORKER_CONCURRENCY: "4"  # Concurrent tasks per worker
+  CELERY_TASK_TIMEOUT: "120"  # Task timeout in seconds
+  CELERY_MAX_RETRIES: "3"
+  CELERY_RETRY_DELAY: "60"  # Retry delay in seconds
+
+  # Monitoring Configuration
+  PROMETHEUS_PORT: "9090"
+  METRICS_ENABLED: "true"
+  TRACING_ENABLED: "true"
+  OTEL_SERVICE_NAME: "ai-agents-api"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "http://opentelemetry-collector.production.svc.cluster.local:4317"
+
+  # Database Connection Pool
+  DB_POOL_SIZE: "20"  # Max connections per pod
+  DB_POOL_TIMEOUT: "30"
+  DB_POOL_RECYCLE: "3600"  # Recycle connections after 1 hour
+
+  # Redis Configuration
+  REDIS_SOCKET_TIMEOUT: "5"
+  REDIS_SOCKET_CONNECT_TIMEOUT: "5"
+  REDIS_MAX_CONNECTIONS: "50"
+
+  # Enhancement Processing
+  CONTEXT_GATHERING_TIMEOUT: "30"
+  LLM_TIMEOUT: "45"
+  TICKET_UPDATE_TIMEOUT: "15"
+  MAX_CONTEXT_SIZE: "8000"  # Max context tokens for LLM
+
+  # Multi-Tenancy
+  TENANT_ISOLATION_ENABLED: "true"
+  RLS_ENABLED: "true"  # Row-Level Security enforcement
+
+  # Rate Limiting
+  RATE_LIMIT_ENABLED: "true"
+  RATE_LIMIT_REQUESTS: "100"  # Requests per minute per tenant
+  RATE_LIMIT_BURST: "20"
+
+  # Health Check Configuration
+  HEALTH_CHECK_TIMEOUT: "5"
+  HEALTH_CHECK_DB_ENABLED: "true"
+  HEALTH_CHECK_REDIS_ENABLED: "true"
+
+  # Graceful Shutdown
+  SHUTDOWN_TIMEOUT: "30"  # Allow 30 seconds for graceful shutdown
+
+  # CORS Configuration
+  CORS_ENABLED: "true"
+  CORS_ORIGINS: "https://admin.ai-agents.production"
+
+  # Production Domain
+  API_BASE_URL: "https://api.ai-agents.production"
+  WEBHOOK_PATH: "/webhook/servicedesk"

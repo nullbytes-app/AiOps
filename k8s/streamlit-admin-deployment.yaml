@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit-admin
+  namespace: ai-agents
+  labels:
+    app: streamlit-admin
+    component: admin-ui
+spec:
+  replicas: 1  # Single replica for admin UI (not public-facing, lower traffic)
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: streamlit-admin
+  template:
+    metadata:
+      labels:
+        app: streamlit-admin
+        component: admin-ui
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8501"
+        prometheus.io/path: "/_stcore/metrics"
+    spec:
+      serviceAccountName: streamlit-admin  # Story 6.7: Enable K8s API access for worker monitoring
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: streamlit-admin
+        image: ai-agents-streamlit:1.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8501
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: environment
+        - name: AI_AGENTS_DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: database-credentials
+              key: database-url
+        - name: KUBERNETES_SERVICE_HOST
+          value: "true"  # Indicates running in Kubernetes (app.py uses this for auth detection)
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /_stcore/health
+            port: 8501
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: streamlit-config
+          mountPath: /home/appuser/.streamlit
+          readOnly: true
+      volumes:
+      - name: streamlit-config
+        configMap:
+          name: streamlit-config

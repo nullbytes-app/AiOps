@@ -1,0 +1,216 @@
+# ============================================================================
+# Production Namespace Configuration
+# ============================================================================
+#
+# Kubernetes namespace for production application deployment
+# Provides resource isolation and network boundary for production workloads
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    environment: production
+    managed-by: terraform
+    purpose: production-deployment
+  annotations:
+    description: "Production namespace for AI Agents application and supporting services"
+    created-by: "Story 5.1 - Provision Production Kubernetes Cluster"
+    network-policy: "enabled"
+    rbac: "configured"
+
+---
+
+# Resource Quota for production namespace
+# Prevents accidental resource exhaustion and ensures fair allocation
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: production-quota
+  namespace: production
+spec:
+  hard:
+    requests.cpu: "10"
+    requests.memory: "20Gi"
+    limits.cpu: "20"
+    limits.memory: "40Gi"
+    pods: "100"
+    services: "10"
+    persistentvolumeclaims: "5"
+  scopeSelector:
+    matchExpressions:
+    - operator: In
+      scopeName: PriorityClass
+      values: ["default"]
+
+---
+
+# Network Policy: Default Deny All Ingress
+# AC2: Network policies enforced - default deny for security
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+
+---
+
+# Network Policy: Allow DNS
+# Required for pod-to-DNS resolution
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: production
+spec:
+  podSelector: {}
+  policyTypes:
+  - Egress
+  egress:
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+
+---
+
+# Pod Security Policy for production
+# AC2: Pod security policies enforced
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: production-restricted
+spec:
+  privileged: false
+  allowPrivilegeEscalation: false
+  requiredDropCapabilities:
+  - ALL
+  volumes:
+  - 'configMap'
+  - 'emptyDir'
+  - 'projected'
+  - 'secret'
+  - 'downwardAPI'
+  - 'persistentVolumeClaim'
+  hostNetwork: false
+  hostIPC: false
+  hostPID: false
+  runAsUser:
+    rule: 'MustRunAsNonRoot'
+  seLinux:
+    rule: 'MustRunAs'
+    seLinuxOptions:
+      level: "s0:c123,c456"
+  fsGroup:
+    rule: 'MustRunAs'
+    ranges:
+    - min: 1000
+      max: 65535
+  readOnlyRootFilesystem: false
+
+---
+
+# ClusterRole for production namespace RBAC
+# AC2: RBAC configured - application service account bindings
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: production-app-role
+rules:
+# Minimal permissions needed for application pods
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["get", "list"]
+
+---
+
+# ClusterRoleBinding for production app
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: production-app-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: production-app-role
+subjects:
+- kind: ServiceAccount
+  name: app-sa
+  namespace: production
+
+---
+
+# Service Account for application pods
+# AC2: Service accounts for application with RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app-sa
+  namespace: production
+  labels:
+    app: ai-agents
+    component: application
+
+---
+
+# Service Account for Prometheus scraping (Epic 4 integration)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-sa
+  namespace: production
+  labels:
+    app: prometheus
+    component: monitoring
+
+---
+
+# ClusterRole for Prometheus (Epic 4 monitoring integration - AC6)
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-role
+rules:
+- apiGroups: [""]
+  resources:
+  - nodes
+  - nodes/proxy
+  - services
+  - endpoints
+  - pods
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["extensions"]
+  resources:
+  - ingresses
+  verbs: ["get", "list", "watch"]
+- nonResourceURLs: ["/metrics"]
+  verbs: ["get"]
+
+---
+
+# ClusterRoleBinding for Prometheus
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-role
+subjects:
+- kind: ServiceAccount
+  name: prometheus-sa
+  namespace: production

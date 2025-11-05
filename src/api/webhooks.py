@@ -4,13 +4,16 @@ Webhook receiver endpoints for external integrations.
 This module implements the webhook endpoint for receiving ticket notifications
 from ServiceDesk Plus. The endpoint validates payloads, logs requests, and returns
 202 Accepted immediately while queuing processing for workers.
+
+Story 7.3: Updated to use Plugin Manager for multi-tool webhook validation.
 """
 
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status, Header
 from pydantic import ValidationError
+from typing import Optional
 
 from src.schemas.webhook import WebhookPayload, ResolvedTicketWebhook, WebhookResponse
 from src.services.webhook_validator import validate_webhook_signature, validate_signature
@@ -29,6 +32,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 # Story 4.6: Distributed tracing context propagation
 from opentelemetry.propagate import inject
 
+# Story 7.3: Plugin Manager for multi-tool support
+from src.plugins import PluginManager, PluginNotFoundError
+
 router = APIRouter(prefix="/webhook", tags=["webhooks"])
 
 
@@ -37,47 +43,49 @@ router = APIRouter(prefix="/webhook", tags=["webhooks"])
     status_code=status.HTTP_202_ACCEPTED,
     summary="Receive ServiceDesk Plus webhook notification",
     description="Accepts webhook notifications from ServiceDesk Plus when tickets are created or updated. "
-    "Validates the payload using tenant-specific webhook secret and returns 202 Accepted immediately while "
+    "Validates the payload using tenant-specific webhook secret via Plugin Manager and returns 202 Accepted immediately while "
     "queuing the ticket for enhancement processing. Uses tenant-specific configuration for ServiceDesk Plus credentials "
-    "and enhancement preferences. This is the primary entry point for the ticket enhancement pipeline.",
+    "and enhancement preferences. Supports multi-tool routing via plugin architecture (Story 7.3).",
     response_model=WebhookResponse,
 )
 async def receive_webhook(
     payload: WebhookPayload,
     db: AsyncSession = Depends(get_tenant_db),
     queue_service: QueueService = Depends(get_queue_service),
-    tenant_config: TenantConfigInternal = Depends(get_tenant_config_dep)
+    tenant_config: TenantConfigInternal = Depends(get_tenant_config_dep),
+    x_servicedesk_signature: Optional[str] = Header(None, alias="X-ServiceDesk-Signature"),
 ) -> WebhookResponse:
     """
-    Receive and validate webhook notification from ServiceDesk Plus.
+    Receive and validate webhook notification from ticketing tool.
+
+    Story 7.3: Updated to use Plugin Manager for multi-tool webhook validation.
+    Supports ServiceDesk Plus (current), Jira, Zendesk, and other ticketing tools
+    via plugin architecture.
 
     Immediately acknowledges the webhook with 202 Accepted to prevent timeout,
-    while delegating actual processing to background workers. Loads tenant-specific
-    configuration (ServiceDesk Plus credentials and enhancement preferences) and
-    queues job with tenant context. Request is logged with correlation ID for
-    distributed tracing. Job is queued to Redis for asynchronous processing by
-    Celery workers.
+    while delegating actual processing to background workers. Uses Plugin Manager
+    to route webhook validation and metadata extraction to the correct tool plugin
+    based on tenant_config.tool_type.
 
     Args:
         payload: WebhookPayload model containing ticket information
         db: RLS-aware database session (injected via get_tenant_db dependency)
         queue_service: QueueService instance (injected via dependency)
-        tenant_config: Tenant configuration with ServiceDesk Plus credentials
-                      and enhancement preferences (injected via get_tenant_config_dep)
+        tenant_config: Tenant configuration with credentials and tool_type
+        x_servicedesk_signature: HMAC signature from webhook header (optional for backward compatibility)
 
     Returns:
         dict: Response object with status, job_id, and message
-            - status: "accepted" (indicates webhook was accepted)
-            - job_id: Unique identifier for this enhancement job
-            - message: Human-readable confirmation message
 
     Raises:
-        ValidationError: FastAPI automatically returns 422 if payload is invalid
+        HTTPException(401): If webhook signature validation fails
+        HTTPException(404): If plugin not found for tenant's tool_type
         HTTPException(503): If Redis queue is unavailable
-        HTTPException(404): If tenant configuration not found
-        HTTPException(400): If tenant_id missing from request
 
     Example:
+        Request headers:
+        X-ServiceDesk-Signature: abc123...
+
         Request body:
         {
             "event": "ticket_created",
@@ -95,6 +103,81 @@ async def receive_webhook(
             "message": "Enhancement job queued successfully"
         }
     """
+    # Story 7.3: Validate webhook using Plugin Manager
+    # Security priority: Validate signature BEFORE any processing
+    try:
+        # Get plugin for tenant's tool type (defaults to 'servicedesk_plus')
+        manager = PluginManager()
+        tool_type = getattr(tenant_config, "tool_type", "servicedesk_plus")
+        plugin = manager.get_plugin(tool_type)
+
+        # Validate webhook signature using plugin
+        if x_servicedesk_signature:
+            is_valid = await plugin.validate_webhook(
+                payload=payload.dict(), signature=x_servicedesk_signature
+            )
+
+            if not is_valid:
+                logger.error(
+                    f"Webhook signature validation failed for tenant: {payload.tenant_id}",
+                    extra={
+                        "tenant_id": payload.tenant_id,
+                        "tool_type": tool_type,
+                        "event_type": "signature_validation_failed",
+                    },
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook signature"
+                )
+        else:
+            # Backward compatibility: Allow webhooks without signature for testing
+            # TODO: Remove this in production after all tenants configured with signatures
+            logger.warning(
+                f"Webhook received without signature header for tenant: {payload.tenant_id}",
+                extra={
+                    "tenant_id": payload.tenant_id,
+                    "tool_type": tool_type,
+                    "event_type": "missing_signature_header",
+                },
+            )
+
+        # Extract and normalize metadata using plugin
+        # This ensures consistent metadata format regardless of tool type
+        metadata = plugin.extract_metadata(payload.dict())
+        logger.info(
+            f"Webhook metadata extracted via plugin",
+            extra={
+                "tenant_id": metadata.tenant_id,
+                "ticket_id": metadata.ticket_id,
+                "priority": metadata.priority,
+                "tool_type": tool_type,
+            },
+        )
+
+    except PluginNotFoundError as e:
+        logger.error(
+            f"Plugin not found for tool_type: {tool_type}",
+            extra={"tenant_id": payload.tenant_id, "tool_type": tool_type, "error": str(e)},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Plugin not found for tool type: {tool_type}",
+        )
+    except ValueError as e:
+        # Metadata extraction failed (invalid payload structure)
+        logger.error(
+            f"Webhook metadata extraction failed: {str(e)}",
+            extra={
+                "tenant_id": payload.tenant_id,
+                "error": str(e),
+                "event_type": "metadata_extraction_failed",
+            },
+        )
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Invalid webhook payload: {str(e)}",
+        )
+
     # Generate unique job ID for correlation and tracking
     job_id = str(uuid.uuid4())
     # Use provided correlation_id from payload if available, otherwise generate new one
@@ -104,9 +187,7 @@ async def receive_webhook(
     logger.bind(correlation_id=correlation_id)
 
     # Increment Prometheus metric for received webhook
-    enhancement_requests_total.labels(
-        tenant_id=payload.tenant_id, status="received"
-    ).inc()
+    enhancement_requests_total.labels(tenant_id=payload.tenant_id, status="received").inc()
 
     # Log webhook receipt using AuditLogger for compliance tracking
     AuditLogger.audit_webhook_received(
@@ -128,7 +209,7 @@ async def receive_webhook(
         # This enables single trace ID to span both FastAPI (webhook receiver) and Celery (enhancement worker)
         from src.monitoring import get_tracer
         from opentelemetry import trace as otel_trace
-        
+
         trace_context_carrier = {}
         inject(trace_context_carrier)  # Injects traceparent and tracestate headers
 
@@ -153,8 +234,12 @@ async def receive_webhook(
             "servicedesk_url": tenant_config.servicedesk_url,
             "servicedesk_api_key": tenant_config.api_key,  # Decrypted by dependency
             "enhancement_preferences": tenant_config.enhancement_preferences,
+            # Story 7.3: Tool type for plugin routing in workers
+            "tool_type": tool_type,  # Plugin Manager routing in Celery workers
             # Story 4.6: Trace context for distributed tracing across services
-            "trace_context": trace_context_carrier.get("traceparent", ""),  # W3C Trace Context format
+            "trace_context": trace_context_carrier.get(
+                "traceparent", ""
+            ),  # W3C Trace Context format
         }
 
         # Story 4.6: Custom span for job_queued phase (AC5)
@@ -172,9 +257,7 @@ async def receive_webhook(
             )
 
         # Increment Prometheus metric for successfully queued job
-        enhancement_requests_total.labels(
-            tenant_id=payload.tenant_id, status="queued"
-        ).inc()
+        enhancement_requests_total.labels(tenant_id=payload.tenant_id, status="queued").inc()
 
         logger.info(
             f"Job queued successfully: {queued_job_id}",
@@ -196,9 +279,7 @@ async def receive_webhook(
     except QueueServiceError as e:
         # Queue push failed - return 503 Service Unavailable
         # Increment Prometheus metric for rejected job
-        enhancement_requests_total.labels(
-            tenant_id=payload.tenant_id, status="rejected"
-        ).inc()
+        enhancement_requests_total.labels(tenant_id=payload.tenant_id, status="rejected").inc()
 
         logger.error(
             f"Failed to queue job: {str(e)}",
@@ -227,7 +308,7 @@ async def store_resolved_ticket(
     request: Request,
     payload: ResolvedTicketWebhook,
     session: AsyncSession = Depends(get_tenant_db),
-    settings = Depends(get_settings),
+    settings=Depends(get_settings),
 ) -> WebhookResponse:
     """
     Receive and store resolved ticket webhook notification from ServiceDesk Plus.

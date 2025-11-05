@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>5</storyId>
+    <title>System Prompt Editor</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-05</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-5-system-prompt-editor.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system administrator</asA>
+    <iWant>a rich text editor for agent system prompts with templates</iWant>
+    <soThat>I can easily configure agent behavior without writing prompts from scratch</soThat>
+    <tasks>
+      <task number="1">Set Up Streamlit Admin Page Structure for System Prompt Editor (AC: #1)</task>
+      <task number="2">Implement Syntax Highlighting Text Editor (AC: #1)</task>
+      <task number="3">Implement Template Library (AC: #2)</task>
+      <task number="4">Implement Variable Substitution &amp; Preview Mode (AC: #3, #4)</task>
+      <task number="5">Implement Character Count &amp; Warning System (AC: #5)</task>
+      <task number="6">Implement Prompt Versioning (AC: #6)</task>
+      <task number="7">Implement "Test Prompt" Feature (AC: #7)</task>
+      <task number="8">Implement Template Editing (AC: #8)</task>
+      <task number="9">Implement Agent Selection &amp; Context (Integration with Story 8.4)</task>
+      <task number="10">Implement API Endpoints (Backend)</task>
+      <task number="11">Implement Database Models &amp; Migrations</task>
+      <task number="12">Implement Prompt Service Layer</task>
+      <task number="13">Create Comprehensive Tests</task>
+      <task number="14">Integration with Story 8.4 (Agent Management UI)</task>
+      <task number="15">Documentation &amp; Help</task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC1">System prompt text area with syntax highlighting (markdown format)</criterion>
+    <criterion id="AC2">Template library with 5 pre-built prompts: Ticket Enhancement, Root Cause Analysis, Knowledge Base Assistant, Monitoring Alert Responder, General Purpose Agent</criterion>
+    <criterion id="AC3">Variable substitution support: {{tenant_name}}, {{tools}}, {{current_date}}, {{agent_name}} replaced at runtime</criterion>
+    <criterion id="AC4">Prompt preview mode: shows rendered prompt with substituted variables</criterion>
+    <criterion id="AC5">Character count displayed: shows length with warning at 8000+ chars</criterion>
+    <criterion id="AC6">Prompt versioning: save prompt history, revert to previous versions</criterion>
+    <criterion id="AC7">"Test Prompt" button: sends sample input to LLM, displays response (uses LiteLLM proxy)</criterion>
+    <criterion id="AC8">Template editing: admins can create custom templates, save to database</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Admin UI Framework (Streamlit 1.30+), Technology Stack Details, Core Technologies</section>
+        <snippet>Streamlit 1.30+ selected for Admin UI (Epic 6). Python-native, rapid prototyping, built-in components, 5-10x faster than React. FastAPI async patterns, SQLAlchemy 2.0+ ORM, PostgreSQL 17 for multi-tenancy. LiteLLM proxy for unified LLM gateway with multi-provider support.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-2-agent-database-schema-and-models.md</path>
+        <title>Story 8.2: Agent Database Schema and Models</title>
+        <section>Acceptance Criteria, Tasks, Database Schema Design</section>
+        <snippet>Defines agents table (id, tenant_id, name, description, status, system_prompt, llm_config JSONB). AgentStatus enum: draft, active, suspended, inactive. Composite index on (tenant_id, status). SQLAlchemy 2.0 models with async relationships. Pydantic v2 validation schemas.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-4-agent-management-ui-basic.md</path>
+        <title>Story 8.4: Agent Management UI (Basic)</title>
+        <section>Acceptance Criteria, Implementation Tasks, Session State Patterns</section>
+        <snippet>Streamlit page at src/admin/pages/05_Agent_Management.py. Session state patterns: agents_list caching, selected_agent_id for detail view, refresh_trigger for cache invalidation. Helper functions: async_api_call(), format_status_badge(), format_datetime(). Multi-tab form for agent creation.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-1-litellm-proxy-integration.md</path>
+        <title>Story 8.1: LiteLLM Proxy Integration</title>
+        <section>LiteLLM Service Configuration, Docker Integration, Environment Setup</section>
+        <snippet>LiteLLM proxy service at ghcr.io/berriai/litellm-database:main-stable, port 4000. Config: config/litellm-config.yaml. Fallback chain: gpt-4 → azure-gpt-4 → claude-3-5-sonnet. Retry logic: 3 attempts, exponential backoff, 30s timeout. OpenAI SDK compatible client for API calls.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/admin/pages/05_Agent_Management.py</path>
+        <kind>Streamlit page</kind>
+        <symbol>initialize_session_state, fetch_agents_cached, show</symbol>
+        <reason>Direct reference for session state patterns, API call helpers, async workflow. Established patterns for st.session_state, error handling, caching with refresh mechanisms.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/agent_service.py</path>
+        <kind>Service class</kind>
+        <symbol>AgentService</symbol>
+        <reason>Async database operations for agents, tenant isolation enforcement, CRUD patterns. Will follow similar structure for prompt service (get_prompt_versions, save_prompt_version, revert_to_version).</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/agents.py</path>
+        <kind>FastAPI route module</kind>
+        <symbol>Router endpoints</symbol>
+        <reason>Existing agent API endpoints pattern. Will extend with new endpoints: GET /api/agents/{id}/prompt-versions, POST revert, template CRUD operations.</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>SQLAlchemy models</kind>
+        <symbol>Agent, TenantConfig, AuditLog</symbol>
+        <reason>Base model patterns for multi-tenancy, timestamp defaults (created_at, updated_at), relationship definitions. AgentPromptVersion and AgentPromptTemplate models will follow same structure.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/components/agent_forms.py</path>
+        <kind>Streamlit UI component</kind>
+        <symbol>Agent form components</symbol>
+        <reason>Existing form patterns for Story 8.4. System Prompt tab already implemented. Reuse validation patterns and form structure.</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_agent_service.py</path>
+        <kind>Unit test module</kind>
+        <symbol>Test patterns</symbol>
+        <reason>Reference for async test patterns with pytest-asyncio, mock database, tenant isolation testing. Will apply same patterns for prompt service tests.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="streamlit" version="1.30+">Core UI framework for admin dashboard</package>
+        <package name="fastapi" version="0.104+">Async API framework with dependency injection</package>
+        <package name="sqlalchemy" version="2.0+">Async ORM with relationship and index support</package>
+        <package name="pydantic" version="2.x">Request/response validation with @field_validator/@model_validator</package>
+        <package name="httpx" version="latest">Async HTTP client for LiteLLM proxy calls (context window granular timeouts)</package>
+        <package name="pytest" version="latest">Unit testing with async support</package>
+        <package name="pytest-asyncio" version="latest">Async test fixtures and markers</package>
+        <package name="black" version="latest">Code formatting (enforce in tests)</package>
+        <package name="mypy" version="latest">Static type checking with strict mode</package>
+        <package name="bandit" version="latest">Security linting</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">Multi-tenancy: All custom templates and versions scoped to tenant_id. Built-in templates accessible to all tenants (no tenant filter).</constraint>
+    <constraint id="C2">Async patterns: Use AsyncClient for API calls, async database queries throughout. Session state operations are sync (Streamlit limitation).</constraint>
+    <constraint id="C3">Database: PostgreSQL with proper indexes on (agent_id, created_at DESC) for version queries and (tenant_id, is_active) for template queries.</constraint>
+    <constraint id="C4">Admin UI: Streamlit-based, follow existing page structure (pages/0X_Title.py). File size must stay ≤500 lines; refactor helpers to utils if needed.</constraint>
+    <constraint id="C5">API: FastAPI with Pydantic validation, OpenAPI documentation auto-generated. Endpoints require valid session/JWT (handled by middleware).</constraint>
+    <constraint id="C6">LLM Integration: Route through LiteLLM proxy (service endpoint http://litellm-proxy:4000), not direct OpenAI calls. Use OpenAI SDK with api_base override.</constraint>
+    <constraint id="C7">Versioning: Immutable history (insert-only), soft deletes for custom templates (mark is_active=false). No branching, simple is_current flag.</constraint>
+    <constraint id="C8">Text Editor: Use Streamlit st.text_area + manual syntax display (st.code for highlighting) rather than external markdown editor component (simplicity, fewer dependencies).</constraint>
+    <constraint id="C9">Variable Substitution: Runtime substitution at display time, not stored in database. Prompts stored as-is with {{variables}} placeholders.</constraint>
+    <constraint id="C10">Template Storage: Custom templates in database (agent_prompt_templates), built-in templates loaded from database query or hardcoded dict (choose during Task 3.1c implementation).</constraint>
+    <constraint id="C11">Test Feature: Simplified execution (no full agent workflow), just LLM prompt completion. Use sample input template provided in Task 7.1c.</constraint>
+    <constraint id="C12">Code Quality: Black formatting ✓, mypy strict mode ✓, bandit security scan ✓, docstrings (Google style) for all functions. Test coverage target ≥80%.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/agents/{agent_id}/prompt-versions</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/agents/{agent_id}/prompt-versions?limit=20&amp;offset=0</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>POST /api/agents/{agent_id}/prompt-versions/revert</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/agents/{agent_id}/prompt-versions/revert with body: {version_id}</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>POST /api/agents/prompt-templates</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/agents/prompt-templates with body: {name, description, template_text}</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>GET /api/agents/prompt-templates</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/agents/prompt-templates?include_builtin=true&amp;tenant_id=</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>PUT /api/agents/prompt-templates/{template_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>PUT /api/agents/prompt-templates/{template_id} with body: {name, description, template_text}</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>DELETE /api/agents/prompt-templates/{template_id}</name>
+      <kind>REST endpoint</kind>
+      <signature>DELETE /api/agents/prompt-templates/{template_id}</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>POST /api/llm/test</name>
+      <kind>REST endpoint</kind>
+      <signature>POST /api/llm/test with body: {system_prompt, user_message, model, temperature, max_tokens}</signature>
+      <path>src/api/agents.py</path>
+    </interface>
+    <interface>
+      <name>PromptService class</name>
+      <kind>Service layer interface</kind>
+      <signature>async get_prompt_versions(agent_id, limit, offset) → List[PromptVersionResponse]; async save_prompt_version(...) → PromptVersionResponse; async revert_to_version(...) → bool; async get_prompt_templates(...) → List[PromptTemplateResponse]; async create_custom_template(...) → PromptTemplateResponse; async update_custom_template(...) → PromptTemplateResponse; async delete_custom_template(...) → bool</signature>
+      <path>src/services/prompt_service.py</path>
+    </interface>
+    <interface>
+      <name>Streamlit Session State Keys</name>
+      <kind>Client-side state</kind>
+      <signature>st.session_state.selected_agent_id, st.session_state.prompt_text, st.session_state.show_preview, st.session_state.preview_variables</signature>
+      <path>src/admin/pages/06_System_Prompt_Editor.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      This project follows pytest conventions with async test support (pytest-asyncio markers). Tests organized in /tests directory mirroring src structure: unit tests for business logic, integration tests for API endpoints with real database migrations, UI tests for Streamlit components (manual testing recommended due to Streamlit complexity). Mock database fixtures use in-memory SQLite or test PostgreSQL instance. Tenant isolation must be tested explicitly (cross-tenant access attempts must fail).
+    </standards>
+    <locations>
+      tests/unit/test_prompt_service.py (service layer unit tests)
+      tests/integration/test_prompt_api.py (API endpoint integration tests)
+      tests/unit/test_prompt_schemas.py (Pydantic validation tests)
+      Manual Streamlit component testing (variable substitution, character counter, preview mode)
+    </locations>
+    <ideas>
+      AC1 Test: Syntax highlighting renders markdown correctly in st.code output
+      AC2 Test: All 5 built-in templates load from database; custom templates filtered by tenant
+      AC3 Test: Variable {{tenant_name}}, {{tools}}, {{current_date}}, {{agent_name}} correctly substituted with actual values
+      AC4 Test: Preview mode displays two-column layout; preview updates real-time as user edits
+      AC5 Test: Character count updates on keystroke; warning appears at 8000+ chars; save disabled at >12000
+      AC6 Test: New version created on save with is_current=true; previous versions marked false; revert loads and marks correct version
+      AC7 Test: Test Prompt sends to LiteLLM proxy, parses response, handles timeout/error gracefully
+      AC8 Test: Custom templates created/edited/deleted with tenant_id ownership enforcement; built-in templates read-only
+      Cross-tenant isolation: Tenant A cannot see/modify Tenant B's custom templates or prompt versions
+      API authentication: Unauthenticated requests return 401; cross-tenant requests return 403
+    </ideas>
+  </tests>
+</story-context>

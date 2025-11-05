@@ -1,0 +1,297 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>6</epicId>
+    <storyId>4</storyId>
+    <title>Implement Enhancement History Viewer</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-04</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/6-4-implement-enhancement-history-viewer.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>operations analyst</asA>
+    <iWant>to search, filter, and view enhancement processing history with expandable details</iWant>
+    <soThat>I can audit agent performance, debug failed enhancements, and export data for compliance reporting</soThat>
+    <tasks>
+### Task 1: Create Enhancement History Query Functions (AC: #1, #2, #3, #7)
+- [ ] 1.1 Create `src/admin/utils/history_helper.py` with query functions
+- [ ] 1.2 Implement `get_enhancement_history(tenant_id: Optional[str], status: Optional[str], date_from: Optional[date], date_to: Optional[date], search_query: Optional[str], page: int, page_size: int) -> tuple[list[EnhancementHistory], int]`
+- [ ] 1.3 Query returns tuple: (records for current page, total count for pagination)
+- [ ] 1.4 Build SQL WHERE clauses dynamically based on filter parameters (server-side filtering)
+- [ ] 1.5 Implement search: `WHERE ticket_id ILIKE '%{search_query}%'` (case-insensitive partial match)
+- [ ] 1.6 Date range filter: `WHERE created_at >= date_from AND created_at <= date_to`
+- [ ] 1.7 Use LIMIT/OFFSET for pagination: `LIMIT {page_size} OFFSET {(page-1) * page_size}`
+- [ ] 1.8 Apply `@st.cache_data(ttl=30)` to query function (30-second cache for near-real-time updates)
+- [ ] 1.9 Add composite index: `CREATE INDEX ix_history_tenant_status_created ON enhancement_history(tenant_id, status, created_at DESC)` via Alembic migration
+- [ ] 1.10 Test query performance with 10K test records (target: < 5 seconds per AC7)
+- [ ] 1.11 Create `get_all_tenant_ids() -> list[str]` for tenant filter dropdown
+- [ ] 1.12 Add type hints and Google-style docstrings to all functions
+
+### Task 2: Implement History Page UI with Filters (AC: #1, #2, #3, #8)
+- [ ] 2.1 Implement `src/admin/pages/3_History.py` (currently skeleton from Story 6.1)
+- [ ] 2.2 Add page title: `st.title("Enhancement History")`
+- [ ] 2.3 Create filter section with `st.columns([2, 2, 3, 3])` for horizontal layout
+- [ ] 2.4 Column 1: Tenant filter - `st.selectbox("Tenant", ["All"] + tenant_list)` (load with get_all_tenant_ids)
+- [ ] 2.5 Column 2: Status filter - `st.selectbox("Status", ["All", "pending", "completed", "failed"])`
+- [ ] 2.6 Column 3: Date range - `st.date_input("From Date")`, `st.date_input("To Date")` (default: last 30 days)
+- [ ] 2.7 Column 4: Search box - `st.text_input("Search Ticket ID", placeholder="Enter ticket ID...")`
+- [ ] 2.8 Initialize `st.session_state` pagination variables: `current_page` (default=1), `page_size` (default=50)
+- [ ] 2.9 Call `get_enhancement_history()` with current filter values and pagination params
+- [ ] 2.10 Display record count: `st.caption(f"Showing {start}-{end} of {total_count} records")`
+- [ ] 2.11 Implement pagination controls: Page size selector `st.selectbox("Rows per page", [25, 50, 100, 250])`, page navigation with `st.columns` for Previous/Next buttons and page number display
+- [ ] 2.12 Test with 0 records, 1 record, 100 records, 10K records (performance check)
+
+### Task 3: Display Enhancement History Table with Status Badges (AC: #4, #8)
+- [ ] 3.1 Convert query results to Pandas DataFrame for st.dataframe display
+- [ ] 3.2 Create `format_status_badge(status: str) -> str` function returning markdown with colored status
+- [ ] 3.3 Use Streamlit color syntax: `:green[●]` for completed, `:red[●]` for failed, `:blue[●]` for pending (bullet + text)
+- [ ] 3.4 Apply status formatting to DataFrame: `df['Status'] = df['status'].apply(format_status_badge)`
+- [ ] 3.5 Format timestamps: `df['Created'] = df['created_at'].dt.strftime('%Y-%m-%d %H:%M:%S')`
+- [ ] 3.6 Format processing time: `df['Duration'] = df['processing_time_ms'].apply(lambda x: f"{x}ms" if x else "N/A")`
+- [ ] 3.7 Select and rename columns for display: `[('ticket_id', 'Ticket ID'), ('tenant_id', 'Tenant'), ('Status', 'Status'), ('Duration', 'Processing Time'), ('Created', 'Created At'), ('completed_at', 'Completed At')]`
+- [ ] 3.8 Display table: `st.dataframe(display_df, use_container_width=True, hide_index=True)`
+- [ ] 3.9 Test status badge rendering for all three status values
+
+### Task 4: Implement Expandable Row Details (AC: #5)
+- [ ] 4.1 Add "View Details" column to DataFrame with expandable icon or button
+- [ ] 4.2 For each row, create `st.expander(f"Details: {ticket_id}")` using row index as unique key
+- [ ] 4.3 Alternative pattern: Loop through records after dataframe, create expander for each with `st.expander(f"🔍 {row['ticket_id']} - {row['status']}", expanded=False)`
+- [ ] 4.4 Within expander: Display ticket_id, tenant_id, status as header with `st.subheader()`
+- [ ] 4.5 Context Gathered section: `st.write("**Context Gathered:**")` + `st.json(context_gathered)` for formatted JSON display
+- [ ] 4.6 LLM Output section: `st.write("**LLM Enhancement Output:**")` + `st.text_area("", value=llm_output, height=200, disabled=True)` (read-only multiline)
+- [ ] 4.7 Error Message section (if status=failed): `st.error("**Error:**")` + `st.code(error_message, language="text")`
+- [ ] 4.8 Test expandable display with sample data: completed record (context + llm_output), failed record (error_message), pending record (minimal data)
+- [ ] 4.9 Ensure large JSON context (5KB+) renders properly without UI freeze
+
+### Task 5: Implement CSV Export Functionality (AC: #6)
+- [ ] 5.1 Create `convert_to_csv(df: pd.DataFrame) -> bytes` function in history_helper.py
+- [ ] 5.2 Function converts DataFrame to CSV: `df.to_csv(index=False).encode('utf-8')`
+- [ ] 5.3 Apply `@st.cache_data` decorator to conversion function (caching for performance)
+- [ ] 5.4 Flatten nested JSON fields for CSV export: `df['context_summary'] = df['context_gathered'].apply(lambda x: json.dumps(x) if x else "")` (serialize JSON to string)
+- [ ] 5.5 Add "Export to CSV" button: `st.download_button("📥 Export to CSV", data=csv_data, file_name=f"enhancement_history_{date.today()}.csv", mime="text/csv")`
+- [ ] 5.6 Button should export currently filtered results (not all data) - pass filtered DataFrame to convert_to_csv
+- [ ] 5.7 Test export with 0 records (empty CSV), 10 records, 1000 records (file size check)
+- [ ] 5.8 Verify CSV opens correctly in Excel/Google Sheets with proper encoding (UTF-8 BOM if needed)
+
+### Task 6: Performance Optimization and Testing (AC: #7)
+- [ ] 6.1 Create Alembic migration: `alembic revision -m "add_history_query_performance_indexes"`
+- [ ] 6.2 Migration adds composite index: `CREATE INDEX ix_history_tenant_status_created ON enhancement_history(tenant_id, status, created_at DESC)`
+- [ ] 6.3 Add index for ticket search: `CREATE INDEX ix_history_ticket_id_search ON enhancement_history USING gin(to_tsvector('english', ticket_id))` (full-text search optimization, optional if ILIKE is fast enough)
+- [ ] 6.4 Create performance test script: Generate 10,000 test enhancement_history records with random data
+- [ ] 6.5 Test query performance: Run get_enhancement_history with various filter combinations, measure execution time (target: < 5 seconds)
+- [ ] 6.6 If query exceeds 5 seconds: Add EXPLAIN ANALYZE to query, optimize indexes, consider materialized view for common queries
+- [ ] 6.7 Test pagination UI responsiveness with 10K records: page load time < 2 seconds
+- [ ] 6.8 Test cache effectiveness: Verify @st.cache_data reduces subsequent query time to < 100ms
+
+### Task 7: Unit and Integration Testing (Meta)
+- [ ] 7.1 Create `tests/admin/test_history_helper.py` for query function tests
+- [ ] 7.2 Test `get_enhancement_history()`: No filters (all records), tenant filter, status filter, date range, search query, combined filters
+- [ ] 7.3 Test pagination: First page, middle page, last page, page size variations (25, 50, 100)
+- [ ] 7.4 Test edge cases: Empty result set, single record, exact page boundary (e.g., 100 records with page_size=50)
+- [ ] 7.5 Test `convert_to_csv()`: Empty DataFrame, single row, 1000 rows, verify UTF-8 encoding
+- [ ] 7.6 Test `format_status_badge()`: All three status values (completed, failed, pending), invalid status (fallback)
+- [ ] 7.7 Create `tests/admin/test_history_page.py` for UI component tests (mock Streamlit)
+- [ ] 7.8 Mock st.dataframe, st.expander, st.download_button and verify they're called with correct parameters
+- [ ] 7.9 Integration test: Query database with test data, verify correct records returned based on filters
+- [ ] 7.10 Manual testing: Launch Streamlit app, test all filters, pagination, expandable details, CSV export
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. History page displays enhancement_history table with pagination (50 rows per page)
+2. Filters available: tenant_id (dropdown), status (pending/completed/failed), date range picker
+3. Search box for ticket_id or description keyword search
+4. Table columns: ticket_id, tenant, status, processing_time_ms, created_at, completed_at
+5. Expandable row details show: context_gathered (formatted JSON), llm_output, error_message
+6. Export to CSV button for filtered results
+7. Performance: query returns < 5 seconds for 10K rows
+8. Color-coded status badges (green=completed, red=failed, blue=pending)
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 6: Admin UI &amp; Configuration Management</title>
+        <section>Story 6.4: Implement Enhancement History Viewer</section>
+        <snippet>Display enhancement_history table with pagination (50 rows/page), filters (tenant, status, date range), search (ticket_id), expandable row details (context_gathered JSON, llm_output, error_message), CSV export, performance target &lt; 5 seconds for 10K rows, color-coded status badges.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>ADR-009: Streamlit for Admin UI</section>
+        <snippet>Use Streamlit 1.30+ for admin/operations UI. Rapid development (5-10x faster than React), perfect fit for internal ops tools/dashboards, Python-native with built-in components. Separate Streamlit app (src/admin/app.py) independent of FastAPI.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Document</title>
+        <section>Epic 6: Admin UI Module</section>
+        <snippet>src/admin/ directory: Streamlit app, pages (Dashboard, Tenants, History), utils (database.py for DB connection). Reads from tenant_configs and enhancement_history tables. K8s service on port 8501.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-4-implement-enhancement-history-viewer.md</path>
+        <title>Story 6.4 Dev Notes</title>
+        <section>Streamlit 2025 Best Practices</section>
+        <snippet>Custom pagination using st.session_state (current_page, page_size), server-side LIMIT/OFFSET, @st.cache_data(ttl=30) for queries. st.expander for expandable row details. st.json for formatted JSON display. st.download_button with cached CSV conversion function.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/6-4-implement-enhancement-history-viewer.md</path>
+        <title>Story 6.4 Dev Notes</title>
+        <section>Learnings from Story 6.3</section>
+        <snippet>Reuse db_helper.py (get_sync_engine, get_db_session). Use @st.cache_resource for connection pooling, @st.cache_data(ttl=N) for queries. Synchronous operations only (no async/await). Google-style docstrings, PEP8, type hints. Files under 500-line limit.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>EnhancementHistory</symbol>
+        <lines>122-205</lines>
+        <reason>Core database model for enhancement_history table. Contains all fields needed for Story 6.4: id, tenant_id, ticket_id, status, context_gathered (JSON), llm_output (Text), error_message (Text), processing_time_ms, created_at, completed_at. Existing composite index on (tenant_id, ticket_id). Story 6.4 will add new composite index on (tenant_id, status, created_at DESC) for filter performance.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/db_helper.py</path>
+        <kind>utility</kind>
+        <symbol>get_sync_engine, get_session_maker, get_db_session</symbol>
+        <lines>32-136</lines>
+        <reason>Database connection utilities for Streamlit admin. Provides synchronous SQLAlchemy session factory with @st.cache_resource for connection pooling. get_db_session() context manager handles commit/rollback automatically. Story 6.4 will reuse these utilities for all database queries.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/3_History.py</path>
+        <kind>page</kind>
+        <symbol>show</symbol>
+        <lines>19-149</lines>
+        <reason>Current skeleton implementation of History page from Story 6.1. Shows recent 10 enhancements with basic table display and detail expander. Story 6.4 will replace this with full implementation: filters, search, pagination, CSV export, performance optimization.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/tenant_helper.py</path>
+        <kind>utility</kind>
+        <symbol>get_fernet_cipher, encrypt_field</symbol>
+        <lines>40-80</lines>
+        <reason>Pattern reference for encryption and query functions. Shows @st.cache_data usage, Google-style docstrings, type hints, error handling patterns used across admin utilities.</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/metrics_helper.py</path>
+        <kind>utility</kind>
+        <symbol>various cached query functions</symbol>
+        <lines>26-287</lines>
+        <reason>Pattern reference for @st.cache_data(ttl=30) usage on query functions. Demonstrates server-side data aggregation and caching strategy for near-real-time dashboards.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python ecosystem="Python 3.12">
+        <package name="streamlit" version=">=1.44.0" reason="Admin UI framework for Story 6.4" />
+        <package name="pandas" version=">=2.1.0" reason="DataFrame operations for table display and CSV export" />
+        <package name="sqlalchemy" version=">=2.0.23" reason="Database ORM with asyncio support" />
+        <package name="psycopg2-binary" version=">=2.9.9" reason="PostgreSQL synchronous driver for Streamlit" />
+        <package name="pytest" version=">=7.4.3" reason="Testing framework" />
+        <package name="pytest-mock" version=">=3.12.0" reason="Mocking support for unit tests" />
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - **Synchronous Operations Only**: Streamlit requires synchronous code. Use psycopg2 driver, NOT asyncpg. No async/await syntax.
+    - **File Size Limit**: All files must be under 500 lines (per CLAUDE.md). Split large files into modules if needed.
+    - **Caching Strategy**: Use @st.cache_resource for connection pooling, @st.cache_data(ttl=N) for query results. Story 6.4 uses ttl=30 for near-real-time visibility.
+    - **Server-Side Filtering**: All filtering (tenant, status, date range, search) and pagination (LIMIT/OFFSET) must occur at database level to meet AC7 performance requirement (&lt; 5 seconds for 10K rows). Never load entire dataset into memory.
+    - **Read-Only Operations**: Story 6.4 is entirely read-only (no mutations). No create, update, or delete operations on enhancement_history table.
+    - **Code Quality Standards**: PEP8 compliance (Black formatter, line length 100), type hints on all functions, Google-style docstrings, no hardcoded secrets.
+    - **Testing Requirements**: Create pytest unit tests for new features. Mock Streamlit components (st.dataframe, st.expander, st.download_button). Use pytest fixtures with autouse=True for cache clearing.
+    - **Performance Target**: Query execution time must be &lt; 5 seconds for 10K rows (AC7). UI page load time &lt; 2 seconds with caching enabled.
+  </constraints>
+  <interfaces>
+    <interface>
+      <name>get_enhancement_history</name>
+      <kind>function</kind>
+      <signature>def get_enhancement_history(tenant_id: Optional[str], status: Optional[str], date_from: Optional[date], date_to: Optional[date], search_query: Optional[str], page: int, page_size: int) -> tuple[list[EnhancementHistory], int]</signature>
+      <path>src/admin/utils/history_helper.py</path>
+      <description>Main query function for filtered and paginated enhancement history. Returns tuple of (records for current page, total count). Applies @st.cache_data(ttl=30) for caching. Uses server-side WHERE clauses and LIMIT/OFFSET for performance.</description>
+    </interface>
+    <interface>
+      <name>get_all_tenant_ids</name>
+      <kind>function</kind>
+      <signature>def get_all_tenant_ids() -> list[str]</signature>
+      <path>src/admin/utils/history_helper.py</path>
+      <description>Returns distinct tenant_id values from enhancement_history table for tenant filter dropdown. Cached with @st.cache_data(ttl=60).</description>
+    </interface>
+    <interface>
+      <name>convert_to_csv</name>
+      <kind>function</kind>
+      <signature>def convert_to_csv(df: pd.DataFrame) -> bytes</signature>
+      <path>src/admin/utils/history_helper.py</path>
+      <description>Converts DataFrame to CSV bytes with UTF-8 encoding. Applies @st.cache_data for performance. Flattens nested JSON fields to CSV-compatible string format.</description>
+    </interface>
+    <interface>
+      <name>format_status_badge</name>
+      <kind>function</kind>
+      <signature>def format_status_badge(status: str) -> str</signature>
+      <path>src/admin/utils/history_helper.py</path>
+      <description>Returns markdown string with colored status indicator. Uses Streamlit color syntax: :green[● completed], :red[● failed], :blue[● pending].</description>
+    </interface>
+    <interface>
+      <name>EnhancementHistory table composite index</name>
+      <kind>database index</kind>
+      <signature>CREATE INDEX ix_history_tenant_status_created ON enhancement_history(tenant_id, status, created_at DESC)</signature>
+      <path>alembic/versions/[timestamp]_add_history_query_performance_indexes.py</path>
+      <description>New composite index to optimize common filter combinations (tenant + status + date range). Created via Alembic migration in Task 6.2.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+Testing Framework: pytest with pytest-mock for mocking Streamlit components. All test files follow naming convention test_*.py in tests/ directory mirroring src/ structure. Use pytest fixtures with autouse=True for Streamlit cache clearing (st.cache_resource.clear(), st.cache_data.clear()) to avoid test pollution. Mock Streamlit components (st.dataframe, st.expander, st.download_button, st.session_state) for unit tests. Integration tests can use real database with test data or transaction rollback. Code coverage target: 80%+ for new code. All functions must have: 1 expected use test, 1 edge case test, 1 failure case test minimum.
+    </standards>
+    <locations>
+      <location>tests/admin/test_history_helper.py</location>
+      <location>tests/admin/test_history_page.py</location>
+    </locations>
+    <ideas>
+      <test ac="AC1" description="Test get_enhancement_history() returns correct page of results with pagination parameters">
+        - Test with page=1, page_size=50 returns first 50 records
+        - Test total_count calculation is accurate
+        - Test LIMIT/OFFSET SQL generation
+      </test>
+      <test ac="AC2" description="Test filtering by tenant_id, status, and date range">
+        - Test tenant_id filter returns only matching records
+        - Test status filter for pending/completed/failed
+        - Test date_from and date_to filter records by created_at
+        - Test combined filters (tenant + status + date range)
+      </test>
+      <test ac="AC3" description="Test search by ticket_id using ILIKE pattern">
+        - Test partial ticket_id match (case-insensitive)
+        - Test empty search returns all records
+        - Test no results case
+      </test>
+      <test ac="AC4" description="Test DataFrame column formatting and display">
+        - Test format_status_badge() returns correct markdown for all statuses
+        - Test timestamp formatting to YYYY-MM-DD HH:MM:SS
+        - Test processing_time_ms null handling (displays "N/A")
+      </test>
+      <test ac="AC5" description="Test expandable row details rendering">
+        - Test st.expander created for each record
+        - Test context_gathered JSON display with st.json
+        - Test llm_output text display with st.text_area
+        - Test error_message display only when status=failed
+      </test>
+      <test ac="AC6" description="Test CSV export functionality">
+        - Test convert_to_csv() returns valid UTF-8 encoded CSV bytes
+        - Test JSON field flattening (context_gathered serialized to string)
+        - Test export with 0 records (empty CSV)
+        - Test export with 1000 records (file size validation)
+      </test>
+      <test ac="AC7" description="Test query performance with 10K records">
+        - Generate 10K test enhancement_history records with faker
+        - Test query execution time &lt; 5 seconds for various filter combinations
+        - Test composite index usage with EXPLAIN ANALYZE
+        - Test cache effectiveness (@st.cache_data reduces subsequent query to &lt; 100ms)
+      </test>
+      <test ac="AC8" description="Test status badge color coding">
+        - Test green bullet for completed status
+        - Test red bullet for failed status
+        - Test blue bullet for pending status
+        - Test fallback for invalid status
+      </test>
+    </ideas>
+  </tests>
+</story-context>
