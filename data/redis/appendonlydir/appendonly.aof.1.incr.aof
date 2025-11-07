@@ -35567,3 +35567,71 @@ $28
 _kombu.binding.celery.pidbox
 $37
 celery@56ce75989fd7.celery.pidbox
+*2
+$6
+SELECT
+$1
+0
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"1bb183ed-7112-4eff-b4ac-1b9167426391","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:50:06.892564","correlation_id":"6cb65447-3f26-48f1-85b0-e588e3df3551"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"2c34ec5f-1999-489d-a379-a172df8c90a2","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:50:06.954632","correlation_id":"de5e4f20-f06b-4b88-8a90-32521fe31d3b"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"4ede94ca-9885-4aa7-85bf-901449ea74af","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:50:32.690581","correlation_id":"8fcf647e-0b97-4578-8ee3-a352ca79c1e1"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"69dba770-a264-4300-bc91-beb8291a1ce7","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:51:08.652342","correlation_id":"8c9f0d4b-f3ed-4cee-82df-893644218858"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"9e92e96a-414d-41a0-b16f-16f24a349fc4","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:51:08.738685","correlation_id":"ef6144f0-450c-4ffb-8f82-ca820101e314"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"f641d511-086f-4a60-82f4-0899481042ea","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:51:34.218621","correlation_id":"9746cdf1-b7d5-4434-8dcd-ddff46463660"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"bd78c60c-7f6a-4b41-8363-6429b3a2772f","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:51:47.241491","correlation_id":"f59ca4ec-6b61-4051-af1d-ee4befea303c"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"7059f300-c044-4830-8fb9-4b03991474a3","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:52:07.906958","correlation_id":"4eb4d23e-0957-4ab9-bc74-b92b0ddd05a2"}
+*3
+$5
+LPUSH
+$17
+enhancement:queue
+$295
+{"job_id":"e953ee5c-cc31-4cb9-82b2-a3bcfca30901","ticket_id":"TKT-001","tenant_id":"tenant-abc","description":"Server is slow and unresponsive","priority":"high","timestamp":"2025-11-01T12:00:00Z","created_at":"2025-11-07T05:52:07.925282","correlation_id":"63b66ec1-608b-4b8a-89fa-8eafe9994be6"}

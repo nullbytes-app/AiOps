@@ -260,6 +260,9 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AZURE_API_KEY: ${AZURE_API_KEY:-}
       AZURE_API_BASE: ${AZURE_API_BASE:-}
+      # Story 8.10C: Budget webhook alerting
+      # LiteLLM sends budget threshold alerts to this endpoint
+      WEBHOOK_URL: http://api:8000/api/v1/budget-alerts
     volumes:
       - ./config/litellm-config.yaml:/app/config.yaml:ro
     ports:

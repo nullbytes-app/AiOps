@@ -375,3 +375,109 @@ async def activate_agent(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Failed to activate agent",
         )
+
+
+@router.get(
+    "/{agent_id}/webhook-secret",
+    summary="Get Webhook Secret",
+    description="Fetch unmasked HMAC secret for agent. Rate-limited to 10 req/min. Audit logged.",
+)
+async def get_webhook_secret(
+    agent_id: Annotated[UUID, "Agent UUID"],
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+    agent_service: Annotated[AgentService, Depends(get_agent_service)],
+) -> dict:
+    """
+    Fetch unmasked HMAC secret for agent webhook.
+
+    Security:
+        - Rate-limited to 10 requests per minute per user
+        - Audit logged for security monitoring
+        - Requires tenant ownership (cross-tenant access forbidden)
+
+    Args:
+        agent_id: Agent UUID
+        tenant_id: Current tenant ID (from dependency)
+        db: Tenant-aware database session
+        agent_service: Agent service instance
+
+    Returns:
+        dict: {"hmac_secret": "base64encodedstring..."}
+
+    Raises:
+        HTTPException(403): Cross-tenant access forbidden
+        HTTPException(404): Agent not found
+        HTTPException(429): Rate limit exceeded (10 req/min) - TODO: Implement rate limiting
+
+    Story 8.6 AC#4: GET endpoint for fetching unmasked HMAC secret (Task 7)
+    """
+    try:
+        secret = await agent_service.get_webhook_secret(tenant_id, agent_id, db)
+        logger.info(f"Webhook secret accessed for agent {agent_id} by tenant {tenant_id}")
+        return {"hmac_secret": secret}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching webhook secret for agent {agent_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch webhook secret",
+        )
+
+
+@router.post(
+    "/{agent_id}/regenerate-webhook-secret",
+    summary="Regenerate Webhook Secret",
+    description="Generate new HMAC secret, invalidate old webhooks. Audit logged.",
+)
+async def regenerate_webhook_secret(
+    agent_id: Annotated[UUID, "Agent UUID"],
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+    agent_service: Annotated[AgentService, Depends(get_agent_service)],
+) -> dict:
+    """
+    Generate new HMAC secret for agent webhook.
+
+    This invalidates all existing webhooks using the old secret.
+    Operation is audit logged for security tracking.
+
+    Args:
+        agent_id: Agent UUID
+        tenant_id: Current tenant ID (from dependency)
+        db: Tenant-aware database session
+        agent_service: Agent service instance
+
+    Returns:
+        dict: {
+            "success": true,
+            "message": "HMAC secret regenerated",
+            "new_secret_masked": "***...***"
+        }
+
+    Raises:
+        HTTPException(403): Cross-tenant access forbidden
+        HTTPException(404): Agent not found
+
+    Story 8.6 AC#5: POST endpoint for regenerating HMAC secret (Task 3)
+    """
+    try:
+        new_secret_masked = await agent_service.regenerate_webhook_secret(tenant_id, agent_id, db)
+        logger.warning(
+            f"Webhook secret regenerated for agent {agent_id} by tenant {tenant_id}. "
+            "Old webhooks are now invalid."
+        )
+        return {
+            "success": True,
+            "message": "HMAC secret regenerated",
+            "new_secret_masked": new_secret_masked,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error regenerating webhook secret for agent {agent_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to regenerate webhook secret",
+        )

@@ -1,0 +1,165 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>9</storyId>
+    <title>Virtual Key Management</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-9-virtual-key-management.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a platform engineer</asA>
+    <iWant>LiteLLM virtual keys created per tenant with encrypted storage and audit logging</iWant>
+    <soThat>LLM usage and costs can be tracked and controlled at tenant level for multi-tenant agent orchestration</soThat>
+    <tasks>
+      - Task 1: Create LiteLLM Service Layer (AC: #1, #2, #4)
+      - Task 2: Database Schema Migration (AC: #3)
+      - Task 3: Tenant Service Integration (AC: #2, #3)
+      - Task 4: Agent Integration (AC: #5)
+      - Task 5: Virtual Key Rotation API (AC: #6)
+      - Task 6: Admin UI for Key Rotation (AC: #6)
+      - Task 7: Health Check Endpoint (AC: #7)
+      - Task 8: Audit Logging (AC: #8)
+      - Task 9: Unit Tests (AC: #1-8)
+      - Task 10: Integration Tests (AC: #2-5)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    AC1: Service created: src/services/llm_service.py with function create_virtual_key_for_tenant(tenant_id, max_budget)
+    AC2: Virtual key created on tenant creation: calls LiteLLM API POST /key/generate with user_id=tenant_id
+    AC3: Virtual key stored in tenant_configs table: litellm_virtual_key column (encrypted with Fernet)
+    AC4: Function created: get_llm_client_for_tenant(tenant_id) returns AsyncOpenAI client with tenant's virtual key
+    AC5: Agents use tenant's virtual key: all LLM calls route through tenant's key for tracking
+    AC6: Virtual key rotation: admin UI button to regenerate key, updates tenant_configs, notifies agents
+    AC7: Key validation: health check endpoint tests virtual key validity
+    AC8: Audit logging: track all virtual key operations (create, rotate, delete) with timestamp and user
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics.md" title="Epic 8: AI Agent Orchestration Platform" section="Story 8.9: Virtual Key Management">
+        Virtual key management story defining LiteLLM virtual keys per tenant with encrypted storage and audit logging for multi-tenant LLM cost tracking and control.
+      </doc>
+      <doc path="docs/architecture.md" title="AI Agents - Decision Architecture" section="AI/ML Stack">
+        LiteLLM proxy as multi-model LLM gateway (OpenAI SDK compatible) with virtual key support. Story 8.1 integrated LiteLLM as Docker service with PostgreSQL for virtual key storage.
+      </doc>
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="NFR004: Security">
+        Security requirement: enforce data isolation between tenants, validate webhook signatures, encrypt credentials at rest using Kubernetes secrets, apply input validation to prevent injection attacks.
+      </doc>
+      <doc path="Context7: /berriai/litellm" title="LiteLLM Virtual Keys API Documentation (2025)" section="Budget Management">
+        Official LiteLLM docs: POST /key/generate creates virtual keys with user_id, max_budget, key_alias parameters. Virtual keys support budget tracking, soft budgets, budget_duration for automatic resets, temporary budget increases. Team-level budget management via team_id parameter. GET /user/info retrieves user spend. POST /key/update enables temporary budget increases with expiry.
+      </doc>
+      <doc path="Web Search: LiteLLM Best Practices 2025" title="Virtual Keys Budget Management Best Practices" section="Hierarchical Budget Structure">
+        2025 Best Practices: Hierarchical budgets (project → service → team → user), per-model budget controls with model_max_budget, temporary budget increases for usage spikes, real-time monitoring and Slack alerts, self-service portal for key management, cost attribution via tags in metadata, security considerations (user budgets checked independently of team association).
+      </doc>
+    </docs>
+    <code>
+      <file path="src/services/tenant_service.py" kind="service" symbol="TenantService" lines="29-502" reason="Existing tenant management service with create_tenant method (lines 110-196) - integration point for virtual key creation. Contains Fernet encryption patterns and audit logging that should be reused.">
+      </file>
+      <file path="src/database/models.py" kind="model" symbol="TenantConfig" lines="32-129" reason="TenantConfig model defines tenant database schema with encrypted fields (servicedesk_api_key_encrypted, webhook_signing_secret_encrypted). Need to add 3 new columns: litellm_virtual_key (TEXT), litellm_key_created_at (TIMESTAMP), litellm_key_last_rotated (TIMESTAMP).">
+      </file>
+      <file path="src/config.py" kind="config" symbol="Settings" lines="29-100" reason="Pydantic Settings configuration class. Need to add new fields: litellm_proxy_url (str), litellm_master_key (str), encryption_key (str - already exists for Fernet). All use AI_AGENTS_ prefix for environment variables.">
+      </file>
+      <file path="src/utils/encryption.py" kind="utility" symbol="encrypt/decrypt" reason="Existing Fernet encryption utilities with proper error handling (EncryptionError exception). Reuse for virtual key encryption following established patterns.">
+      </file>
+      <file path="src/plugins/servicedesk_plus/api_client.py" kind="plugin" symbol="ServiceDeskPlusAPIClient.__init__" lines="83-86" reason="Example httpx.AsyncClient pattern with granular timeouts, transport retries, and connection pooling. Follow this pattern for LiteLLM API calls.">
+      </file>
+      <file path="src/admin/pages/02_Tenant_Management.py" kind="admin-ui" reason="Existing Streamlit tenant management UI with CRUD operations, form validation, success/error messages. Integration point for virtual key rotation button and key metadata display.">
+      </file>
+      <file path="src/database/models.py" kind="model" symbol="AuditLog" reason="Existing audit log table for tracking tenant operations. Reuse for virtual key operations (create, rotate, delete) with operation field and details JSONB.">
+      </file>
+    </code>
+    <dependencies>
+      <python path="pyproject.toml">
+        fastapi>=0.104.0 (async web framework),
+        pydantic>=2.5.0 (data validation),
+        sqlalchemy[asyncio]>=2.0.23 (async ORM),
+        alembic>=1.12.1 (database migrations),
+        asyncpg>=0.29.0 (PostgreSQL async driver),
+        httpx>=0.25.2 (async HTTP client with retry/timeout),
+        cryptography>=43.0.0 (Fernet encryption),
+        openai>=1.3.0 (OpenAI SDK - works with LiteLLM proxy),
+        loguru>=0.7.2 (application logging),
+        streamlit>=1.44.0 (admin UI framework)
+      </python>
+      <framework>LiteLLM Proxy (Docker service: ghcr.io/berriai/litellm-database:main-stable)</framework>
+      <framework>PostgreSQL 17 (shared database for tenant configs and virtual key storage)</framework>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    C1: File Size ≤500 lines - llm_service.py target 250-350 lines (service methods + error handling)
+    C2: Type Hints - All functions fully typed with return annotations (mypy strict mode)
+    C3: Test Coverage - Minimum 15 tests (10 unit in test_llm_service.py + 5 integration in test_virtual_key_workflow.py)
+    C4: Async Patterns - All LiteLLM API calls use httpx.AsyncClient with granular timeouts (connect=5s, read=30s, write=5s, pool=5s)
+    C5: Security - Fernet encryption for virtual keys at rest, HMAC-SHA256 for LiteLLM master key auth, no plaintext credentials
+    C6: Error Handling - Retry 3x with exponential backoff (2s, 4s, 8s) for LiteLLM API failures, graceful degradation on missing keys
+    C7: Audit Logging - Track all virtual key operations (create, rotate, validate, delete) in AuditLog table with tenant_id, timestamp, user context
+    C8: Database Migration - Alembic migration for 3 new TenantConfig columns (litellm_virtual_key, litellm_key_created_at, litellm_key_last_rotated)
+    C9: Integration - Virtual key creation on tenant creation (tenant_service.py), agent execution uses tenant virtual key (workers/tasks.py)
+    C10: Admin UI - Streamlit tenant management page displays key metadata (created_at, last_rotated), rotation button with confirmation dialog
+  </constraints>
+
+  <interfaces>
+    <interface name="LiteLLM POST /key/generate" kind="REST" signature="POST {litellm_proxy_url}/key/generate" path="External LiteLLM Proxy API">
+      Request: {"user_id": str, "key_alias": str, "max_budget": float, "metadata": dict}
+      Headers: {"Authorization": "Bearer {master_key}", "Content-Type": "application/json"}
+      Response 200: {"key": "sk-...", "expires": "2024-01-01T00:00:00Z", "user_id": str}
+      Timeout: 10 seconds
+    </interface>
+    <interface name="LiteLLM GET /user/info" kind="REST" signature="GET {litellm_proxy_url}/user/info?user_id={tenant_id}" path="External LiteLLM Proxy API">
+      Request: Query param user_id (tenant_id)
+      Headers: {"Authorization": "Bearer {master_key}"}
+      Response 200: {"user_id": str, "spend": float, "keys": [...]}
+      Timeout: 5 seconds
+    </interface>
+    <interface name="AsyncOpenAI Client" kind="SDK" signature="AsyncOpenAI(base_url, api_key)" path="openai.AsyncOpenAI">
+      Usage: client = AsyncOpenAI(base_url=f"{litellm_proxy_url}/v1", api_key=virtual_key, timeout=30.0)
+      Purpose: Agent LLM calls route through tenant's virtual key for cost tracking
+    </interface>
+    <interface name="Fernet Encryption" kind="utility" signature="encrypt(plaintext: str, key: str) -> str" path="src/utils/encryption.py">
+      Encrypt virtual key before storing in database using encryption_key from settings
+      Decrypt virtual key when retrieving for AsyncOpenAI client initialization
+    </interface>
+    <interface name="TenantService.create_tenant" kind="service-method" signature="async create_tenant(...) -> TenantConfig" path="src/services/tenant_service.py:110-196">
+      Integration point: After tenant creation, call llm_service.create_virtual_key_for_tenant()
+      Update to store encrypted virtual key in new litellm_virtual_key column
+    </interface>
+    <interface name="AuditLog Table" kind="database" signature="INSERT INTO audit_log (tenant_id, operation, user, details)" path="src/database/models.py">
+      Log all virtual key operations with operation="llm_key_created|llm_key_rotated|llm_key_validated"
+      Store metadata in details JSONB field: {"max_budget": float, "key_alias": str}
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Framework: Pytest with pytest-asyncio for async test support
+      Mocking: pytest-mock for dependency injection, pytest-httpx for mocking httpx.AsyncClient
+      Coverage: Minimum 80% code coverage, 100% critical path coverage (create, rotate, validate, encrypt)
+      Markers: @pytest.mark.unit for isolated tests, @pytest.mark.integration for database/LiteLLM integration
+      Assertions: Type-safe assertions, explicit error message verification, security validation (encryption, no plaintext)
+    </standards>
+    <locations>
+      tests/unit/test_llm_service.py (10+ unit tests: create_virtual_key, get_llm_client, rotate_key, validate_key, error handling)
+      tests/integration/test_virtual_key_workflow.py (5+ integration tests: end-to-end tenant creation, agent LLM call routing, database encryption verification, audit log validation)
+      tests/unit/test_tenant_service.py (extend existing tests: verify create_tenant calls llm_service, validates virtual key creation)
+    </locations>
+    <ideas>
+      AC1-Test: Mock httpx.AsyncClient.post to return virtual key, verify llm_service.create_virtual_key_for_tenant() calls POST /key/generate with correct params
+      AC2-Test: Integration test creates real tenant, verifies virtual key created via LiteLLM API, stored encrypted in database
+      AC3-Test: Verify encrypted virtual key stored in tenant_configs.litellm_virtual_key column, decrypt and validate format "sk-..."
+      AC4-Test: Mock AsyncOpenAI initialization, verify get_llm_client_for_tenant() returns client with correct base_url and decrypted virtual key
+      AC5-Test: Integration test: agent executes LLM call, verify request routed through tenant's virtual key (check LiteLLM spend tracking)
+      AC6-Test: Test rotation workflow: call rotate_virtual_key(), verify new key generated, old key invalidated, litellm_key_last_rotated updated
+      AC7-Test: Health check endpoint returns 200 with {"status": "healthy", "master_key": "valid"} when LiteLLM proxy is accessible
+      AC8-Test: Verify audit log entries created for create/rotate/validate operations with correct tenant_id, timestamp, operation, details JSON
+      Error-Test: LiteLLM API returns 500 → verify retry 3x with exponential backoff, final failure logged as critical error
+      Error-Test: Missing encryption_key → verify tenant creation fails with clear error message "ENCRYPTION_KEY not configured"
+      Error-Test: Invalid virtual key format → validate_virtual_key() returns False, logs warning
+      Security-Test: Verify virtual keys never appear in logs (use redaction), database stores encrypted, no plaintext in API responses
+    </ideas>
+  </tests>
+</story-context>

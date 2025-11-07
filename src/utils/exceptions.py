@@ -67,3 +67,33 @@ class TenantNotFoundException(Exception):
     """
 
     pass
+
+
+class ProviderNotFoundException(Exception):
+    """
+    Exception raised when an LLM provider is not found.
+
+    This exception is raised when attempting to access or modify a provider
+    that doesn't exist in the database. Used for clear error handling when
+    provider-specific operations fail due to missing configuration.
+
+    Example:
+        raise ProviderNotFoundException(f"Provider {provider_id} not found")
+    """
+
+    pass
+
+
+class ModelNotFoundException(Exception):
+    """
+    Exception raised when an LLM model is not found.
+
+    This exception is raised when attempting to access or modify a model
+    that doesn't exist in the database. Used for clear error handling when
+    model-specific operations fail due to missing configuration.
+
+    Example:
+        raise ModelNotFoundException(f"Model {model_id} not found")
+    """
+
+    pass

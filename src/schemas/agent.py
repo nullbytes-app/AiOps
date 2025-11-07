@@ -280,6 +280,7 @@ class AgentUpdate(BaseModel):
         system_prompt: Optional system prompt update
         llm_config: Optional LLM configuration update
         status: Optional status update (validated for valid transitions)
+        tool_ids: Optional list of tool identifiers to assign (Story 8.7, AC#3, AC#5)
     """
 
     name: Optional[str] = Field(None, min_length=3, max_length=255)
@@ -287,6 +288,7 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = Field(None, min_length=10, max_length=32000)
     llm_config: Optional[LLMConfig] = None
     status: Optional[AgentStatus] = None
+    tool_ids: Optional[list[str]] = Field(None, max_length=20)  # AC#3, AC#5: Tool assignment updates
 
     @model_validator(mode="after")
     def validate_status_transition(self) -> "AgentUpdate":
@@ -322,6 +324,7 @@ class AgentUpdate(BaseModel):
                 "name": "Updated Ticket Enhancement Agent",
                 "system_prompt": "You are an expert support assistant...",
                 "status": "active",
+                "tool_ids": ["servicedesk_plus", "jira"],  # AC#3, AC#5 example
             }
         }
     )
@@ -362,6 +365,14 @@ class AgentResponse(BaseModel):
     created_by: Optional[str]
     triggers: list[dict[str, Any]] = Field(default_factory=list)
     tool_ids: list[str] = Field(default_factory=list)
+    webhook_url: Optional[str] = Field(
+        default=None,
+        description="Auto-generated webhook URL for triggering agent (/agents/{agent_id}/webhook)",
+    )
+    hmac_secret_masked: Optional[str] = Field(
+        default=None,
+        description="Masked HMAC secret for webhook signature validation (use Show Secret to reveal)",
+    )
 
     model_config = ConfigDict(
         from_attributes=True,  # Enable ORM mode for SQLAlchemy models

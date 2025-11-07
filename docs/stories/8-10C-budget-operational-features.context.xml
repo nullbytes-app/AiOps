@@ -1,0 +1,294 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>10C</storyId>
+    <title>Budget Enforcement - Operational Features</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-10C-budget-operational-features.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform operator</asA>
+    <iWant>automated budget resets and emergency override mechanisms</iWant>
+    <soThat>budgets reset automatically and admins can handle urgent exceptions</soThat>
+    <tasks>
+- Task 1: Create Budget Reset Celery Task (AC: #1, #2)
+- Task 2: Implement Budget Reset Logic (AC: #2, #3, #4)
+- Task 3: Create Budget Override API Endpoints (AC: #5, #6, #7)
+- Task 4: Implement Budget Override Removal (AC: #7)
+- Task 5: Implement Automatic Override Expiry (AC: #7)
+- Task 6: Update LiteLLM Proxy Configuration (AC: #8)
+- Task 7: Documentation Updates (AC: #1-8)
+- Task 8: Unit Tests (AC: #1-7)
+- Task 9: Integration Tests (AC: #1-7)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: Celery periodic task runs daily at 00:00 UTC to check for budget resets
+AC2: Budget reset logic: Query tenants where budget_reset_at <= NOW(), reset spend via LiteLLM API
+AC3: Reset notification sent to tenant admin: "Your budget has been reset to $X for the new period"
+AC4: Audit log entry created for each reset: budget_reset event with old_spend, new_budget, reset_date
+AC5: Admin override API endpoint: POST /admin/tenants/{tenant_id}/budget-override (temp budget increase)
+AC6: Override stores in budget_overrides table with expiry, updates LiteLLM virtual key
+AC7: Override removal: DELETE /admin/tenants/{tenant_id}/budget-override or automatic expiry
+AC8: LiteLLM proxy configured: alerting: ["webhook"], WEBHOOK_URL environment variable set
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/stories/8-10-budget-enforcement-with-grace-period.md</path>
+        <title>Story 8.10: Budget Enforcement with Grace Period (Parent Story)</title>
+        <section>Core Implementation Context</section>
+        <snippet>Parent story with core budget service implementation. Budget service, webhook endpoint, and notifications are PRODUCTION-READY. Core functionality: 75% complete with budget service + webhook + notifications implemented and tested (13/13 tests passing).</snippet>
+      </doc>
+      <doc>
+        <path>docs/testing/budget-enforcement-testing.md</path>
+        <title>Budget Enforcement Testing Guide</title>
+        <section>Testing Strategy and Patterns</section>
+        <snippet>Comprehensive testing guide for budget enforcement features including unit tests, integration tests, and performance tests. Contains test patterns for Celery periodic tasks, LiteLLM API mocking, and budget workflow testing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-10A-budget-testing-and-migration.md</path>
+        <title>Story 8.10A: Budget Testing and Migration</title>
+        <section>Migration and Test Infrastructure</section>
+        <snippet>Database migration applied successfully (6 columns + 2 tables + indexes). Contains patterns for budget-related database migrations and comprehensive test suite with 47 unit tests passing.</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-1-litellm-proxy-integration.md</path>
+        <title>Story 8.1: LiteLLM Proxy Integration</title>
+        <section>LiteLLM Configuration and Virtual Keys</section>
+        <snippet>LiteLLM proxy integration story with configuration patterns for virtual keys, budget management, and webhook setup. Contains architecture context for LiteLLM integration including async patterns and httpx best practices.</snippet>
+      </doc>
+      <doc>
+        <path>Context7: /berriai/litellm</path>
+        <title>LiteLLM Documentation - Budget Management</title>
+        <section>Virtual Keys, Webhooks, Budget API</section>
+        <snippet>Latest LiteLLM documentation (2025) for budget management: POST /key/update with temp_budget_increase/temp_budget_expiry, webhook alerting configuration (general_settings.alerting: ["webhook"]), webhook payload structure (spend, max_budget, event types: budget_crossed, threshold_crossed), and WEBHOOK_URL environment variable setup.</snippet>
+      </doc>
+      <doc>
+        <path>Context7: /celery/celery</path>
+        <title>Celery Documentation - Periodic Tasks</title>
+        <section>Beat Schedule, Crontab, Periodic Task Patterns</section>
+        <snippet>Latest Celery documentation (2025) for periodic tasks: beat_schedule configuration with crontab(hour=0, minute=0) for daily execution, @shared_task decorator patterns, retry logic with max_retries and default_retry_delay, timezone configuration (app.conf.timezone = 'UTC'), and batch processing patterns.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/services/budget_service.py</path>
+        <kind>service</kind>
+        <symbol>BudgetService</symbol>
+        <lines>complete file</lines>
+        <reason>Core budget service with existing methods: get_budget_status(), check_budget_exceeded(), handle_budget_block(). This story extends it with reset_tenant_budget() method for automated resets.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/budget_service.py</path>
+        <kind>schema</kind>
+        <symbol>BudgetStatus</symbol>
+        <lines>complete class</lines>
+        <reason>Pydantic schema for budget status responses. Used in budget reset logic to calculate spend and track budget state.</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/tasks.py</path>
+        <kind>celery_tasks</kind>
+        <symbol>reset_tenant_budgets</symbol>
+        <lines>existing function</lines>
+        <reason>ALREADY IMPLEMENTED in Story 8.10 - Celery periodic task that runs budget resets. This story adds Celery Beat configuration and expire_budget_overrides task.</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/admin/tenants.py</path>
+        <kind>api_router</kind>
+        <symbol>grant_budget_override, remove_budget_override</symbol>
+        <lines>existing functions</lines>
+        <reason>Budget override endpoints ALREADY IMPLEMENTED in Story 8.10. This story adds Celery Beat schedule for reset_tenant_budgets and expire_budget_overrides periodic tasks.</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/notification_service.py</path>
+        <kind>service</kind>
+        <symbol>NotificationService</symbol>
+        <lines>complete file</lines>
+        <reason>Notification service with send_budget_alert() method for email/Slack notifications. Used for reset notifications and override expiry alerts.</reason>
+      </artifact>
+      <artifact>
+        <path>config/litellm-config.yaml</path>
+        <kind>configuration</kind>
+        <symbol>general_settings</symbol>
+        <lines>complete file</lines>
+        <reason>LiteLLM proxy configuration file. This story adds webhook alerting configuration: general_settings.alerting: ["webhook"]</reason>
+      </artifact>
+      <artifact>
+        <path>docker-compose.yml</path>
+        <kind>configuration</kind>
+        <symbol>litellm service</symbol>
+        <lines>litellm service section</lines>
+        <reason>Docker Compose configuration for LiteLLM proxy. This story adds WEBHOOK_URL environment variable: http://api:8000/api/v1/budget-alerts</reason>
+      </artifact>
+      <artifact>
+        <path>src/workers/celery_app.py</path>
+        <kind>celery_config</kind>
+        <symbol>beat_schedule</symbol>
+        <lines>configuration section</lines>
+        <reason>Celery Beat schedule configuration. This story adds beat_schedule entries for reset_tenant_budgets (daily at 00:00 UTC) and expire_budget_overrides (hourly).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="celery" version=">=5.3.4">Distributed task queue for budget reset automation and override expiry</package>
+        <package name="redis" version=">=5.0.1">Celery broker and result backend for task scheduling</package>
+        <package name="httpx" version=">=0.25.2">HTTP client for LiteLLM API calls (key updates, budget resets)</package>
+        <package name="pydantic" version=">=2.5.0">Data validation for budget override requests and API schemas</package>
+        <package name="sqlalchemy" version=">=2.0.23">ORM for database queries (tenant configs, budget overrides)</package>
+        <package name="fastapi" version=">=0.104.0">API framework for budget override endpoints</package>
+        <package name="loguru" version=">=0.7.2">Logging for task execution, errors, and audit trail</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">Code must be implemented in Story 8.10, this story focuses on OPERATIONAL SETUP ONLY: Celery Beat schedule configuration and LiteLLM webhook configuration. No new code files needed.</constraint>
+    <constraint id="C2">Celery Beat schedule: Configure beat_schedule in src/workers/celery_app.py with crontab(hour=0, minute=0) for daily resets at 00:00 UTC</constraint>
+    <constraint id="C3">Override expiry task: Add expire_budget_overrides periodic task with crontab(minute=0) for hourly execution</constraint>
+    <constraint id="C4">LiteLLM configuration: Update config/litellm-config.yaml with general_settings.alerting: ["webhook"]</constraint>
+    <constraint id="C5">Docker Compose: Add WEBHOOK_URL=http://api:8000/api/v1/budget-alerts to litellm service environment variables</constraint>
+    <constraint id="C6">Environment variables: Add AI_AGENTS_LITELLM_WEBHOOK_SECRET to .env.example for webhook signature validation</constraint>
+    <constraint id="C7">Task expiry: Set expires option on periodic tasks (3600s for reset task, 1800s for expiry task) to prevent zombie tasks</constraint>
+    <constraint id="C8">Batch processing: Reset task processes 100 tenants per batch with 1-second delay to prevent API rate limiting</constraint>
+    <constraint id="C9">Error handling: All tasks must include retry logic (max_retries=3, default_retry_delay=60) and comprehensive logging</constraint>
+    <constraint id="C10">Documentation: Create docs/operations/budget-automation.md with runbooks for reset failures and override emergencies</constraint>
+    <constraint id="C11">Testing: Unit tests for task logic (8 tests), integration tests for end-to-end workflows (5 tests) following patterns from docs/testing/budget-enforcement-testing.md</constraint>
+    <constraint id="C12">No file size limit violations: All modified files must stay under 500 lines. If celery_app.py exceeds limit, extract beat_schedule to separate config file.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>Celery Beat Schedule Configuration</name>
+      <kind>configuration</kind>
+      <signature>
+app.conf.beat_schedule = {
+    'reset-tenant-budgets': {
+        'task': 'src.workers.tasks.reset_tenant_budgets',
+        'schedule': crontab(hour=0, minute=0),  # Daily at 00:00 UTC
+        'options': {'expires': 3600}
+    },
+    'expire-budget-overrides': {
+        'task': 'src.workers.tasks.expire_budget_overrides',
+        'schedule': crontab(minute=0),  # Every hour
+        'options': {'expires': 1800}
+    }
+}
+      </signature>
+      <path>src/workers/celery_app.py</path>
+    </interface>
+
+    <interface>
+      <name>reset_tenant_budgets Celery Task</name>
+      <kind>celery_task</kind>
+      <signature>
+@shared_task(name='reset_tenant_budgets', bind=True, max_retries=3, default_retry_delay=60)
+def reset_tenant_budgets(self) -> Dict[str, Any]:
+    """
+    Reset budgets for tenants where budget_reset_at &lt;= NOW().
+    Processes tenants in batches of 100 with 1-second delay.
+    Returns: dict with success_count, failure_count, total_count
+    """
+      </signature>
+      <path>src/workers/tasks.py</path>
+    </interface>
+
+    <interface>
+      <name>BudgetService.reset_tenant_budget Method</name>
+      <kind>service_method</kind>
+      <signature>
+async def reset_tenant_budget(self, tenant_id: str) -> bool:
+    """
+    Reset a single tenant's budget via LiteLLM API.
+    Updates database, creates audit log, sends notification.
+    Returns: True on success, False on failure
+    """
+      </signature>
+      <path>src/services/budget_service.py</path>
+    </interface>
+
+    <interface>
+      <name>LiteLLM Key Update API</name>
+      <kind>rest_api</kind>
+      <signature>
+POST /key/update
+Headers: x-api-key: {LITELLM_MASTER_KEY}
+Body: {
+  "key": "sk-...",
+  "temp_budget_increase": 100,  # Optional: for overrides
+  "temp_budget_expiry": "2025-01-15"  # Optional: for overrides
+}
+      </signature>
+      <path>External: LiteLLM Proxy</path>
+    </interface>
+
+    <interface>
+      <name>Budget Override Endpoints</name>
+      <kind>rest_api</kind>
+      <signature>
+POST /admin/tenants/{tenant_id}/budget-override
+Body: {
+  "override_amount": float,
+  "duration": str (e.g., "7d", "24h"),
+  "reason": str
+}
+
+DELETE /admin/tenants/{tenant_id}/budget-override
+      </signature>
+      <path>src/api/admin/tenants.py</path>
+    </interface>
+
+    <interface>
+      <name>NotificationService.send_budget_alert Method</name>
+      <kind>service_method</kind>
+      <signature>
+async def send_budget_alert(
+    self,
+    tenant_id: str,
+    alert_type: str,  # "reset", "override_granted", "override_expired"
+    details: Dict[str, Any]
+) -> bool:
+    """Send budget-related notifications via email/Slack"""
+      </signature>
+      <path>src/services/notification_service.py</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Framework: pytest with pytest-asyncio for async tests, pytest-mock for mocking</standard>
+      <standard>Location: tests/unit/test_budget_automation.py (8 tests), tests/integration/test_budget_automation.py (5 tests)</standard>
+      <standard>Mocking: Mock LiteLLM API calls with httpx_mock, mock database with AsyncMock, mock Celery retry with pytest-mock</standard>
+      <standard>Patterns: Follow patterns from docs/testing/budget-enforcement-testing.md for periodic task testing and API mocking</standard>
+      <standard>Coverage: Target 80%+ line coverage for new code, 100% branch coverage for critical paths (error handling, retries)</standard>
+      <standard>Fixtures: Reuse conftest.py fixtures for database session, tenant configs, budget overrides, mock LiteLLM responses</standard>
+    </standards>
+
+    <locations>
+      <location>tests/unit/test_budget_automation.py - Unit tests for task logic, reset logic, override logic</location>
+      <location>tests/integration/test_budget_automation.py - End-to-end workflow tests</location>
+      <location>tests/conftest.py - Shared fixtures for budget testing</location>
+    </locations>
+
+    <ideas>
+      <test id="U1" ac="AC1,AC2">Test reset_tenant_budget calls LiteLLM API and updates database correctly</test>
+      <test id="U2" ac="AC1,AC2">Test reset_tenant_budgets task processes multiple tenants in batches with 1-second delay</test>
+      <test id="U3" ac="AC5,AC6">Test budget override creation stores in database and updates virtual key</test>
+      <test id="U4" ac="AC7">Test budget override removal removes from database and resets virtual key</test>
+      <test id="U5" ac="AC7">Test automatic expiry identifies expired overrides and triggers removal</test>
+      <test id="U6" ac="AC5">Test authorization rejects non-admin requests to override endpoints</test>
+      <test id="U7" ac="AC1,AC2">Test error handling retries on API failures and logs errors correctly</test>
+      <test id="U8" ac="AC2">Test batch processing handles 100+ tenants without timeout or memory issues</test>
+      <test id="I1" ac="AC1-4">Integration test: Tenant budget_reset_at reached → task runs → spend reset → notification sent → audit log created</test>
+      <test id="I2" ac="AC5-7">Integration test: Admin grants override → virtual key updated → expires after duration → auto-removed → notification sent</test>
+      <test id="I3" ac="AC1,AC2">Integration test: Process 10 tenants in one reset task run with proper batching</test>
+      <test id="I4" ac="AC7">Integration test: Override expires after 7 days → expire_budget_overrides task → auto-removed → notification</test>
+      <test id="I5" ac="AC8">Integration test: Configure webhook URL → send test alert from LiteLLM → verify received at endpoint</test>
+    </ideas>
+  </tests>
+</story-context>

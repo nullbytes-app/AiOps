@@ -712,6 +712,114 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         raise
 
 
+
+@celery_app.task(
+    bind=True,
+    name="tasks.execute_agent",
+    track_started=True,
+    autoretry_for=(Exception,),
+    retry_kwargs={"max_retries": 3, "countdown": 2},
+    retry_backoff=True,
+    retry_jitter=True,
+    time_limit=300,  # 5 minutes hard limit
+    soft_time_limit=240,  # 4 minutes soft limit
+)
+def execute_agent(self: Task, agent_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Execute AI agent with given payload (Story 8.6).
+
+    This task handles agent execution triggered via webhook endpoints.
+    Currently a placeholder that logs execution details - full agent
+    orchestration will be implemented in future stories.
+
+    Args:
+        self: Celery task instance (injected by bind=True)
+        agent_id: UUID of agent to execute
+        payload: Webhook payload data (validated against agent's payload_schema)
+
+    Returns:
+        Dict[str, Any]: Execution result containing:
+            - status: "queued" | "running" | "completed" | "failed"
+            - agent_id: Agent UUID
+            - execution_id: Unique execution identifier
+            - result: Agent execution output (when completed)
+
+    Raises:
+        Exception: Any error during agent execution (triggers auto-retry)
+
+    Example:
+        >>> payload = {"ticket_id": "TKT-123", "description": "Server issue"}
+        >>> result = execute_agent.delay("agent-uuid", payload)
+        >>> result.get()
+        {"status": "completed", "agent_id": "agent-uuid", ...}
+    """
+    import uuid
+    from time import time
+    from datetime import datetime, UTC
+
+    start_time = time()
+    execution_id = str(uuid.uuid4())
+
+    try:
+        logger.info(
+            "Task execute_agent started (Story 8.6)",
+            extra={
+                "task_id": self.request.id,
+                "agent_id": agent_id,
+                "execution_id": execution_id,
+                "payload_keys": list(payload.keys()) if isinstance(payload, dict) else None,
+            },
+        )
+
+        # TODO: Future implementation (separate story)
+        # 1. Load agent configuration from database
+        # 2. Initialize LiteLLM client with agent's LLM config
+        # 3. Execute agent with system prompt + payload context
+        # 4. Store execution result in agent_executions table
+        # 5. Return structured result
+
+        # Placeholder: Log execution and return success
+        processing_time_ms = int((time() - start_time) * 1000)
+
+        logger.info(
+            "Task execute_agent completed (placeholder implementation)",
+            extra={
+                "task_id": self.request.id,
+                "agent_id": agent_id,
+                "execution_id": execution_id,
+                "processing_time_ms": processing_time_ms,
+            },
+        )
+
+        return {
+            "status": "completed",
+            "agent_id": agent_id,
+            "execution_id": execution_id,
+            "processing_time_ms": processing_time_ms,
+            "result": f"Agent {agent_id} executed successfully with payload: {payload}",
+        }
+
+    except Exception as exc:
+        processing_time_ms = int((time() - start_time) * 1000)
+        attempt_number = self.request.retries
+
+        logger.error(
+            f"Task execute_agent failed with error: {str(exc)}",
+            extra={
+                "task_id": self.request.id,
+                "agent_id": agent_id,
+                "execution_id": execution_id,
+                "error_type": type(exc).__name__,
+                "error_message": str(exc),
+                "attempt_number": attempt_number,
+                "processing_time_ms": processing_time_ms,
+            },
+        )
+
+        # Celery will auto-retry via autoretry_for decorator
+        raise
+
+
 def _format_context_fallback(context_gathered: Dict[str, Any]) -> str:
     """
     Format gathered context as plain text when LLM synthesis fails.
@@ -769,3 +877,343 @@ def _format_context_fallback(context_gathered: Dict[str, Any]) -> str:
         lines.append("")
 
     return "\n".join(lines)
+
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.reset_tenant_budgets",
+    track_started=True,
+    max_retries=3,
+    soft_time_limit=600,  # 10 minutes
+    time_limit=660,  # 11 minutes hard limit
+)
+def reset_tenant_budgets(self: Task) -> Dict[str, Any]:
+    """
+    Periodic task to reset tenant budgets based on budget_duration.
+
+    Runs daily at 00:00 UTC (configured in Celery beat schedule).
+    For each tenant whose budget_reset_at <= NOW():
+    1. Reset virtual key budget via LiteLLM API
+    2. Update litellm_key_last_reset timestamp  
+    3. Calculate next budget_reset_at
+    4. Log audit entry
+    5. Send notification
+
+    Story 8.10 AC#7: Budget Reset Automation
+
+    Returns:
+        Dict with reset_count, success_count, and failed_tenants list
+
+    Raises:
+        SoftTimeLimitExceeded: If task exceeds 10 minutes
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import select, update
+    from src.database.models import TenantConfig, AuditLog
+    from src.config import settings
+    import httpx
+
+    logger.info("Starting budget reset task")
+    reset_count = 0
+    success_count = 0
+    failed_tenants = []
+
+    try:
+        # Run async code in event loop
+        async def _reset_budgets():
+            nonlocal reset_count, success_count, failed_tenants
+
+            async with async_session_maker() as session:
+                # Find tenants whose budget period has expired
+                now = datetime.now(timezone.utc)
+                stmt = select(TenantConfig).where(
+                    TenantConfig.budget_reset_at <= now,
+                    TenantConfig.is_active == True
+                )
+                result = await session.execute(stmt)
+                tenants = result.scalars().all()
+
+                reset_count = len(tenants)
+                logger.info(f"Found {reset_count} tenants requiring budget reset")
+
+                for tenant in tenants:
+                    try:
+                        # Reset virtual key budget via LiteLLM API
+                        if tenant.litellm_virtual_key:
+                            async with httpx.AsyncClient(timeout=30.0) as client:
+                                # Call LiteLLM key/update endpoint to reset budget
+                                litellm_url = f"{settings.litellm_proxy_url}/key/update"
+                                headers = {"Authorization": f"Bearer {settings.litellm_master_key}"}
+                                payload = {
+                                    "key": tenant.litellm_virtual_key,
+                                    "spend": 0,  # Reset spend to 0
+                                }
+
+                                response = await client.post(litellm_url, json=payload, headers=headers)
+                                response.raise_for_status()
+
+                                logger.info(f"Reset budget for tenant {tenant.tenant_id}")
+
+                        # Calculate next reset date based on budget_duration
+                        duration_days = int(tenant.budget_duration.replace('d', ''))
+                        next_reset_at = now + timedelta(days=duration_days)
+
+                        # Update tenant record
+                        await session.execute(
+                            update(TenantConfig)
+                            .where(TenantConfig.tenant_id == tenant.tenant_id)
+                            .values(
+                                litellm_key_last_reset=now,
+                                budget_reset_at=next_reset_at,
+                                updated_at=now
+                            )
+                        )
+
+                        # Log audit entry
+                        audit_entry = AuditLog(
+                            tenant_id=tenant.tenant_id,
+                            operation="budget_reset",
+                            user="system",
+                            timestamp=now,
+                            details={
+                                "previous_reset": tenant.litellm_key_last_reset.isoformat() if tenant.litellm_key_last_reset else None,
+                                "next_reset": next_reset_at.isoformat(),
+                                "duration": tenant.budget_duration,
+                                "max_budget": tenant.max_budget
+                            }
+                        )
+                        session.add(audit_entry)
+
+                        await session.commit()
+                        success_count += 1
+
+                        logger.info(
+                            f"Budget reset successful for tenant {tenant.tenant_id}",
+                            extra={
+                                "tenant_id": tenant.tenant_id,
+                                "next_reset": next_reset_at.isoformat(),
+                                "duration": tenant.budget_duration
+                            }
+                        )
+
+                        # TODO Story 8.10A: Send notification to tenant admin
+                        # await NotificationService().send_budget_reset_notification(tenant.tenant_id)
+
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to reset budget for tenant {tenant.tenant_id}: {e}",
+                            extra={"tenant_id": tenant.tenant_id, "error": str(e)}
+                        )
+                        failed_tenants.append({
+                            "tenant_id": tenant.tenant_id,
+                            "error": str(e)
+                        })
+
+        # Execute async function
+        asyncio.run(_reset_budgets())
+
+        result = {
+            "reset_count": reset_count,
+            "success_count": success_count,
+            "failed_count": len(failed_tenants),
+            "failed_tenants": failed_tenants,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        logger.info(f"Budget reset task completed: {success_count}/{reset_count} successful")
+        return result
+
+    except SoftTimeLimitExceeded:
+        logger.error("Budget reset task exceeded 10 minute time limit")
+        raise
+    except Exception as e:
+        logger.error(f"Budget reset task failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=300)  # Retry after 5 minutes
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.expire_budget_overrides",
+    track_started=True,
+    max_retries=3,
+    soft_time_limit=300,  # 5 minutes
+    time_limit=330,  # 5.5 minutes hard limit
+)
+def expire_budget_overrides(self: Task) -> Dict[str, Any]:
+    """
+    Periodic task to expire budget overrides that have reached their expiration time.
+
+    Runs hourly at :00 minutes (configured in Celery beat schedule).
+    For each override whose expires_at <= NOW():
+    1. Remove override from database
+    2. Reset virtual key budget to tenant's base max_budget via LiteLLM API
+    3. Log audit entry
+    4. Send notification
+
+    Story 8.10C AC#7: Automatic Override Expiry
+
+    Returns:
+        Dict with expired_count, success_count, and failed_overrides list
+
+    Raises:
+        SoftTimeLimitExceeded: If task exceeds 5 minutes
+    """
+    from datetime import datetime, timezone
+    from sqlalchemy import select, delete
+    from src.database.models import TenantConfig, AuditLog
+    from src.config import settings
+    import httpx
+
+    # Check if BudgetOverride model exists (added in Story 8.10)
+    try:
+        from src.database.models import BudgetOverride
+    except ImportError:
+        logger.warning("BudgetOverride model not found - skipping override expiry")
+        return {
+            "expired_count": 0,
+            "success_count": 0,
+            "failed_count": 0,
+            "failed_overrides": [],
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    logger.info("Starting budget override expiry task")
+    expired_count = 0
+    success_count = 0
+    failed_overrides = []
+
+    try:
+        # Run async code in event loop
+        async def _expire_overrides():
+            nonlocal expired_count, success_count, failed_overrides
+
+            async with async_session_maker() as session:
+                # Find overrides whose expiration time has passed
+                now = datetime.now(timezone.utc)
+                stmt = select(BudgetOverride).where(
+                    BudgetOverride.expires_at <= now
+                )
+                result = await session.execute(stmt)
+                overrides = result.scalars().all()
+
+                expired_count = len(overrides)
+                logger.info(f"Found {expired_count} expired budget overrides")
+
+                for override in overrides:
+                    try:
+                        # Get tenant config to reset virtual key to base budget
+                        tenant_stmt = select(TenantConfig).where(
+                            TenantConfig.tenant_id == override.tenant_id
+                        )
+                        tenant_result = await session.execute(tenant_stmt)
+                        tenant = tenant_result.scalar_one_or_none()
+
+                        if not tenant:
+                            logger.warning(
+                                f"Tenant not found for override: {override.tenant_id}",
+                                extra={"override_id": override.id, "tenant_id": override.tenant_id}
+                            )
+                            failed_overrides.append({
+                                "override_id": str(override.id),
+                                "tenant_id": override.tenant_id,
+                                "error": "Tenant not found"
+                            })
+                            continue
+
+                        # Reset virtual key budget to base max_budget via LiteLLM API
+                        if tenant.litellm_virtual_key:
+                            async with httpx.AsyncClient(timeout=30.0) as client:
+                                # Call LiteLLM key/update endpoint to reset to base budget
+                                litellm_url = f"{settings.litellm_proxy_url}/key/update"
+                                headers = {"Authorization": f"Bearer {settings.litellm_master_key}"}
+                                payload = {
+                                    "key": tenant.litellm_virtual_key,
+                                    "max_budget": tenant.max_budget,  # Reset to base budget
+                                }
+
+                                response = await client.post(litellm_url, json=payload, headers=headers)
+                                response.raise_for_status()
+
+                                logger.info(
+                                    f"Reset virtual key budget to base for tenant {tenant.tenant_id}",
+                                    extra={
+                                        "tenant_id": tenant.tenant_id,
+                                        "base_budget": tenant.max_budget,
+                                        "override_amount": override.override_amount
+                                    }
+                                )
+
+                        # Delete expired override from database
+                        await session.delete(override)
+
+                        # Log audit entry
+                        audit_entry = AuditLog(
+                            tenant_id=override.tenant_id,
+                            operation="budget_override_expired",
+                            user="system",
+                            timestamp=now,
+                            details={
+                                "override_id": str(override.id),
+                                "override_amount": override.override_amount,
+                                "granted_at": override.created_at.isoformat() if override.created_at else None,
+                                "expires_at": override.expires_at.isoformat(),
+                                "reason": override.reason,
+                                "created_by": override.created_by
+                            }
+                        )
+                        session.add(audit_entry)
+
+                        await session.commit()
+                        success_count += 1
+
+                        logger.info(
+                            f"Budget override expired successfully for tenant {tenant.tenant_id}",
+                            extra={
+                                "tenant_id": tenant.tenant_id,
+                                "override_id": str(override.id),
+                                "override_amount": override.override_amount
+                            }
+                        )
+
+                        # TODO Story 8.10C: Send notification to tenant admin
+                        # await NotificationService().send_budget_override_expired_notification(
+                        #     tenant_id=override.tenant_id,
+                        #     override_amount=override.override_amount
+                        # )
+
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to expire override for tenant {override.tenant_id}: {e}",
+                            extra={
+                                "tenant_id": override.tenant_id,
+                                "override_id": str(override.id),
+                                "error": str(e)
+                            }
+                        )
+                        failed_overrides.append({
+                            "override_id": str(override.id),
+                            "tenant_id": override.tenant_id,
+                            "error": str(e)
+                        })
+
+        # Execute async function
+        asyncio.run(_expire_overrides())
+
+        result = {
+            "expired_count": expired_count,
+            "success_count": success_count,
+            "failed_count": len(failed_overrides),
+            "failed_overrides": failed_overrides,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        logger.info(f"Budget override expiry task completed: {success_count}/{expired_count} successful")
+        return result
+
+    except SoftTimeLimitExceeded:
+        logger.error("Budget override expiry task exceeded 5 minute time limit")
+        raise
+    except Exception as e:
+        logger.error(f"Budget override expiry task failed: {e}", exc_info=True)
+        raise self.retry(exc=e, countdown=180)  # Retry after 3 minutes

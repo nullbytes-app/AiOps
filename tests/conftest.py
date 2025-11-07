@@ -31,10 +31,16 @@ def pytest_configure(config):
     encryption_key = "cQ6XaP2aIb5CiVkoKSYfLKEaRZNpqGVdkJCo6ia_buY="
     os.environ.setdefault("ENCRYPTION_KEY", encryption_key)
     os.environ.setdefault("AI_AGENTS_ENCRYPTION_KEY", encryption_key)
+    # Also set TENANT_ENCRYPTION_KEY for Story 8.8 OpenAPI tool auth config encryption
+    os.environ.setdefault("TENANT_ENCRYPTION_KEY", encryption_key)
     # Set individual secret fields for Story 3.3 tests (Kubernetes Secrets)
     os.environ.setdefault("AI_AGENTS_POSTGRES_PASSWORD", "test_postgres_password_min_12_chars")
     os.environ.setdefault("AI_AGENTS_REDIS_PASSWORD", "test_redis_password_min_12_chars")
     os.environ.setdefault("AI_AGENTS_OPENAI_API_KEY", "sk-proj-test-openai-api-key-for-testing")
+    # Story 8.10: LiteLLM Budget Enforcement
+    os.environ.setdefault("AI_AGENTS_LITELLM_MASTER_KEY", "sk-test-master-key-for-budget-enforcement")
+    os.environ.setdefault("AI_AGENTS_LITELLM_WEBHOOK_SECRET", "test-webhook-secret-litellm-budget-min-32-chars")
+    os.environ.setdefault("AI_AGENTS_LITELLM_PROXY_URL", "http://litellm:4000")
 
     # Only set additional environment if not already in CI/Docker environment
     if not os.environ.get("CI"):

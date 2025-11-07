@@ -7,7 +7,7 @@ transparent encryption/decryption, and async SQLAlchemy support.
 
 import json
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +25,7 @@ from src.schemas.tenant import (
 from src.utils.encryption import encrypt, decrypt, EncryptionError
 from src.utils.exceptions import TenantNotFoundException
 from src.plugins.registry import PluginManager, PluginNotFoundError
+from src.services.llm_service import LLMService, VirtualKeyCreationError
 
 
 class TenantService:
@@ -164,6 +165,45 @@ class TenantService:
         self.db.add(db_config)
         await self.db.flush()
         logger.info(f"Created {config.tool_type} tenant: {config.tenant_id}")
+
+        # Story 8.9: Create LiteLLM virtual key for tenant
+        try:
+            llm_service = LLMService(db=self.db)
+            virtual_key = await llm_service.create_virtual_key_for_tenant(
+                tenant_id=config.tenant_id, max_budget=100.0
+            )
+            db_config.litellm_virtual_key = encrypt(virtual_key)
+            db_config.litellm_key_created_at = datetime.now(timezone.utc)
+            await self.db.flush()
+
+            # Log audit entry
+            await llm_service.log_audit_entry(
+                operation="llm_key_created",
+                tenant_id=config.tenant_id,
+                user="system",
+                details={"max_budget": 100.0, "key_alias": f"{config.tenant_id}-key"},
+                status="success",
+            )
+            logger.info(f"Created LiteLLM virtual key for tenant {config.tenant_id}")
+
+        except VirtualKeyCreationError as e:
+            logger.error(
+                f"Failed to create virtual key for tenant {config.tenant_id}: {str(e)}"
+            )
+            # Rollback tenant creation on virtual key failure
+            await self.db.rollback()
+            raise ValueError(
+                f"Failed to create tenant {config.tenant_id}: LiteLLM virtual key creation failed"
+            ) from e
+        except Exception as e:
+            logger.error(
+                f"Unexpected error creating virtual key for tenant {config.tenant_id}: {str(e)}"
+            )
+            # Continue without virtual key (degraded mode)
+            # Future: Make this a hard failure in Story 8.10 (budget enforcement)
+            logger.warning(
+                f"Tenant {config.tenant_id} created without virtual key (degraded mode)"
+            )
 
         # Build result with decrypted credentials
         result_data = {
@@ -501,3 +541,106 @@ class TenantService:
 
         logger.info(f"Updated tool preferences for tenant {tenant_id}")
         return updated_config
+
+
+    # ========================================================================
+    # BYOK (Bring Your Own Key) Helper Methods - Story 8.13
+    # ========================================================================
+
+    async def get_byok_status(self, tenant_id: str) -> dict:
+        """
+        Get BYOK status and configuration for tenant (AC#1, AC#6).
+
+        Returns whether BYOK is enabled, which providers are configured,
+        when it was enabled, and cost tracking mode.
+
+        Args:
+            tenant_id: Unique tenant identifier
+
+        Returns:
+            Dict with BYOK status:
+            {
+                "byok_enabled": bool,
+                "providers_configured": list[str],
+                "enabled_at": datetime | None,
+                "cost_tracking_mode": str  # "platform" or "byok"
+            }
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+
+        Example:
+            >>> status = await service.get_byok_status("acme-corp")
+            >>> print(f"BYOK enabled: {status['byok_enabled']}")
+            >>> print(f"Cost tracking: {status['cost_tracking_mode']}")
+        """
+        stmt = select(
+            TenantConfigModel.byok_enabled,
+            TenantConfigModel.byok_openai_key_encrypted,
+            TenantConfigModel.byok_anthropic_key_encrypted,
+            TenantConfigModel.byok_enabled_at,
+        ).where(TenantConfigModel.tenant_id == tenant_id)
+
+        result = await self.db.execute(stmt)
+        row = result.fetchone()
+
+        if not row:
+            raise TenantNotFoundException(f"Tenant '{tenant_id}' not found")
+
+        byok_enabled, openai_key, anthropic_key, enabled_at = row
+
+        # Determine which providers are configured
+        providers_configured = []
+        if openai_key:
+            providers_configured.append("openai")
+        if anthropic_key:
+            providers_configured.append("anthropic")
+
+        # Determine cost tracking mode (AC#6)
+        cost_tracking_mode = "byok" if byok_enabled else "platform"
+
+        logger.info(
+            f"BYOK status for {tenant_id}: enabled={byok_enabled}, "
+            f"providers={providers_configured}"
+        )
+
+        return {
+            "byok_enabled": byok_enabled,
+            "providers_configured": providers_configured,
+            "enabled_at": enabled_at,
+            "cost_tracking_mode": cost_tracking_mode,
+        }
+
+    async def get_cost_tracking_mode(self, tenant_id: str) -> str:
+        """
+        Get cost tracking mode for tenant: 'platform' or 'byok' (AC#6).
+
+        Determines whether costs are tracked via platform LiteLLM
+        (platform mode) or tenant's own API keys (BYOK mode).
+
+        Args:
+            tenant_id: Unique tenant identifier
+
+        Returns:
+            str: "platform" if BYOK disabled, "byok" if BYOK enabled
+
+        Raises:
+            TenantNotFoundException: If tenant not found
+
+        Example:
+            >>> mode = await service.get_cost_tracking_mode("acme-corp")
+            >>> if mode == "byok":
+            >>>     print("Using own keys - costs not tracked by platform")
+        """
+        stmt = select(TenantConfigModel.byok_enabled).where(
+            TenantConfigModel.tenant_id == tenant_id
+        )
+
+        result = await self.db.execute(stmt)
+        row = result.fetchone()
+
+        if not row:
+            raise TenantNotFoundException(f"Tenant '{tenant_id}' not found")
+
+        byok_enabled = row[0]
+        return "byok" if byok_enabled else "platform"

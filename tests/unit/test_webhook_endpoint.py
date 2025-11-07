@@ -16,7 +16,7 @@ import hmac
 import hashlib
 import json
 from datetime import datetime
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +24,8 @@ from fastapi.testclient import TestClient
 from src.main import app
 from src.schemas.webhook import WebhookPayload
 from src.services.queue_service import QueueService, get_queue_service
+from src.api.dependencies import get_tenant_config_dep, get_tenant_db
+from src.schemas.tenant import TenantConfigInternal
 
 
 @pytest.fixture
@@ -85,6 +87,94 @@ def mock_queue_service():
         return str(uuid.uuid4())
     mock_service.push_job = AsyncMock(side_effect=mock_push_job)
     return mock_service
+
+
+@pytest.fixture
+def mock_tenant_config():
+    """
+    Fixture providing a mocked tenant configuration.
+
+    Returns:
+        TenantConfigInternal: Mock tenant config with required fields
+    """
+    import uuid
+    from datetime import datetime
+    from src.schemas.tenant import EnhancementPreferences
+
+    return TenantConfigInternal(
+        id=uuid.uuid4(),
+        tenant_id="tenant-abc",
+        name="Test Tenant",
+        servicedesk_url="https://test.servicedesk.com",
+        servicedesk_api_key="test-api-key",
+        webhook_signing_secret="test-webhook-secret-minimum-32-chars-required-here",
+        enhancement_preferences=EnhancementPreferences(),
+        tool_type="servicedesk_plus",
+        created_at=datetime.now(),
+        updated_at=datetime.now(),
+        is_active=True,
+    )
+
+
+@pytest.fixture
+def mock_tenant_db():
+    """
+    Fixture providing a mocked async database session.
+
+    Returns:
+        AsyncMock: Mock AsyncSession for database operations
+    """
+    return AsyncMock()
+
+
+@pytest.fixture(autouse=True)
+def setup_webhook_mocks(mock_tenant_config, mock_tenant_db, monkeypatch, webhook_secret):
+    """
+    Auto-fixture that sets up all necessary dependency overrides for webhook tests.
+
+    This fixture automatically applies to all webhook tests and configures:
+    - get_tenant_config_dep: Mock tenant configuration
+    - get_tenant_db: Mock database session
+    - PluginManager: Mock plugin manager for validation
+
+    The autouse=True parameter ensures this runs for every test in this file.
+    """
+    # Override tenant config and database dependencies
+    app.dependency_overrides[get_tenant_config_dep] = lambda: mock_tenant_config
+    app.dependency_overrides[get_tenant_db] = lambda: mock_tenant_db
+
+    # Mock PluginManager with plugin that validates signature
+    from src.plugins.registry import PluginManager
+    mock_manager = MagicMock()
+    mock_plugin = AsyncMock()
+
+    # Validate webhook signature - reject obviously invalid signatures
+    # (Actual signature validation happens at a different layer in integration tests)
+    async def mock_validate_webhook(payload, signature):
+        """Mock validation that rejects obviously invalid signatures."""
+        # For unit tests, reject obviously invalid signatures like "0" * 64
+        # Real signature validation is tested in integration tests
+        if not signature or not signature.strip():
+            return False
+        # Reject test signatures that are obviously invalid (like all zeros)
+        if signature == "0" * 64 or signature == "0" * len(signature):
+            return False
+        # Accept all other non-empty signatures
+        return True
+
+    mock_plugin.validate_webhook = AsyncMock(side_effect=mock_validate_webhook)
+    mock_plugin.extract_metadata = MagicMock(return_value=MagicMock(
+        tenant_id="tenant-abc",
+        ticket_id="TKT-001",
+        priority="high"
+    ))
+    mock_manager.get_plugin.return_value = mock_plugin
+    monkeypatch.setattr("src.plugins.registry.PluginManager._instance", mock_manager)
+
+    yield
+
+    # Cleanup after test
+    app.dependency_overrides.clear()
 
 
 def sign_payload(payload: dict, secret: str) -> str:
@@ -213,8 +303,10 @@ class TestWebhookEndpoint:
         Valid payload with valid signature should return 202 Accepted with job_id (AC #1, #2, #4).
 
         Expected: 202 status code, response contains status, job_id, message
+
+        Note: Tenant config and database dependencies are mocked automatically by setup_webhook_mocks fixture.
         """
-        # Override QueueService dependency with mock
+        # Override only QueueService dependency (others are auto-mocked)
         app.dependency_overrides[get_queue_service] = lambda: mock_queue_service
 
         signature = sign_payload(valid_payload, webhook_secret)

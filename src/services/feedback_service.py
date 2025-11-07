@@ -6,7 +6,7 @@ from technicians. Supports thumbs up/down and 1-5 rating scales for continuous
 quality monitoring, satisfaction tracking, and data-driven roadmap prioritization.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -126,7 +126,7 @@ class FeedbackService:
             >>> # Get all ratings from last 7 days
             >>> feedback_list = await service.get_feedback(
             ...     tenant_id="tenant-abc",
-            ...     start_date=datetime.utcnow() - timedelta(days=7),
+            ...     start_date=datetime.now(timezone.utc) - timedelta(days=7),
             ...     feedback_type=FeedbackType.RATING
             ... )
             >>> avg_rating = sum(f.rating_value for f in feedback_list) / len(feedback_list)

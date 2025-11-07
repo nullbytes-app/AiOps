@@ -12,7 +12,7 @@ Metrics Provided:
 - Recent failures (last 10 failed enhancements)
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import streamlit as st
@@ -67,7 +67,7 @@ def get_success_rate_24h() -> float:
     try:
         with get_db_session() as session:
             # Time window: last 24 hours
-            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
             # Count completed jobs (successful)
             completed_count = (
@@ -125,7 +125,7 @@ def get_p95_latency() -> int:
     try:
         with get_db_session() as session:
             # Time window: last 24 hours
-            cutoff_time = datetime.utcnow() - timedelta(hours=24)
+            cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
             # PostgreSQL percentile_cont syntax
             query = text(
@@ -177,7 +177,7 @@ def get_active_workers() -> int:
         with get_db_session() as session:
             # Count jobs with pending or in-progress status created in last hour
             # This approximates active worker count
-            recent_time = datetime.utcnow() - timedelta(hours=1)
+            recent_time = datetime.now(timezone.utc) - timedelta(hours=1)
 
             active_count = (
                 session.query(func.count(EnhancementHistory.id))
@@ -243,7 +243,7 @@ def get_recent_failures(limit: int = 10) -> list[dict]:
             )
 
             results = []
-            now = datetime.utcnow()
+            now = datetime.now(timezone.utc)
 
             for failure in failures:
                 # Calculate time ago
@@ -354,8 +354,8 @@ def fetch_prometheus_range_query(
         None: All exceptions handled internally, returns empty list on failure
 
     Examples:
-        >>> start = datetime.utcnow() - timedelta(hours=1)
-        >>> end = datetime.utcnow()
+        >>> start = datetime.now(timezone.utc) - timedelta(hours=1)
+        >>> end = datetime.now(timezone.utc)
         >>> data, unavailable = fetch_prometheus_range_query("ai_agents_queue_depth", start, end, "1m")
         >>> len(data)
         60  # One data point per minute for 1 hour
@@ -434,7 +434,7 @@ def _get_time_range_params(time_range: str) -> tuple[datetime, datetime, str]:
         >>> step
         "1m"  # 60 data points for 1 hour
     """
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     ranges = {
         "1h": (now - timedelta(hours=1), now, "1m"),  # 60 points
@@ -618,7 +618,7 @@ def create_timeseries_chart(
 
     # Handle empty data case
     if df.empty:
-        df = pd.DataFrame({"timestamp": [datetime.utcnow()], "value": [0]})
+        df = pd.DataFrame({"timestamp": [datetime.now(timezone.utc)], "value": [0]})
 
     # Create line chart with single trace
     fig = go.Figure(

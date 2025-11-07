@@ -1,0 +1,709 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>11</storyId>
+    <title>Provider Configuration UI</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-11-provider-configuration-ui.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform administrator</asA>
+    <iWant>a UI to configure LLM providers and models</iWant>
+    <soThat>I can manage API keys and available models without editing config files</soThat>
+    <tasks>
+- [ ] Task 1: Create Database Schema for Provider Configuration (AC: #7)
+  - [ ] Subtask 1.1: Create Alembic migration: `llm_providers` table with columns (id, name, provider_type, api_base_url, api_key_encrypted, enabled, created_at, updated_at)
+  - [ ] Subtask 1.2: Create Alembic migration: `llm_models` table with columns (id, provider_id, model_name, display_name, enabled, cost_per_input_token, cost_per_output_token, context_window, capabilities JSONB, created_at, updated_at)
+  - [ ] Subtask 1.3: Add SQLAlchemy models: `LLMProvider` and `LLMModel` with relationship
+  - [ ] Subtask 1.4: Add Pydantic schemas: `LLMProviderCreate`, `LLMProviderUpdate`, `LLMProviderResponse`, `LLMModelCreate`, `LLMModelUpdate`, `LLMModelResponse`
+  - [ ] Subtask 1.5: Create enum: `ProviderType` (openai, anthropic, azure_openai, bedrock, replicate, together_ai, custom)
+  - [ ] Subtask 1.6: Add indexes on `llm_providers.provider_type` and `llm_models.provider_id` for performance
+  - [ ] Subtask 1.7: Test migration: apply upgrade, verify schema, test downgrade
+
+- [ ] Task 2: Create Provider Management Service (AC: #3, #6, #7)
+  - [ ] Subtask 2.1: Create `src/services/provider_service.py` with `ProviderService` class
+  - [ ] Subtask 2.2: Implement `create_provider(name, provider_type, api_base_url, api_key)` - encrypts API key with Fernet, stores in database
+  - [ ] Subtask 2.3: Implement `update_provider(provider_id, **kwargs)` - handles API key re-encryption if changed
+  - [ ] Subtask 2.4: Implement `delete_provider(provider_id)` - soft delete (sets enabled=false), cascades to models
+  - [ ] Subtask 2.5: Implement `get_provider(provider_id)` - returns provider with decrypted API key (admin only)
+  - [ ] Subtask 2.6: Implement `list_providers(include_disabled=False)` - returns all providers with connection status
+  - [ ] Subtask 2.7: Implement `test_provider_connection(provider_id)` - validates API key, calls provider health endpoint, returns available models
+  - [ ] Subtask 2.8: Implement `get_available_models(provider_id)` - fetches models from provider API using LiteLLM's `get_valid_models()`
+  - [ ] Subtask 2.9: Add comprehensive docstrings (Google style) and type hints to all methods
+  - [ ] Subtask 2.10: Implement audit logging for all provider operations (create, update, delete, test)
+
+- [ ] Task 3: Create LiteLLM Config Generator Service (AC: #8)
+  - [ ] Subtask 3.1: Create `src/services/litellm_config_generator.py` with `ConfigGenerator` class
+  - [ ] Subtask 3.2: Implement `generate_config_yaml()` - reads enabled providers and models from database, generates complete litellm-config.yaml
+  - [ ] Subtask 3.3: Template structure: model_list section with provider entries, general_settings with master_key and database_url
+  - [ ] Subtask 3.4: Handle provider-specific parameters: Azure (api_version, deployment_name), Bedrock (aws_region_name), custom (headers)
+  - [ ] Subtask 3.5: Implement `backup_current_config()` - creates timestamped backup before overwriting config file
+  - [ ] Subtask 3.6: Implement `validate_config_syntax()` - validates YAML syntax before writing to file
+  - [ ] Subtask 3.7: Implement `write_config_to_file(config_yaml)` - writes to litellm-config.yaml with proper permissions
+  - [ ] Subtask 3.8: Implement `reload_litellm_proxy()` - triggers LiteLLM proxy reload via API call or signal (NOTE: LiteLLM doesn't support hot reload, requires container restart)
+  - [ ] Subtask 3.9: Add error handling: file write failures, permission errors, invalid YAML, reload failures
+  - [ ] Subtask 3.10: Log all config generation operations with diff between old/new config
+
+- [ ] Task 4: Create Provider CRUD API Endpoints (AC: #3, #6, #7)
+  - [ ] Subtask 4.1: Create `src/api/llm_providers.py` with FastAPI router
+  - [ ] Subtask 4.2: Implement `POST /api/llm-providers` - creates provider, encrypts API key, returns provider_id
+  - [ ] Subtask 4.3: Implement `GET /api/llm-providers` - returns paginated provider list with connection status
+  - [ ] Subtask 4.4: Implement `GET /api/llm-providers/{provider_id}` - returns full provider details (API key masked)
+  - [ ] Subtask 4.5: Implement `PUT /api/llm-providers/{provider_id}` - updates provider, re-encrypts API key if changed
+  - [ ] Subtask 4.6: Implement `DELETE /api/llm-providers/{provider_id}` - soft delete, disables provider and models
+  - [ ] Subtask 4.7: Implement `POST /api/llm-providers/{provider_id}/test-connection` - validates API key, fetches available models
+  - [ ] Subtask 4.8: Implement `GET /api/llm-providers/{provider_id}/models` - returns available models from provider API
+  - [ ] Subtask 4.9: Implement `POST /api/llm-providers/{provider_id}/sync-models` - syncs models from provider, updates database
+  - [ ] Subtask 4.10: Implement `POST /api/llm-providers/regenerate-config` - triggers config YAML regeneration and LiteLLM reload
+  - [ ] Subtask 4.11: Add authorization: platform admin role required for all endpoints
+  - [ ] Subtask 4.12: OpenAPI documentation with examples for all endpoints
+
+- [ ] Task 5: Create Model Management API Endpoints (AC: #4, #5)
+  - [ ] Subtask 5.1: Implement `POST /api/llm-providers/{provider_id}/models` - creates model entry with pricing config
+  - [ ] Subtask 5.2: Implement `GET /api/llm-providers/{provider_id}/models` - returns all models for provider
+  - [ ] Subtask 5.3: Implement `PUT /api/llm-models/{model_id}` - updates model config (pricing, display name, context window)
+  - [ ] Subtask 5.4: Implement `DELETE /api/llm-models/{model_id}` - soft delete (sets enabled=false)
+  - [ ] Subtask 5.5: Implement `POST /api/llm-models/{model_id}/toggle` - toggles enabled status
+  - [ ] Subtask 5.6: Implement `POST /api/llm-models/bulk-enable` - enables multiple models at once
+  - [ ] Subtask 5.7: Implement `POST /api/llm-models/bulk-disable` - disables multiple models at once
+  - [ ] Subtask 5.8: Add validation: positive pricing, context_window > 0, valid capabilities JSONB
+
+- [ ] Task 6: Create Provider Configuration Streamlit Page (AC: #1, #2, #3)
+  - [ ] Subtask 6.1: Create `src/admin/pages/06_LLM_Providers.py` Streamlit page
+  - [ ] Subtask 6.2: Page header: "LLM Provider Configuration" with subtitle "Manage API keys and available models"
+  - [ ] Subtask 6.3: Provider list view: st.dataframe with columns (name, type, status, model_count, last_test, actions)
+  - [ ] Subtask 6.4: Status indicator: 🟢 connected (last test < 5 min), 🟡 warning (last test > 1 hour), 🔴 disconnected (test failed)
+  - [ ] Subtask 6.5: "Add Provider" button: opens st.form with provider_name, provider_type (selectbox), api_base_url, api_key (password input)
+  - [ ] Subtask 6.6: Form validation: required fields, valid URL format, API key format per provider (sk- prefix for OpenAI)
+  - [ ] Subtask 6.7: On form submit: encrypts API key, saves to database, shows success message with provider_id
+  - [ ] Subtask 6.8: Error handling: duplicate provider name, invalid API key, database errors
+  - [ ] Subtask 6.9: Provider detail expandable rows: click row to expand, shows full config, edit/delete buttons
+  - [ ] Subtask 6.10: Refresh button: fetches latest provider list with current status
+
+- [ ] Task 7: Create Model Management UI (AC: #4, #5)
+  - [ ] Subtask 7.1: In provider detail view: "Models" tab showing available and configured models
+  - [ ] Subtask 7.2: Two-column layout: left (available models from provider API), right (enabled models in config)
+  - [ ] Subtask 7.3: Model card display: model name, context window, pricing (per 1M tokens), capabilities badges
+  - [ ] Subtask 7.4: Enable/disable toggle: st.checkbox for each model, saves to database on change
+  - [ ] Subtask 7.5: Bulk actions: "Enable All", "Disable All", "Enable Selected" buttons
+  - [ ] Subtask 7.6: Model configuration form: st.expander with inputs for cost_per_input_token, cost_per_output_token, context_window, display_name
+  - [ ] Subtask 7.7: Pricing input: st.number_input with format="$%.6f" for cost per 1M tokens (e.g., $0.000003 = $3/1M tokens)
+  - [ ] Subtask 7.8: Context window input: st.number_input with min=1, max=1000000, step=1000
+  - [ ] Subtask 7.9: Display name input: st.text_input for user-friendly model alias (e.g., "GPT-4 Turbo" for "gpt-4-turbo")
+  - [ ] Subtask 7.10: Save button: updates model config in database, regenerates litellm-config.yaml
+  - [ ] Subtask 7.11: Model search/filter: st.text_input to filter models by name or capabilities
+
+- [ ] Task 8: Implement Test Connection Feature (AC: #6)
+  - [ ] Subtask 8.1: "Test Connection" button in provider detail view
+  - [ ] Subtask 8.2: On click: shows st.spinner with "Testing connection to {provider_name}..."
+  - [ ] Subtask 8.3: Calls provider_service.test_provider_connection(provider_id) API endpoint
+  - [ ] Subtask 8.4: Success response: displays st.success with "✅ Connected successfully" + available models count
+  - [ ] Subtask 8.5: Failure response: displays st.error with "❌ Connection failed: {error_message}"
+  - [ ] Subtask 8.6: Shows detailed test results: API endpoint tested, response time, available models list
+  - [ ] Subtask 8.7: Auto-test on provider creation: runs test immediately after adding provider
+  - [ ] Subtask 8.8: Last test timestamp: displays in provider list (e.g., "Tested 5 minutes ago")
+  - [ ] Subtask 8.9: "Sync Models" button: fetches latest models from provider, updates database
+  - [ ] Subtask 8.10: Progress indicator: shows st.progress_bar during long-running operations
+
+- [ ] Task 9: Implement Config Generation and Reload (AC: #8)
+  - [ ] Subtask 9.1: "Regenerate Config" button in page header (admin action)
+  - [ ] Subtask 9.2: On click: confirmation dialog "This will overwrite litellm-config.yaml. Continue?"
+  - [ ] Subtask 9.3: Calls config_generator.generate_config_yaml() to create new config
+  - [ ] Subtask 9.4: Displays diff between old and new config in st.expander
+  - [ ] Subtask 9.5: Backup current config: creates backup file with timestamp (e.g., litellm-config.yaml.backup.2025-11-06T14-30-00)
+  - [ ] Subtask 9.6: Writes new config to litellm-config.yaml with proper YAML formatting
+  - [ ] Subtask 9.7: Attempts to reload LiteLLM proxy (NOTE: requires container restart, not hot reload)
+  - [ ] Subtask 9.8: Shows st.warning: "⚠️ LiteLLM proxy restart required. Run: docker-compose restart litellm"
+  - [ ] Subtask 9.9: Provides "Copy Command" button to copy restart command to clipboard
+  - [ ] Subtask 9.10: Logs config regeneration event with user, timestamp, changes made
+
+- [ ] Task 10: Add Security and Encryption (AC: #3, #7)
+  - [ ] Subtask 10.1: API key encryption: use Fernet cipher from src/config.py (same pattern as Story 8.9)
+  - [ ] Subtask 10.2: Encrypted storage: store encrypted API keys in llm_providers.api_key_encrypted column (TEXT)
+  - [ ] Subtask 10.3: Decryption on retrieval: decrypt API keys only when needed (test connection, config generation)
+  - [ ] Subtask 10.4: API key masking in UI: display as "sk-...xyz" (first 3, last 3 characters) with "Show/Hide" toggle
+  - [ ] Subtask 10.5: Audit logging: log all API key operations (create, update, view, test) with user and timestamp
+  - [ ] Subtask 10.6: Role-based access: platform admin required to view/edit providers
+  - [ ] Subtask 10.7: API key rotation: "Regenerate API Key" button in provider edit form
+  - [ ] Subtask 10.8: Secure config file permissions: ensure litellm-config.yaml has 600 permissions (owner read/write only)
+
+- [ ] Task 11: Unit Tests (AC: #3, #6, #7, #8)
+  - [ ] Subtask 11.1: Test `ProviderService.create_provider()` - encrypts API key, stores in database
+  - [ ] Subtask 11.2: Test `ProviderService.test_provider_connection()` - validates API key, returns available models
+  - [ ] Subtask 11.3: Test `ProviderService.get_provider()` - decrypts API key correctly
+  - [ ] Subtask 11.4: Test `ConfigGenerator.generate_config_yaml()` - produces valid YAML with all providers
+  - [ ] Subtask 11.5: Test provider API endpoints - POST, GET, PUT, DELETE with authorization checks
+  - [ ] Subtask 11.6: Test model API endpoints - enable/disable, bulk operations, pricing validation
+  - [ ] Subtask 11.7: Test encryption/decryption roundtrip - API key can be encrypted and decrypted correctly
+  - [ ] Subtask 11.8: Test config backup - creates timestamped backup before overwriting
+  - [ ] Subtask 11.9: Test YAML validation - rejects invalid YAML syntax
+  - [ ] Subtask 11.10: Test authorization - non-admin users cannot access provider endpoints
+  - [ ] Subtask 11.11: Test audit logging - all operations logged correctly
+  - [ ] Subtask 11.12: Test error handling - API failures, encryption errors, file write errors
+
+- [ ] Task 12: Integration Tests (AC: #1-8)
+  - [ ] Subtask 12.1: Test end-to-end provider creation - UI form → API → database → config generation
+  - [ ] Subtask 12.2: Test provider connection test - API key validation, model retrieval
+  - [ ] Subtask 12.3: Test model sync - fetches models from provider API, updates database
+  - [ ] Subtask 12.4: Test config regeneration - reads database, generates YAML, writes file
+  - [ ] Subtask 12.5: Test provider deletion - soft delete, cascades to models, removes from config
+  - [ ] Subtask 12.6: Test multi-provider setup - OpenAI + Anthropic + Azure in same config
+  - [ ] Subtask 12.7: Test config reload workflow - backup, write, validation
+  - [ ] Subtask 12.8: Test encryption end-to-end - encrypt on save, decrypt on retrieval, masked in UI
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Provider configuration page created: src/admin/pages/06_LLM_Providers.py
+2. Provider list displays: OpenAI, Anthropic, Azure OpenAI with status (connected/disconnected)
+3. "Add Provider" form: provider name, API endpoint URL, API key input (encrypted on save)
+4. Model selection UI: checkboxes to enable/disable specific models (gpt-4, claude-3-5-sonnet, etc.)
+5. Model configuration: cost per input/output token, context window size, display name
+6. "Test Connection" button: validates API key, lists available models, displays success/failure
+7. Provider config saved to database: providers table with encrypted API keys
+8. litellm-config.yaml auto-generated: updates config file on provider changes, reloads LiteLLM proxy
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- PRD Requirements -->
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>FR026-FR033 - Admin UI Configuration Management</section>
+        <snippet>Admin UI requirements for configuration management, including provider setup, API key management, and model selection interfaces</snippet>
+      </doc>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>Product Requirements Document</title>
+        <section>NFR004 - Security Requirements</section>
+        <snippet>Security requirements: encrypt credentials at rest (Fernet), audit logging for sensitive operations, role-based access control for admin functions</snippet>
+      </doc>
+
+      <!-- Epic 8 Requirements -->
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 8: Agent Configuration and Management</title>
+        <section>Story 8.11 - Provider Configuration UI</section>
+        <snippet>Provider configuration page for managing LLM providers (OpenAI, Anthropic, Azure OpenAI) with encrypted API keys, model enable/disable, test connection, auto-generated litellm-config.yaml. Prerequisites: Story 8.1 (LiteLLM Proxy Integration)</snippet>
+      </doc>
+
+      <!-- LiteLLM Integration Story -->
+      <doc>
+        <path>docs/stories/8-1-litellm-proxy-integration.md</path>
+        <title>Story 8.1: LiteLLM Proxy Integration (DONE)</title>
+        <section>LiteLLM Docker Service and Configuration</section>
+        <snippet>LiteLLM proxy running as Docker service, config/litellm-config.yaml with model definitions, environment variables (LITELLM_MASTER_KEY, LITELLM_SALT_KEY, provider API keys), database integration for virtual key storage, fallback chain configured (gpt-4 → azure-gpt-4 → claude-3-5-sonnet), retry logic with exponential backoff</snippet>
+      </doc>
+
+      <!-- Database Schema -->
+      <doc>
+        <path>docs/database-schema.md</path>
+        <title>Database Schema Documentation</title>
+        <section>tenant_configs table - Multi-Tool Support Pattern</section>
+        <snippet>Multi-tool database pattern with tool_type column, tool-specific nullable columns (servicedesk_*, jira_*, etc.), encrypted credentials pattern with Fernet, enhancement_preferences JSONB for flexible config, indexes on tool_type for fast routing. Encryption pattern: api_key_encrypted (TEXT), webhook_signing_secret_encrypted (TEXT)</snippet>
+      </doc>
+
+      <!-- Architecture References -->
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>ADR-003 - OpenRouter API Gateway with LiteLLM Proxy</section>
+        <snippet>LiteLLM proxy as unified LLM gateway, multi-provider support with automatic fallback, cost tracking and budget management, virtual key system for tenant isolation</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>ADR-009 - Admin UI with Streamlit</section>
+        <snippet>Streamlit-based admin UI for platform configuration, shared database models with FastAPI backend, dual-mode authentication (dev token + production SSO), multi-page navigation</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>Security Architecture - Encryption and Audit Logging</section>
+        <snippet>Fernet symmetric encryption for credentials at rest, audit logging for sensitive operations, role-based access control, encryption key management via Kubernetes secrets (ENCRYPTION_KEY env var)</snippet>
+      </doc>
+
+      <!-- Context7 MCP Research - LiteLLM 2025 Best Practices -->
+      <doc>
+        <path>Context7 MCP: /berriai/litellm (2025)</path>
+        <title>LiteLLM Provider Configuration Best Practices</title>
+        <section>model_list Configuration Structure</section>
+        <snippet>YAML structure: model_list with model_name (alias), litellm_params (model, api_key, api_base, api_version, timeout, max_retries). Provider-specific params: Azure (api_version, deployment_name), Bedrock (aws_region_name), custom (headers). API keys via environment variables: "os.environ/API_KEY"</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /berriai/litellm (2025)</path>
+        <title>LiteLLM Key Management Systems</title>
+        <section>Supported KMS Options</section>
+        <snippet>Key management systems supported: AWS Secret Manager, Azure Key Vault, Google Secret Manager, HashiCorp Vault, Google KMS. Local encryption with LITELLM_SALT_KEY (Fernet). Config: key_management_system: "azure_key_vault" in general_settings</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /berriai/litellm (2025)</path>
+        <title>LiteLLM Model Discovery API</title>
+        <section>get_valid_models() Function</section>
+        <snippet>Function: get_valid_models(check_provider_endpoint=True, custom_llm_provider="openai"). Returns dict of available models per provider. Requires API keys set in environment. Use for "Test Connection" feature to fetch available models from provider</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /berriai/litellm (2025)</path>
+        <title>LiteLLM Config Reload Limitation</title>
+        <section>CRITICAL: No Hot Reload Support</section>
+        <snippet>WARNING: LiteLLM does NOT support hot reload (as of 2025). Config changes require server restart: docker-compose restart litellm. UI must display warning and provide copy-to-clipboard restart command for user convenience</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /berriai/litellm (2025)</path>
+        <title>LiteLLM Fallback and Retry Configuration</title>
+        <section>litellm_settings and router_settings</section>
+        <snippet>Retry config: num_retries: 3, retry_policy: "exponential_backoff_retry", timeout: 30, allowed_fails: 3, cooldown_time: 30. Fallback config: fallbacks: [{"gpt-4": ["claude"]}] or use same model_name for automatic fallback. Router settings: routing_strategy: "simple-shuffle", context_window_fallbacks: true</snippet>
+      </doc>
+
+      <!-- Context7 MCP Research - Streamlit 2025 Best Practices -->
+      <doc>
+        <path>Context7 MCP: /streamlit/streamlit (2025)</path>
+        <title>Streamlit Forms and Data Entry</title>
+        <section>st.form() Best Practices</section>
+        <snippet>Use st.form(key="form_id", clear_on_submit=True) for grouped input collection. Form requires st.form_submit_button(). Password inputs: st.text_input(type="password", autocomplete="current-password"). Validation inside form submit handler</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /streamlit/streamlit (2025)</path>
+        <title>Streamlit Data Editor for Tables</title>
+        <section>st.data_editor() Advanced Features</section>
+        <snippet>Interactive table editing: st.data_editor(df, num_rows="dynamic", use_container_width=True, column_config={...}). Column types: TextColumn, NumberColumn, CheckboxColumn, SelectboxColumn. Validation: max_chars, min_value, max_value, required, validate (regex). Format strings: "%d years", "$%.6f"</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /streamlit/streamlit (2025)</path>
+        <title>Streamlit Session State and Caching</title>
+        <section>State Management and Performance</section>
+        <snippet>Session state: st.session_state for persistent values across reruns. Caching: @st.cache_data(ttl=3600) for data, @st.cache_resource for connections/models. Clear cache: st.cache_data.clear(). Query params: st.query_params["key"] = "value"</snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /streamlit/streamlit (2025)</path>
+        <title>Streamlit File Operations</title>
+        <section>File Upload and Download</section>
+        <snippet>Upload: st.file_uploader(type=["csv", "json"], accept_multiple_files=False). Download: st.download_button(label="Download", data=csv, file_name="data.csv", mime="text/csv", type="primary")</snippet>
+      </doc>
+
+      <!-- Learnings from Previous Stories -->
+      <doc>
+        <path>docs/stories/8-10-budget-enforcement-with-grace-period.md</path>
+        <title>Story 8.10: Budget Enforcement (DONE - APPROVED 2025-11-06)</title>
+        <section>Encryption and Admin UI Patterns</section>
+        <snippet>Encryption pattern: Fernet via src/config.py (encrypt/decrypt functions). Admin UI patterns: st.form() with validation, st.data_editor() for tables, st.success()/st.error() for feedback. Database migrations: Alembic with upgrade/downgrade paths. Audit logging: log_audit_entry() method tracking operations. Testing: 22/31 tests (71%), comprehensive mocking with pytest-mock</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-9-virtual-key-management.md</path>
+        <title>Story 8.9: Virtual Key Management (DONE - APPROVED 2025-11-06)</title>
+        <section>LiteLLM API Integration Patterns</section>
+        <snippet>LiteLLM httpx patterns: granular timeouts (connect=5s, read=30s, write=5s, pool=5s), exponential backoff (2s/4s/8s), connection pooling (max=100). LiteLLM API endpoints: POST /key/generate, GET /key/info, PUT /key/update, DELETE /key/delete. Virtual key encryption and storage in database</snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-4-agent-management-ui-basic.md</path>
+        <title>Story 8.4: Agent Management UI (DONE - APPROVED 2025-11-05)</title>
+        <section>Streamlit Multi-Page Architecture</section>
+        <snippet>Streamlit pages in src/admin/pages/ with numeric prefix (01_, 02_, etc.). Navigation via sidebar. Shared session state across pages. Form patterns: st.form() with validation. Helper modules in src/admin/utils/ for business logic separation. Testing: 35/35 tests (100%)</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Encryption Utilities -->
+      <artifact>
+        <path>src/utils/encryption.py</path>
+        <kind>utility module</kind>
+        <symbol>encrypt, decrypt, generate_encryption_key, is_encrypted</symbol>
+        <lines>1-149</lines>
+        <reason>Fernet encryption utilities for API keys. encrypt() and decrypt() functions using ENCRYPTION_KEY env var. Reuse pattern for provider API key encryption</reason>
+      </artifact>
+
+      <!-- Configuration Management -->
+      <artifact>
+        <path>src/config.py</path>
+        <kind>config module</kind>
+        <symbol>Settings class, encryption_key field</symbol>
+        <lines>1-180</lines>
+        <reason>Pydantic settings with encryption_key field (line 149). Environment variable management pattern. Add litellm_config_path and litellm_proxy_url settings</reason>
+      </artifact>
+      <artifact>
+        <path>config/litellm-config.yaml</path>
+        <kind>configuration file</kind>
+        <symbol>model_list, router_settings, litellm_settings, general_settings</symbol>
+        <lines>1-91</lines>
+        <reason>Current LiteLLM config structure. Template for config generator service. Shows model_list format, provider-specific params, fallback chain, retry logic, environment variable references</reason>
+      </artifact>
+
+      <!-- Service Layer Patterns -->
+      <artifact>
+        <path>src/services/tenant_service.py</path>
+        <kind>service module</kind>
+        <symbol>TenantService class</symbol>
+        <lines>30-542</lines>
+        <reason>Service layer pattern: __init__ with db/redis, async methods, CRUD operations, encryption integration, audit logging, Redis caching (CACHE_TTL=3600). Reuse pattern for ProviderService and ModelService</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/openapi_tool_service.py</path>
+        <kind>service module</kind>
+        <symbol>get_encryption_cipher, encrypt_auth_config, decrypt_auth_config</symbol>
+        <lines>18-35</lines>
+        <reason>Encryption helper functions using Fernet from src/utils/encryption. Pattern for provider API key encryption/decryption. Shows Fernet cipher initialization and usage</reason>
+      </artifact>
+
+      <!-- Database Models Pattern -->
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>database models</kind>
+        <symbol>TenantConfig class (encrypted fields pattern)</symbol>
+        <lines>75-95</lines>
+        <reason>SQLAlchemy model with encrypted fields: servicedesk_api_key_encrypted (Text), webhook_signing_secret_encrypted (Text). Pattern for LLMProvider and LLMModel models with api_key_encrypted column</reason>
+      </artifact>
+
+      <!-- Admin UI Patterns -->
+      <artifact>
+        <path>src/admin/pages/2_Tenants.py</path>
+        <kind>streamlit page</kind>
+        <symbol>Tenant management UI</symbol>
+        <lines>1-500</lines>
+        <reason>Streamlit admin UI patterns: st.form() for data entry, st.dataframe() for list display, st.data_editor() for inline editing, password masking, error handling with st.error()/st.success(), session state management. Model for 06_LLM_Providers.py</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/utils/tenant_helper.py</path>
+        <kind>utility module</kind>
+        <symbol>encrypt_field function</symbol>
+        <lines>79-99</lines>
+        <reason>Helper function for encrypting fields before database storage. Shows Fernet integration with try/except error handling. Pattern for provider API key encryption in UI</reason>
+      </artifact>
+
+      <!-- API Endpoints Pattern -->
+      <artifact>
+        <path>src/api/admin/tenants.py</path>
+        <kind>api router</kind>
+        <symbol>Tenant CRUD endpoints</symbol>
+        <lines>1-450</lines>
+        <reason>FastAPI router pattern: POST/GET/PUT/DELETE endpoints, async handlers, Pydantic schema validation, authorization checks, audit logging integration. Model for llm_providers.py router</reason>
+      </artifact>
+
+      <!-- Schema Definitions -->
+      <artifact>
+        <path>src/schemas/tenant.py</path>
+        <kind>pydantic schemas</kind>
+        <symbol>TenantConfigCreate, TenantConfigUpdate, TenantConfigResponse</symbol>
+        <lines>1-180</lines>
+        <reason>Pydantic schema pattern: Create (input), Update (partial), Response (output with computed fields). Encrypted field handling with @model_validator. Pattern for LLMProviderCreate, LLMProviderUpdate, LLMProviderResponse schemas</reason>
+      </artifact>
+
+      <!-- Testing Patterns -->
+      <artifact>
+        <path>tests/unit/test_budget_service.py</path>
+        <kind>unit tests</kind>
+        <symbol>Budget service tests</symbol>
+        <lines>1-500</lines>
+        <reason>Comprehensive unit test pattern: pytest-mock for AsyncSession, httpx mocking, edge cases (empty values, API failures, timeouts), encryption roundtrip tests. Model for test_provider_service.py and test_config_generator.py</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version="^0.100.0">FastAPI web framework for API endpoints</package>
+        <package name="pydantic" version="^2.0.0">Data validation with v2 @field_validator and @model_validator</package>
+        <package name="sqlalchemy" version="^2.0.0">ORM for database models with async support (AsyncSession)</package>
+        <package name="asyncpg" version="^0.28.0">PostgreSQL async driver</package>
+        <package name="cryptography" version="^41.0.0">Fernet encryption for API keys (already in project)</package>
+        <package name="httpx" version="^0.24.0">Async HTTP client for LiteLLM API calls</package>
+        <package name="streamlit" version="^1.30.0">Admin UI framework with st.data_editor() and forms</package>
+        <package name="pyyaml" version="^6.0.0">YAML config file generation and parsing</package>
+        <package name="redis" version="^5.0.0">Caching for provider list (60s TTL)</package>
+        <package name="alembic" version="^1.12.0">Database migrations</package>
+        <package name="pytest" version="^7.4.0">Testing framework</package>
+        <package name="pytest-asyncio" version="^0.21.0">Async test support</package>
+        <package name="pytest-mock" version="^3.11.0">Mocking for tests</package>
+      </python>
+
+      <external>
+        <service name="LiteLLM Proxy">Docker service running at http://litellm:4000, API endpoints for model discovery</service>
+        <service name="PostgreSQL">Database for provider and model storage with encrypted credentials</service>
+        <service name="Redis">Caching layer for provider list (60s TTL) and session state</service>
+      </external>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">File Size Limit: All files ≤500 lines. Split large services: provider_service.py, model_service.py, litellm_config_generator.py as separate modules</constraint>
+    <constraint id="C2">Project Structure: Follow established patterns - services in src/services/, API routers in src/api/, admin UI in src/admin/pages/, schemas in src/schemas/</constraint>
+    <constraint id="C3">Test Coverage: Minimum 20 unit tests + 8 integration tests. Target: ~150 total test assertions across provider/model/config services</constraint>
+    <constraint id="C4">Documentation: Google-style docstrings for all public functions. Include Args, Returns, Raises sections with type hints</constraint>
+    <constraint id="C5">Type Hints: All functions must have complete type hints. Use Pydantic models for complex types</constraint>
+    <constraint id="C6">PEP8 Compliance: Format all code with Black. Pass mypy --strict validation</constraint>
+    <constraint id="C7">Async Patterns: All database operations must be async (AsyncSession). Use httpx for async HTTP calls to LiteLLM</constraint>
+    <constraint id="C8">Error Handling: Comprehensive try/except blocks. Log all errors. User-friendly error messages in UI</constraint>
+    <constraint id="C9">Configuration: No hardcoded values. Use environment variables via src/config.py Settings class</constraint>
+    <constraint id="C10">Security: Encrypt API keys with Fernet before storage. Mask API keys in UI (first 3 + last 3 chars). Audit log all provider operations (create, update, delete, test). Platform admin role required for all endpoints</constraint>
+    <constraint id="C11">Performance: Provider list cached in Redis (60s TTL). Config generation <1s for typical setup (5 providers, 20 models). Connection timeouts: connect=5s, read=30s</constraint>
+    <constraint id="C12">LiteLLM Restart: Config changes require manual restart. Display warning in UI: "⚠️  LiteLLM proxy restart required. Run: docker-compose restart litellm" with copy-to-clipboard button</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Database Tables -->
+    <interface>
+      <name>llm_providers table</name>
+      <kind>database schema</kind>
+      <signature>
+        CREATE TABLE llm_providers (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          provider_type VARCHAR(50) NOT NULL,  -- 'openai', 'anthropic', 'azure_openai', 'bedrock', 'replicate', 'together_ai', 'custom'
+          api_base_url TEXT NOT NULL,
+          api_key_encrypted TEXT NOT NULL,  -- Fernet encrypted
+          enabled BOOLEAN DEFAULT true,
+          last_test_at TIMESTAMPTZ,
+          last_test_success BOOLEAN,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          INDEX idx_llm_providers_type (provider_type),
+          INDEX idx_llm_providers_enabled (enabled)
+        );
+      </signature>
+      <path>alembic/versions/XXX_add_provider_tables.py</path>
+    </interface>
+
+    <interface>
+      <name>llm_models table</name>
+      <kind>database schema</kind>
+      <signature>
+        CREATE TABLE llm_models (
+          id SERIAL PRIMARY KEY,
+          provider_id INTEGER NOT NULL REFERENCES llm_providers(id) ON DELETE CASCADE,
+          model_name VARCHAR(255) NOT NULL,  -- e.g., 'gpt-4', 'claude-3-5-sonnet'
+          display_name VARCHAR(255),  -- User-friendly name
+          enabled BOOLEAN DEFAULT false,
+          cost_per_input_token FLOAT,  -- Cost per 1M input tokens
+          cost_per_output_token FLOAT,  -- Cost per 1M output tokens
+          context_window INTEGER,
+          capabilities JSONB,  -- {'streaming': true, 'function_calling': true, 'vision': true}
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(provider_id, model_name),
+          INDEX idx_llm_models_provider (provider_id),
+          INDEX idx_llm_models_enabled (enabled)
+        );
+      </signature>
+      <path>alembic/versions/XXX_add_provider_tables.py</path>
+    </interface>
+
+    <!-- API Endpoints -->
+    <interface>
+      <name>POST /api/llm-providers</name>
+      <kind>REST API endpoint</kind>
+      <signature>
+        Request: LLMProviderCreate (name, provider_type, api_base_url, api_key)
+        Response: LLMProviderResponse (id, name, provider_type, api_base_url, api_key_masked, enabled, last_test_at, last_test_success, created_at, updated_at)
+        Auth: Platform admin role required
+        Side effects: Encrypts API key, stores in database, logs audit entry
+      </signature>
+      <path>src/api/llm_providers.py</path>
+    </interface>
+
+    <interface>
+      <name>GET /api/llm-providers</name>
+      <kind>REST API endpoint</kind>
+      <signature>
+        Query params: skip (int, default=0), limit (int, default=100), include_disabled (bool, default=false)
+        Response: List[LLMProviderResponse] with connection status
+        Auth: Platform admin role required
+        Cache: Redis 60s TTL
+      </signature>
+      <path>src/api/llm_providers.py</path>
+    </interface>
+
+    <interface>
+      <name>POST /api/llm-providers/{provider_id}/test-connection</name>
+      <kind>REST API endpoint</kind>
+      <signature>
+        Path param: provider_id (int)
+        Response: {'success': bool, 'models': List[str], 'response_time_ms': int, 'error': Optional[str]}
+        Auth: Platform admin role required
+        Side effects: Updates last_test_at and last_test_success in database
+        Timeout: 10s per provider API call
+      </signature>
+      <path>src/api/llm_providers.py</path>
+    </interface>
+
+    <interface>
+      <name>POST /api/llm-providers/regenerate-config</name>
+      <kind>REST API endpoint</kind>
+      <signature>
+        Request: None
+        Response: {'success': bool, 'backup_path': str, 'config_path': str, 'restart_required': bool, 'restart_command': str}
+        Auth: Platform admin role required
+        Side effects: Creates timestamped backup, generates new litellm-config.yaml, logs audit entry
+        Warning: Returns restart_required=true with command for user to run
+      </signature>
+      <path>src/api/llm_providers.py</path>
+    </interface>
+
+    <!-- Service Layer Functions -->
+    <interface>
+      <name>ProviderService.create_provider()</name>
+      <kind>Service method</kind>
+      <signature>
+        async def create_provider(
+          self,
+          name: str,
+          provider_type: ProviderType,
+          api_base_url: str,
+          api_key: str
+        ) -> LLMProvider:
+
+        Encrypts API key with Fernet, stores in database, returns provider with encrypted key
+      </signature>
+      <path>src/services/provider_service.py</path>
+    </interface>
+
+    <interface>
+      <name>ProviderService.test_provider_connection()</name>
+      <kind>Service method</kind>
+      <signature>
+        async def test_provider_connection(
+          self,
+          provider_id: int
+        ) -> dict[str, Any]:
+
+        Validates API key, calls provider health endpoint using httpx, fetches available models via LiteLLM's get_valid_models(), returns {'success': bool, 'models': List[str], 'error': Optional[str]}
+      </signature>
+      <path>src/services/provider_service.py</path>
+    </interface>
+
+    <interface>
+      <name>ConfigGenerator.generate_config_yaml()</name>
+      <kind>Service method</kind>
+      <signature>
+        async def generate_config_yaml(self) -> str:
+
+        Reads enabled providers and models from database, decrypts API keys, generates complete litellm-config.yaml following 2025 best practices (model_list, router_settings, litellm_settings, general_settings), handles provider-specific params (Azure api_version, Bedrock aws_region_name)
+      </signature>
+      <path>src/services/litellm_config_generator.py</path>
+    </interface>
+
+    <!-- Streamlit UI Components -->
+    <interface>
+      <name>06_LLM_Providers.py - Main Page</name>
+      <kind>Streamlit page</kind>
+      <signature>
+        Page header: "LLM Provider Configuration"
+        Provider list: st.dataframe with columns (name, type, status, model_count, last_test, actions)
+        Status indicators: 🟢 connected (< 5 min), 🟡 warning (> 1 hour), 🔴 disconnected
+        "Add Provider" button → st.form (provider_name, provider_type selectbox, api_base_url, api_key password input)
+        "Refresh" button → fetches latest provider list
+        "Regenerate Config" button → confirmation dialog → backup → generate → show diff → display restart warning
+      </signature>
+      <path>src/admin/pages/06_LLM_Providers.py</path>
+    </interface>
+
+    <!-- Encryption Interface -->
+    <interface>
+      <name>encrypt() and decrypt() from src/utils/encryption.py</name>
+      <kind>Utility functions</kind>
+      <signature>
+        def encrypt(plaintext: str) -> str:  # Returns base64-encoded ciphertext
+        def decrypt(ciphertext: str) -> str:  # Returns plaintext or raises EncryptionError
+
+        Uses Fernet cipher with ENCRYPTION_KEY env var
+        Reuse for provider API key encryption
+      </signature>
+      <path>src/utils/encryption.py</path>
+    </interface>
+
+    <!-- LiteLLM get_valid_models() Function -->
+    <interface>
+      <name>litellm.get_valid_models()</name>
+      <kind>External library function</kind>
+      <signature>
+        from litellm import get_valid_models
+        valid_models = get_valid_models(
+          check_provider_endpoint=True,
+          custom_llm_provider="openai"  # or "anthropic", "azure", etc.
+        )
+        # Returns: {'openai': ['gpt-4', 'gpt-3.5-turbo', ...], 'anthropic': ['claude-3-5-sonnet', ...]}
+      </signature>
+      <path>External: litellm Python library</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Pytest-based testing with async support (pytest-asyncio). Comprehensive mocking using pytest-mock for database (AsyncSession) and HTTP calls (httpx). Test structure: Arrange-Act-Assert pattern. Coverage target: minimum 20 unit tests + 8 integration tests. Unit tests focus on individual service methods (encryption, CRUD, connection testing, config generation). Integration tests verify end-to-end workflows (provider creation → connection test → model sync → config generation → database persistence). Edge cases: empty values, invalid API keys, API timeouts, encryption failures, file write errors, YAML syntax validation. Encryption roundtrip tests: encrypt → store → retrieve → decrypt. Authorization tests: non-admin users rejected. Performance tests: config generation <1s for 5 providers + 20 models. Following pattern from test_budget_service.py (22/31 tests, 71% passing, comprehensive mocking strategy)
+    </standards>
+
+    <locations>
+      tests/unit/test_provider_service.py - Provider CRUD, encryption, connection testing (~400 lines, 12+ tests)
+      tests/unit/test_model_service.py - Model CRUD, pricing validation, bulk operations (~300 lines, 8+ tests)
+      tests/unit/test_config_generator.py - Config YAML generation, backup, validation (~350 lines, 10+ tests)
+      tests/unit/test_llm_providers_api.py - API endpoint authorization, request/response validation (~400 lines, 12+ tests)
+      tests/integration/test_provider_workflow.py - End-to-end provider creation and config generation (~350 lines, 8+ tests)
+      tests/integration/test_connection_testing.py - Provider connection validation and model discovery (~200 lines, 4+ tests)
+    </locations>
+
+    <ideas>
+      <!-- AC1: Provider Configuration Page -->
+      - Test: Provider page renders with correct title and layout (src/admin/pages/06_LLM_Providers.py exists, loads without error)
+      - Test: Provider list displays with status indicators (🟢/🟡/🔴 based on last_test_at)
+      - Test: Pagination works for provider list (skip/limit query params)
+
+      <!-- AC2: Provider List Display -->
+      - Test: OpenAI provider shows correct status and model count
+      - Test: Anthropic provider displays with connection status
+      - Test: Azure OpenAI provider shows provider-specific params
+      - Test: Disabled providers hidden unless include_disabled=true
+
+      <!-- AC3: Add Provider Form -->
+      - Test: Form validates required fields (name, provider_type, api_base_url, api_key)
+      - Test: API key encrypted before storage (Fernet roundtrip: encrypt → decrypt)
+      - Test: Duplicate provider name rejected with clear error message
+      - Test: Invalid API key format rejected (OpenAI: must start with 'sk-')
+      - Test: Success message shows provider_id after creation
+
+      <!-- AC4: Model Selection UI -->
+      - Test: Model checkboxes enable/disable models in database
+      - Test: Bulk enable/disable actions update multiple models at once
+      - Test: Model filtering by name or capabilities (search/filter)
+
+      <!-- AC5: Model Configuration -->
+      - Test: Pricing inputs validate positive numbers (cost_per_input_token, cost_per_output_token)
+      - Test: Context window input validates range (min=1, max=1000000)
+      - Test: Display name updates model.display_name in database
+      - Test: Model configuration saves and regenerates litellm-config.yaml
+
+      <!-- AC6: Test Connection -->
+      - Test: Test connection validates API key and fetches models (httpx mock, 200 response)
+      - Test: Test connection failure displays error message (httpx mock, 401 response)
+      - Test: Test connection timeout handled gracefully (httpx mock, Timeout exception)
+      - Test: Test connection updates last_test_at and last_test_success in database
+      - Test: Available models displayed after successful test (model list from get_valid_models())
+
+      <!-- AC7: Provider Config Database -->
+      - Test: Alembic migration creates llm_providers and llm_models tables
+      - Test: Encrypted API key stored in api_key_encrypted column (TEXT type)
+      - Test: Provider-model relationship enforced (CASCADE on delete)
+      - Test: Indexes created on provider_type and enabled columns
+
+      <!-- AC8: Config Generation and Reload -->
+      - Test: Config generator reads enabled providers and models from database
+      - Test: Config generator produces valid YAML syntax (yaml.safe_load)
+      - Test: Config generator creates timestamped backup before overwriting
+      - Test: Config generator handles provider-specific params (Azure: api_version, Bedrock: aws_region_name)
+      - Test: Config generator writes to litellm-config.yaml with 600 permissions
+      - Test: Config diff displayed in UI (before/after comparison)
+      - Test: Restart warning displayed with copy-to-clipboard command
+      - Test: Config generation logged in audit table
+
+      <!-- Security and Error Handling -->
+      - Test: Non-admin users cannot access provider endpoints (401/403 response)
+      - Test: Encryption failure halts operation and logs error
+      - Test: File write failure rolls back to backup config
+      - Test: Invalid YAML rejected before write (syntax validation)
+      - Test: Audit logging captures all provider operations (create, update, delete, test)
+
+      <!-- Performance -->
+      - Test: Provider list cached in Redis (60s TTL)
+      - Test: Config generation completes <1s for 5 providers + 20 models
+      - Test: Connection test timeout at 10s per provider
+    </ideas>
+  </tests>
+</story-context>

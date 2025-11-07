@@ -138,17 +138,20 @@ def copy_to_clipboard(text: str) -> None:
 # ============================================================================
 
 
-def validate_form_data(form_data: dict) -> tuple[bool, list[str]]:
+def validate_form_data(form_data: dict, strict_tool_validation: bool = False) -> tuple[bool, list[str], list[str]]:
     """
     Validate agent creation/update form data.
 
     Args:
         form_data: Dictionary with agent form fields
+        strict_tool_validation: If True, no tools selected is an ERROR (blocks submission).
+                               If False (default), no tools selected is a WARNING only.
 
     Returns:
-        tuple: (is_valid: bool, errors: list[str])
+        tuple: (is_valid: bool, errors: list[str], warnings: list[str])
     """
     errors = []
+    warnings = []
 
     # Required fields
     if not form_data.get("name"):
@@ -164,8 +167,12 @@ def validate_form_data(form_data: dict) -> tuple[bool, list[str]]:
     if not form_data.get("model"):
         errors.append("❌ LLM model is required")
 
+    # Tool validation (AC#7, Task 5.2: configurable warning or error)
     if not form_data.get("tools"):
-        errors.append("❌ At least one tool must be selected")
+        if strict_tool_validation:
+            errors.append("❌ At least one tool must be selected")
+        else:
+            warnings.append("⚠️ No tools selected. Agent will have limited capabilities.")
 
     # Temperature validation
     try:
@@ -183,7 +190,89 @@ def validate_form_data(form_data: dict) -> tuple[bool, list[str]]:
     except (ValueError, TypeError):
         errors.append("❌ Max tokens must be an integer")
 
-    return len(errors) == 0, errors
+    return len(errors) == 0, errors, warnings
+
+
+# ============================================================================
+# Tool Usage Tracking (Story 8.7, Task 4)
+# ============================================================================
+
+
+@st.cache_data(ttl=60)
+def get_tool_usage_stats() -> dict[str, int]:
+    """
+    Query database to count agents using each tool.
+
+    Caches results for 60 seconds to reduce database load.
+    Queries via API endpoint for tool usage statistics.
+
+    Returns:
+        dict: Mapping of tool_id -> agent_count
+        Example: {"servicedesk_plus": 5, "jira": 3, "knowledge_base": 8}
+    """
+    try:
+        # Use synchronous httpx client for cached function
+        with httpx.Client(timeout=10.0) as client:
+            response = client.get(
+                f"{API_BASE_URL}/api/agents/tool-usage-stats",
+                headers={"X-Tenant-ID": DEFAULT_TENANT_ID},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("tool_usage", {})
+    except httpx.HTTPError as e:
+        # Gracefully fallback to empty dict on error
+        st.warning(f"⚠️ Could not load tool usage stats: {str(e)}")
+        return {}
+
+
+# ============================================================================
+# MCP Tool Metadata Integration (Story 8.7, Task 6 - Optional Enhancement)
+# ============================================================================
+
+
+@st.cache_data(ttl=300)
+async def fetch_mcp_tool_metadata() -> dict[str, dict]:
+    """
+    Fetch tool schemas and descriptions from MCP servers (optional enhancement).
+
+    Queries plugin registry for registered tools and their metadata.
+    Falls back gracefully to AVAILABLE_TOOLS dict if MCP unavailable.
+
+    Caches results for 5 minutes (300s) to avoid repeated server calls.
+
+    Returns:
+        dict: Mapping of tool_id -> {name, description, operations}
+        Example: {
+            "servicedesk_plus": {
+                "name": "ServiceDesk Plus",
+                "description": "Ticket management and ITSM",
+                "operations": ["create_ticket", "update_ticket", "search_tickets"]
+            }
+        }
+    """
+    try:
+        # Attempt to query plugin registry for MCP tool metadata
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                f"{API_BASE_URL}/api/plugins/metadata",
+                headers={"X-Tenant-ID": DEFAULT_TENANT_ID},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("tools", {})
+    except (httpx.HTTPError, httpx.TimeoutException):
+        # Gracefully fallback to static AVAILABLE_TOOLS dict (C10)
+        # Convert AVAILABLE_TOOLS format to metadata format
+        fallback_metadata = {}
+        for tool_id, display_name in AVAILABLE_TOOLS.items():
+            parts = display_name.split(" - ", 1)
+            fallback_metadata[tool_id] = {
+                "name": parts[0] if parts else tool_id,
+                "description": parts[1] if len(parts) > 1 else "No description available",
+                "operations": [],  # No operation metadata in fallback mode
+            }
+        return fallback_metadata
 
 
 # ============================================================================
@@ -360,9 +449,164 @@ async def activate_agent_async(agent_id: str) -> Optional[dict]:
         return None
 
 
+async def get_webhook_secret_async(agent_id: str) -> Optional[str]:
+    """
+    Fetch unmasked HMAC secret for agent webhook.
+
+    Args:
+        agent_id: UUID of agent
+
+    Returns:
+        str: Unmasked HMAC secret or None on error
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(
+                f"{API_BASE_URL}/api/agents/{agent_id}/webhook-secret",
+                headers={"X-Tenant-ID": DEFAULT_TENANT_ID},
+            )
+            response.raise_for_status()
+            data = response.json()
+            return data.get("hmac_secret")
+    except httpx.HTTPError as e:
+        st.error(f"❌ Failed to fetch webhook secret: {str(e)}")
+        return None
+
+
+async def regenerate_webhook_secret_async(agent_id: str) -> Optional[dict]:
+    """
+    Regenerate HMAC secret for agent webhook (invalidates old webhooks).
+
+    Args:
+        agent_id: UUID of agent
+
+    Returns:
+        dict: Response with new_secret_masked or None on error
+    """
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                f"{API_BASE_URL}/api/agents/{agent_id}/regenerate-webhook-secret",
+                headers={"X-Tenant-ID": DEFAULT_TENANT_ID},
+            )
+            response.raise_for_status()
+            return response.json()
+    except httpx.HTTPError as e:
+        st.error(f"❌ Failed to regenerate webhook secret: {str(e)}")
+        return None
+
+
 # ============================================================================
 # Sync Wrapper
 # ============================================================================
+
+
+# ============================================================================
+# Webhook Testing (AC#8, Task 6.2)
+# ============================================================================
+
+
+async def send_test_webhook_async(webhook_url: str, agent_id: str, payload: dict) -> Optional[dict]:
+    """
+    Send test webhook request with auto-computed HMAC signature.
+
+    Uses httpx.AsyncClient with 2025 best practices (granular timeouts,
+    proper error handling). Auto-fetches HMAC secret and computes signature.
+
+    Args:
+        webhook_url: Agent's webhook URL
+        agent_id: Agent UUID
+        payload: JSON payload to send
+
+    Returns:
+        dict: {"status_code": int, "response": dict, "execution_id": str | None}
+        None if network error occurs
+    """
+    import json
+    from services.webhook_service import compute_hmac_signature
+
+    try:
+        # Fetch agent's HMAC secret
+        secret_response = await get_webhook_secret_async(agent_id)
+        if not secret_response:
+            return {
+                "status_code": 500,
+                "response": {"error": "Failed to fetch HMAC secret"},
+                "execution_id": None,
+            }
+
+        hmac_secret = secret_response
+
+        # Convert payload to JSON bytes
+        payload_json = json.dumps(payload)
+        payload_bytes = payload_json.encode("utf-8")
+
+        # Compute HMAC-SHA256 signature (Task 6.2c)
+        signature = compute_hmac_signature(payload_bytes, hmac_secret)
+
+        # Prepare headers (Task 6.2d)
+        headers = {
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": f"sha256={signature}",
+        }
+
+        # Configure granular timeouts (2025 httpx best practice from Context7 MCP)
+        timeout = httpx.Timeout(
+            connect=5.0,  # Time to establish connection
+            read=30.0,  # Time to read response (agent execution may take time)
+            write=5.0,  # Time to send request data
+            pool=5.0,  # Time to acquire connection from pool
+        )
+
+        # Send POST request (Task 6.2e)
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(webhook_url, content=payload_json, headers=headers)
+
+            # Parse response
+            try:
+                response_data = response.json()
+            except Exception:
+                response_data = {"detail": response.text}
+
+            # Extract execution ID if present (Task 6.2f, 6.3a)
+            execution_id = response_data.get("execution_id")
+
+            return {
+                "status_code": response.status_code,
+                "response": response_data,
+                "execution_id": execution_id,
+            }
+
+    except httpx.ConnectTimeout:
+        return {
+            "status_code": 0,
+            "response": {"error": "Connection timeout - webhook endpoint unreachable"},
+            "execution_id": None,
+        }
+    except httpx.ReadTimeout:
+        return {
+            "status_code": 0,
+            "response": {"error": "Read timeout - agent execution taking too long"},
+            "execution_id": None,
+        }
+    except httpx.TimeoutException as e:
+        return {
+            "status_code": 0,
+            "response": {"error": f"Timeout: {str(e)}"},
+            "execution_id": None,
+        }
+    except httpx.HTTPError as e:
+        return {
+            "status_code": 0,
+            "response": {"error": f"HTTP error: {str(e)}"},
+            "execution_id": None,
+        }
+    except Exception as e:
+        return {
+            "status_code": 0,
+            "response": {"error": f"Unexpected error: {str(e)}"},
+            "execution_id": None,
+        }
 
 
 def async_to_sync(async_func):

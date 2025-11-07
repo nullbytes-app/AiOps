@@ -13,7 +13,7 @@ import logging
 from fastapi import FastAPI, HTTPException, status
 from prometheus_client import make_asgi_app
 
-from src.api import health, webhooks, feedback, plugins, agents, prompts
+from src.api import health, webhooks, feedback, plugins, agents, prompts, budget, llm_providers, llm_models, fallback_chains, byok
 from src.api.admin import tenants as admin_tenants
 from src.config import is_kubernetes_env, settings
 from src.cache.redis_client import check_redis_connection
@@ -52,6 +52,11 @@ app.include_router(feedback.router)  # Story 5.5: Enhancement feedback endpoints
 app.include_router(plugins.router)  # Story 7.8: Plugin management endpoints
 app.include_router(agents.router)  # Story 8.3: Agent CRUD API endpoints
 app.include_router(prompts.router)  # Story 8.5: Prompt versioning and template management
+app.include_router(budget.router)  # Story 8.10: Budget enforcement webhook endpoint
+app.include_router(llm_providers.router)  # Story 8.11: LLM provider configuration endpoints
+app.include_router(llm_models.router)  # Story 8.11: LLM model configuration endpoints
+app.include_router(fallback_chains.router)  # Story 8.12: Fallback chain configuration endpoints
+app.include_router(byok.router)  # Story 8.13: BYOK (Bring Your Own Key) endpoints
 
 # Mount Prometheus metrics endpoint at /metrics
 # Returns metrics in Prometheus text format (text/plain; version=0.0.4)

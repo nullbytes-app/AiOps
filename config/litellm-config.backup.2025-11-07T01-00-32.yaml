@@ -1,0 +1,90 @@
+# LiteLLM Proxy Configuration
+# Story 8.1: LiteLLM Proxy Integration
+# Generated: 2025-11-05
+# Following 2025 LiteLLM best practices (Context7 MCP research)
+
+# Model definitions with fallback chain
+# All models use same model_name "gpt-4" to enable automatic fallback routing
+model_list:
+  # Primary provider: OpenAI GPT-4
+  - model_name: gpt-4
+    litellm_params:
+      model: openai/gpt-4
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 30
+      max_retries: 3
+
+  # Fallback 1: Azure OpenAI GPT-4 (optional, enabled if AZURE_API_KEY set)
+  - model_name: gpt-4
+    litellm_params:
+      model: azure/gpt-4
+      api_key: os.environ/AZURE_API_KEY
+      api_base: os.environ/AZURE_API_BASE
+      api_version: "2025-02-01-preview"
+      timeout: 30
+      max_retries: 3
+
+  # Fallback 2: Anthropic Claude 3.5 Sonnet
+  - model_name: gpt-4
+    litellm_params:
+      model: anthropic/claude-3-5-sonnet-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 30
+      max_retries: 3
+
+# Router settings for load balancing and fallback logic
+router_settings:
+  routing_strategy: simple-shuffle  # Load balancing strategy
+  num_retries: 2  # Router-level retries before fallback
+  timeout: 30  # Request timeout in seconds
+
+  # Automatic fallback chain: All models with same model_name "gpt-4" are tried in order
+  # Fallback happens automatically: OpenAI (primary) → Azure → Anthropic
+  # No explicit fallbacks config needed when using same model_name
+
+  # Context window fallbacks: switch to larger context if needed
+  context_window_fallbacks: true
+
+  # Redis configuration for multi-instance deployments (optional, for production)
+  # Uncomment if running multiple LiteLLM instances
+  # redis_host: ${REDIS_HOST:-redis}
+  # redis_port: ${REDIS_PORT:-6379}
+  # redis_password: ${REDIS_PASSWORD:-}
+
+# Global LiteLLM settings
+litellm_settings:
+  # Retry configuration
+  num_retries: 3  # Retry each model 3 times before moving to next
+  retry_policy: exponential_backoff_retry  # 2s, 4s, 8s delays
+  request_timeout: 30  # Timeout per request in seconds
+
+  # Fallback threshold
+  allowed_fails: 3  # Switch to fallback after 3 consecutive failures
+  cooldown_time: 30  # Cooldown failed providers for 30 seconds
+
+  # Parameter handling
+  drop_params: true  # Drop unsupported parameters (compatibility)
+  set_verbose: true  # Detailed logging for debugging
+
+  # Success callbacks (optional, for monitoring)
+  # success_callback: ["prometheus"]
+  # failure_callback: ["prometheus"]
+
+# General proxy settings
+general_settings:
+  # Master key for admin operations (format: sk-*)
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # Database for virtual key storage
+  database_url: os.environ/DATABASE_URL
+
+  # Webhook alerting for budget notifications (Story 8.10C)
+  # Sends alerts when budget thresholds are crossed
+  # Webhook endpoint: POST /api/v1/budget-alerts (signature validated with AI_AGENTS_LITELLM_WEBHOOK_SECRET)
+  alerting: ["webhook"]
+
+  # Store model configurations in database (persistence)
+  # Note: Set via STORE_MODEL_IN_DB env var in docker-compose.yml
+
+  # Production optimizations (for VPC deployments)
+  # allow_requests_on_db_unavailable: false  # Set true only in isolated VPC

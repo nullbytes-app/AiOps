@@ -6,6 +6,7 @@ Models support async operations and multi-tenant isolation via row-level securit
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 
 from sqlalchemy import (
@@ -13,15 +14,17 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
+    Integer,
+    LargeBinary,
     String,
     Text,
-    Integer,
     func,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import declarative_base, relationship
 import uuid
 
@@ -126,6 +129,216 @@ class TenantConfig(Base):
         server_default="servicedesk_plus",
         index=True,
         doc="Ticketing tool type for plugin routing (e.g., 'servicedesk_plus', 'jira', 'zendesk')",
+    )
+
+    # LiteLLM Virtual Key columns (Story 8.9)
+    litellm_virtual_key: str = Column(
+        Text,
+        nullable=True,
+        doc="Encrypted LiteLLM virtual key for per-tenant cost tracking",
+    )
+    litellm_key_created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when LiteLLM virtual key was created",
+    )
+    litellm_key_last_rotated: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when LiteLLM virtual key was last rotated",
+    )
+
+    # Budget Enforcement columns (Story 8.10)
+    max_budget: float = Column(
+        Float,
+        nullable=False,
+        default=500.00,
+        server_default="500.00",
+        doc="Maximum LLM budget in USD per budget period (default: $500)",
+    )
+    alert_threshold: int = Column(
+        Integer,
+        nullable=False,
+        default=80,
+        server_default="80",
+        doc="Budget alert threshold percentage 50-100% (default: 80%)",
+    )
+    grace_threshold: int = Column(
+        Integer,
+        nullable=False,
+        default=110,
+        server_default="110",
+        doc="Budget blocking threshold percentage 100-150% (default: 110% = 10% grace)",
+    )
+    budget_duration: str = Column(
+        String(10),
+        nullable=False,
+        default="30d",
+        server_default="30d",
+        doc="Budget reset period: '30s', '30m', '30h', '30d', '60d', '90d'",
+    )
+    budget_reset_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when budget will next reset (auto-calculated from budget_duration)",
+    )
+    litellm_key_last_reset: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when LiteLLM virtual key budget was last reset",
+    )
+
+    # BYOK (Bring Your Own Key) columns (Story 8.13)
+    byok_enabled: bool = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="FALSE",
+        doc="Flag to enable Bring Your Own Key (BYOK) mode for tenant",
+    )
+    byok_openai_key_encrypted: str = Column(
+        Text,
+        nullable=True,
+        doc="Fernet-encrypted OpenAI API key for BYOK tenants",
+    )
+    byok_anthropic_key_encrypted: str = Column(
+        Text,
+        nullable=True,
+        doc="Fernet-encrypted Anthropic API key for BYOK tenants",
+    )
+    byok_virtual_key: str = Column(
+        Text,
+        nullable=True,
+        doc="LiteLLM virtual key for BYOK tenant (separate from platform litellm_virtual_key)",
+    )
+    byok_enabled_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when BYOK was enabled (audit trail)",
+    )
+
+
+class BudgetOverride(Base):
+    """
+    Temporary budget overrides granted by platform admins.
+
+    Tracks temporary budget increases for specific tenants, typically granted
+    during traffic spikes, marketing campaigns, or other exceptional circumstances.
+    Overrides automatically expire after the specified duration.
+
+    Attributes:
+        id: Integer primary key
+        tenant_id: Foreign key to tenant_configs.tenant_id
+        override_amount: Temporary budget increase in USD
+        expires_at: Expiration timestamp (override no longer active after this)
+        reason: Admin explanation for granting override
+        created_by: Username of admin who granted override
+        created_at: Creation timestamp
+    """
+
+    __tablename__ = "budget_overrides"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        nullable=False,
+        doc="Integer primary key",
+    )
+    tenant_id: str = Column(
+        String(100),
+        ForeignKey("tenant_configs.tenant_id"),
+        nullable=False,
+        index=True,
+        doc="Tenant ID (foreign key to tenant_configs)",
+    )
+    override_amount: float = Column(
+        Float,
+        nullable=False,
+        doc="Temporary budget increase amount in USD",
+    )
+    expires_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        index=True,
+        doc="When the temporary override expires (no longer active after this)",
+    )
+    reason: str = Column(
+        Text,
+        nullable=False,
+        doc="Admin reason for granting budget override (e.g., 'marketing campaign', 'traffic spike')",
+    )
+    created_by: str = Column(
+        String(255),
+        nullable=False,
+        doc="Username of admin who granted override",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Creation timestamp",
+    )
+
+
+class BudgetAlertHistory(Base):
+    """
+    Historical record of budget alerts for dashboard display and analytics.
+
+    Stores all budget-related events (threshold_crossed, budget_crossed,
+    projected_limit_exceeded) received from LiteLLM proxy webhooks. Used for
+    displaying alert history in tenant dashboard and analyzing usage patterns.
+
+    Attributes:
+        id: Integer primary key
+        tenant_id: Foreign key to tenant_configs.tenant_id
+        event_type: LiteLLM event type (threshold_crossed, budget_crossed, etc.)
+        spend: Current spend in USD at time of alert
+        max_budget: Max budget in USD at time of alert
+        percentage: Percentage used (spend/max_budget * 100)
+        created_at: Creation timestamp (when alert was received)
+    """
+
+    __tablename__ = "budget_alert_history"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        nullable=False,
+        doc="Integer primary key",
+    )
+    tenant_id: str = Column(
+        String(100),
+        ForeignKey("tenant_configs.tenant_id"),
+        nullable=False,
+        index=True,
+        doc="Tenant ID (foreign key to tenant_configs)",
+    )
+    event_type: str = Column(
+        String(50),
+        nullable=False,
+        doc="LiteLLM event type: threshold_crossed, budget_crossed, projected_limit_exceeded",
+    )
+    spend: float = Column(
+        Float,
+        nullable=False,
+        doc="Current spend in USD at time of alert",
+    )
+    max_budget: float = Column(
+        Float,
+        nullable=False,
+        doc="Max budget in USD at time of alert",
+    )
+    percentage: int = Column(
+        Integer,
+        nullable=False,
+        doc="Percentage used (spend/max_budget * 100)",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        index=True,
+        doc="Creation timestamp (when alert was received)",
     )
 
 
@@ -951,3 +1164,585 @@ class AgentPromptTemplate(Base):
     def __repr__(self) -> str:
         """String representation for debugging."""
         return f"<AgentPromptTemplate(name={self.name}, is_builtin={self.is_builtin})>"
+
+
+
+class OpenAPITool(Base):
+    """
+    OpenAPI tool configuration for dynamic MCP tool generation.
+
+    Stores uploaded OpenAPI specifications and authentication config for
+    automatic FastMCP tool generation. Supports multi-tenancy with encrypted
+    credentials storage.
+
+    Attributes:
+        id: Serial primary key
+        tenant_id: Tenant identifier for multi-tenant isolation
+        tool_name: Unique tool name (unique per tenant)
+        openapi_spec: Full OpenAPI spec (JSONB)
+        spec_version: OpenAPI version (2.0, 3.0, 3.1)
+        base_url: API base URL
+        auth_config_encrypted: Encrypted authentication config (Fernet)
+        status: Tool status (active, inactive)
+        created_at: Creation timestamp
+        updated_at: Last update timestamp
+        created_by: User who created the tool
+    """
+
+    __tablename__ = "openapi_tools"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        nullable=False,
+        doc="Tool ID",
+    )
+    tenant_id: int = Column(
+        Integer,
+        ForeignKey("tenants.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="Tenant identifier for multi-tenant isolation",
+    )
+    tool_name: str = Column(
+        String(255),
+        nullable=False,
+        doc="Tool name from OpenAPI spec",
+    )
+    openapi_spec: dict = Column(
+        JSON,
+        nullable=False,
+        doc="Full OpenAPI specification (JSONB)",
+    )
+    spec_version: str = Column(
+        String(10),
+        nullable=False,
+        doc="OpenAPI version: 2.0, 3.0, 3.1",
+    )
+    base_url: str = Column(
+        Text,
+        nullable=False,
+        doc="API base URL",
+    )
+    auth_config_encrypted: Optional[bytes] = Column(
+        LargeBinary,
+        nullable=True,
+        doc="Encrypted authentication config (Fernet)",
+    )
+    status: str = Column(
+        String(20),
+        nullable=False,
+        server_default="active",
+        doc="Tool status: active, inactive",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Tool creation timestamp",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last modification timestamp",
+    )
+    created_by: Optional[str] = Column(
+        String(100),
+        nullable=True,
+        doc="User who created the tool",
+    )
+
+    __table_args__ = (
+        Index("idx_openapi_tools_status", "status"),
+        Index("idx_openapi_tools_tenant", "tenant_id"),
+        UniqueConstraint("tenant_id", "tool_name", name="uq_tenant_tool_name"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<OpenAPITool(id={self.id}, name={self.tool_name}, status={self.status})>"
+
+
+class ProviderType(str, Enum):
+    """
+    LLM provider types supported by the platform.
+
+    Enum values map to LiteLLM provider identifiers.
+    """
+
+    OPENAI = "openai"
+    ANTHROPIC = "anthropic"
+    AZURE_OPENAI = "azure_openai"
+    BEDROCK = "bedrock"
+    REPLICATE = "replicate"
+    TOGETHER_AI = "together_ai"
+    CUSTOM = "custom"
+
+
+class LLMProvider(Base):
+    """
+    LLM provider configuration and credentials.
+
+    Stores provider-specific configuration including encrypted API keys,
+    base URLs, and connection test results. Supports multiple providers
+    (OpenAI, Anthropic, Azure OpenAI, etc.) with encrypted credential storage.
+
+    Attributes:
+        id: Primary key
+        name: Provider display name (e.g., "Production OpenAI", "Azure GPT-4")
+        provider_type: Provider identifier (openai, anthropic, azure_openai, etc.)
+        api_base_url: API endpoint base URL
+        api_key_encrypted: Fernet-encrypted API key
+        enabled: Soft delete flag (false = disabled/deleted)
+        last_test_at: Timestamp of last connection test
+        last_test_success: Result of last connection test (null if never tested)
+        created_at: Creation timestamp
+        updated_at: Last modification timestamp
+    """
+
+    __tablename__ = "llm_providers"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        nullable=False,
+        doc="Primary key",
+    )
+    name: str = Column(
+        String(255),
+        unique=True,
+        nullable=False,
+        doc="Provider display name (must be unique)",
+    )
+    provider_type: str = Column(
+        String(50),
+        nullable=False,
+        doc="Provider type enum value",
+    )
+    api_base_url: str = Column(
+        Text,
+        nullable=False,
+        doc="API base URL (e.g., https://api.openai.com/v1)",
+    )
+    api_key_encrypted: str = Column(
+        Text,
+        nullable=False,
+        doc="Fernet-encrypted API key",
+    )
+    enabled: bool = Column(
+        Boolean,
+        nullable=False,
+        server_default="TRUE",
+        doc="Provider enabled status",
+    )
+    last_test_at: Optional[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp of last connection test",
+    )
+    last_test_success: Optional[bool] = Column(
+        Boolean,
+        nullable=True,
+        doc="Last test result (null if never tested)",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Creation timestamp",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last modification timestamp",
+    )
+
+    # Relationship to models (one-to-many)
+    models = relationship(
+        "LLMModel",
+        back_populates="provider",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
+
+    __table_args__ = (
+        Index("idx_llm_providers_type", "provider_type"),
+        Index("idx_llm_providers_enabled", "enabled"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<LLMProvider(id={self.id}, name={self.name}, type={self.provider_type}, enabled={self.enabled})>"
+
+
+class LLMModel(Base):
+    """
+    LLM model configuration and pricing.
+
+    Stores model-specific configuration including pricing (cost per token),
+    context window size, and capabilities. Models belong to a provider
+    and are enabled/disabled individually for LiteLLM config generation.
+
+    Attributes:
+        id: Primary key
+        provider_id: Foreign key to llm_providers
+        model_name: Model identifier (e.g., "gpt-4", "claude-3-5-sonnet-20240620")
+        display_name: User-friendly display name (optional)
+        enabled: Model enabled in LiteLLM config (default: false)
+        cost_per_input_token: Cost per 1M input tokens in USD
+        cost_per_output_token: Cost per 1M output tokens in USD
+        context_window: Maximum context window in tokens
+        capabilities: JSONB with model capabilities (streaming, function_calling, vision)
+        created_at: Creation timestamp
+        updated_at: Last modification timestamp
+    """
+
+    __tablename__ = "llm_models"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        nullable=False,
+        doc="Primary key",
+    )
+    provider_id: int = Column(
+        Integer,
+        ForeignKey("llm_providers.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="Foreign key to provider (CASCADE delete)",
+    )
+    model_name: str = Column(
+        String(255),
+        nullable=False,
+        doc="Model identifier",
+    )
+    display_name: Optional[str] = Column(
+        String(255),
+        nullable=True,
+        doc="User-friendly display name",
+    )
+    enabled: bool = Column(
+        Boolean,
+        nullable=False,
+        server_default="FALSE",
+        doc="Model enabled status (default: disabled)",
+    )
+    cost_per_input_token: Optional[float] = Column(
+        Float,
+        nullable=True,
+        doc="Cost per 1M input tokens (USD)",
+    )
+    cost_per_output_token: Optional[float] = Column(
+        Float,
+        nullable=True,
+        doc="Cost per 1M output tokens (USD)",
+    )
+    context_window: Optional[int] = Column(
+        Integer,
+        nullable=True,
+        doc="Context window size (tokens)",
+    )
+    capabilities: Optional[dict] = Column(
+        JSONB,
+        nullable=True,
+        doc="Model capabilities JSONB",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Creation timestamp",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last modification timestamp",
+    )
+
+    # Relationship to provider (many-to-one)
+    provider = relationship("LLMProvider", back_populates="models")
+
+    __table_args__ = (
+        UniqueConstraint("provider_id", "model_name", name="uq_llm_models_provider_model"),
+        Index("idx_llm_models_provider", "provider_id"),
+        Index("idx_llm_models_enabled", "enabled"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<LLMModel(id={self.id}, name={self.model_name}, provider_id={self.provider_id}, enabled={self.enabled})>"
+
+
+class FallbackChain(Base):
+    """
+    Fallback chain configuration for LLM models.
+
+    Maps primary models to ordered fallback models for automatic failover.
+    When primary model fails with specific error types, system attempts
+    fallback models in order until success or all fallbacks exhausted.
+
+    Attributes:
+        id: Primary key
+        model_id: Primary model ID (FK to llm_models)
+        fallback_order: Order in fallback chain (0=primary, 1=first fallback, etc)
+        fallback_model_id: Fallback model ID (FK to llm_models)
+        enabled: Chain enabled status (default: true)
+        created_at: Creation timestamp
+        updated_at: Last modification timestamp
+    """
+
+    __tablename__ = "fallback_chains"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        nullable=False,
+        doc="Primary key",
+    )
+    model_id: int = Column(
+        Integer,
+        ForeignKey("llm_models.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="Primary model ID (FK to llm_models)",
+    )
+    fallback_order: int = Column(
+        Integer,
+        nullable=False,
+        doc="Order in fallback chain (0=primary, 1=first fallback, etc)",
+    )
+    fallback_model_id: int = Column(
+        Integer,
+        ForeignKey("llm_models.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="Fallback model ID (FK to llm_models)",
+    )
+    enabled: bool = Column(
+        Boolean,
+        nullable=False,
+        server_default="TRUE",
+        doc="Chain enabled status (default: enabled)",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Creation timestamp",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last modification timestamp",
+    )
+
+    # Relationships
+    model = relationship(
+        "LLMModel",
+        foreign_keys=[model_id],
+        primaryjoin="FallbackChain.model_id == LLMModel.id",
+    )
+    fallback_model = relationship(
+        "LLMModel",
+        foreign_keys=[fallback_model_id],
+        primaryjoin="FallbackChain.fallback_model_id == LLMModel.id",
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "model_id",
+            "fallback_order",
+            name="uq_fallback_chains_model_order",
+        ),
+        Index("idx_fallback_chains_model_id", "model_id"),
+        Index("idx_fallback_chains_fallback_model_id", "fallback_model_id"),
+        Index("idx_fallback_chains_enabled", "enabled"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<FallbackChain(id={self.id}, model_id={self.model_id}, fallback_order={self.fallback_order}, fallback_model_id={self.fallback_model_id}, enabled={self.enabled})>"
+
+
+class FallbackTrigger(Base):
+    """
+    Fallback trigger configuration for specific error types.
+
+    Configures retry and backoff behavior for different error types
+    (RateLimitError, TimeoutError, InternalServerError, ConnectionError, etc).
+    Each trigger type has independent retry count and backoff factor settings.
+
+    Attributes:
+        id: Primary key
+        trigger_type: Error type (RateLimitError, TimeoutError, InternalServerError, ConnectionError, ContentPolicyViolationError)
+        retry_count: Number of retry attempts before fallback (0-10, default 3)
+        backoff_factor: Exponential backoff multiplier (1.0-5.0, default 2.0)
+        enabled: Trigger enabled status (default: true)
+        created_at: Creation timestamp
+    """
+
+    __tablename__ = "fallback_triggers"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        nullable=False,
+        doc="Primary key",
+    )
+    trigger_type: str = Column(
+        String(50),
+        nullable=False,
+        doc="Error type: RateLimitError, TimeoutError, InternalServerError, ConnectionError, ContentPolicyViolationError",
+    )
+    retry_count: int = Column(
+        Integer,
+        nullable=False,
+        server_default="3",
+        doc="Number of retry attempts before fallback (0-10)",
+    )
+    backoff_factor: float = Column(
+        Float,
+        nullable=False,
+        server_default="2.0",
+        doc="Exponential backoff multiplier (1.0-5.0)",
+    )
+    enabled: bool = Column(
+        Boolean,
+        nullable=False,
+        server_default="TRUE",
+        doc="Trigger enabled status (default: enabled)",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Creation timestamp",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("trigger_type", name="uq_fallback_triggers_type"),
+        Index("idx_fallback_triggers_type", "trigger_type"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<FallbackTrigger(id={self.id}, trigger_type={self.trigger_type}, retry_count={self.retry_count}, backoff_factor={self.backoff_factor}, enabled={self.enabled})>"
+
+
+class FallbackMetric(Base):
+    """
+    Fallback event metrics and statistics.
+
+    Records metrics for fallback trigger events including trigger type,
+    fallback model used, success/failure counts, and timing data for analytics
+    and monitoring fallback effectiveness.
+
+    Attributes:
+        id: Primary key
+        model_id: Model ID (FK to llm_models)
+        trigger_type: Error type that triggered fallback
+        fallback_model_id: Fallback model used (FK to llm_models)
+        trigger_count: Number of times this fallback was triggered
+        success_count: Number of successful fallback resolutions
+        failure_count: Number of failed fallback attempts
+        last_triggered_at: Timestamp of last trigger
+        created_at: Creation timestamp
+        updated_at: Last modification timestamp
+    """
+
+    __tablename__ = "fallback_metrics"
+
+    id: int = Column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+        nullable=False,
+        doc="Primary key",
+    )
+    model_id: int = Column(
+        Integer,
+        ForeignKey("llm_models.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="Model ID (FK to llm_models)",
+    )
+    trigger_type: str = Column(
+        String(50),
+        nullable=False,
+        doc="Error type that triggered fallback",
+    )
+    fallback_model_id: Optional[int] = Column(
+        Integer,
+        ForeignKey("llm_models.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="Fallback model used (FK to llm_models)",
+    )
+    trigger_count: int = Column(
+        Integer,
+        nullable=False,
+        server_default="1",
+        doc="Number of times this fallback was triggered",
+    )
+    success_count: int = Column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        doc="Number of successful fallback resolutions",
+    )
+    failure_count: int = Column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        doc="Number of failed fallback attempts",
+    )
+    last_triggered_at: Optional[datetime] = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp of last trigger",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Creation timestamp",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last modification timestamp",
+    )
+
+    # Relationships
+    model = relationship(
+        "LLMModel",
+        foreign_keys=[model_id],
+        primaryjoin="FallbackMetric.model_id == LLMModel.id",
+    )
+    fallback_model = relationship(
+        "LLMModel",
+        foreign_keys=[fallback_model_id],
+        primaryjoin="FallbackMetric.fallback_model_id == LLMModel.id",
+    )
+
+    __table_args__ = (
+        Index("idx_fallback_metrics_model_id", "model_id"),
+        Index("idx_fallback_metrics_fallback_model_id", "fallback_model_id"),
+        Index("idx_fallback_metrics_trigger_type", "trigger_type"),
+        Index("idx_fallback_metrics_created_at", "created_at"),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<FallbackMetric(id={self.id}, model_id={self.model_id}, trigger_type={self.trigger_type}, fallback_model_id={self.fallback_model_id}, success_count={self.success_count})>"

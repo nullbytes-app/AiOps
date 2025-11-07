@@ -1,0 +1,315 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>13</storyId>
+    <title>BYOK (Bring Your Own Key)</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-07</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-13-byok-bring-your-own-key.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a tenant administrator</asA>
+    <iWant>to use my own OpenAI/Anthropic API keys instead of platform keys</iWant>
+    <soThat>I have full control over LLM costs and data sovereignty</soThat>
+    <tasks>- Task 1: Database Schema Extension (AC: #3, #4) - 4 subtasks
+- Task 2: Extend LLM Service for BYOK (AC: #4, #5, #7, #8) - 8 subtasks
+- Task 3: BYOK API Endpoints (AC: #3, #4, #7, #8) - 8 subtasks
+- Task 4: Tenant Service Extension (AC: #1, #6) - 4 subtasks
+- Task 5: Pydantic Schemas (AC: all) - 6 subtasks
+- Task 6: Admin UI - BYOK Configuration Section (AC: #1, #2, #3) - 7 subtasks
+- Task 7: Admin UI - BYOK Status Display (AC: #6) - 3 subtasks
+- Task 8: Admin UI - Key Rotation Interface (AC: #7) - 3 subtasks
+- Task 9: Admin UI - Revert to Platform Keys (AC: #8) - 3 subtasks
+- Task 10: Testing (AC: all) - 4 subtasks (≥43 tests total)
+- Task 11: Documentation (AC: all) - 4 subtasks
+- Task 12: Security and Audit (AC: all) - 5 subtasks</tasks>
+  </story>
+
+  <acceptanceCriteria>AC1: Tenant settings page includes "LLM Configuration" section with radio buttons: "Use platform keys" (default) or "Use own keys (BYOK)"
+AC2: BYOK mode displays input fields: OpenAI API Key, Anthropic API Key (encrypted on save using Fernet)
+AC3: "Test Keys" button validates tenant-provided keys: calls provider API, displays available models
+AC4: Custom virtual key creation: on BYOK enable, creates LiteLLM virtual key using tenant's API keys
+AC5: Agent execution uses tenant keys: all LLM calls use tenant's custom virtual key when BYOK enabled
+AC6: Cost tracking separated: BYOK tenants see "N/A" for platform costs, display "using own keys" badge
+AC7: Key rotation: tenant can update keys, system creates new virtual key, migrates agents
+AC8: Revert to platform keys: tenant can switch back, system creates standard virtual key</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- LiteLLM 2025 Best Practices (Context7 MCP Research) -->
+      <doc path="external://berriai/litellm" title="LiteLLM Virtual Key Management API" section="Virtual Keys, BYOK, Team Keys">
+        - POST /key/generate: Create virtual keys with custom metadata for BYOK
+        - Virtual key metadata can reference tenant-specific provider keys
+        - Pattern: metadata.logging.callback_vars supports "os.environ/KEY_NAME" for secure key references
+        - Virtual key rotation: POST /key/{key_id}/regenerate or delete+create workflow
+        - Team-based spend tracking: team_id parameter in key generation
+        - Budget enforcement: max_budget parameter (set to null for BYOK tenants - no platform tracking)
+        - Key validation: Use provider health check APIs (OpenAI /v1/models, Anthropic /v1/models)
+        - Automatic key rotation: rotation_schedule cron expression + webhook_url for notifications
+      </doc>
+
+      <!-- Project Epic and Story Requirements -->
+      <doc path="docs/epics.md" title="Epic 8 - AI Agent Orchestration UI" section="Story 8.13: BYOK (Bring Your Own Key)" snippet="Lines 1693-1710: 8 acceptance criteria covering BYOK configuration, validation, execution, cost tracking, rotation, and platform reversion. Prerequisites: Story 8.9 (Virtual Key Management), Story 8.11 (Provider Configuration UI)." />
+
+      <!-- Architecture Foundation -->
+      <doc path="docs/architecture.md" title="AI Agents - Decision Architecture" section="Technology Stack + Multi-Tenant Architecture" snippet="Lines 1-100: FastAPI 0.104+, PostgreSQL 17 with row-level security for multi-tenancy, Redis 7.x message broker, Celery 5.x task queue, OpenRouter API Gateway for LLM routing, HTTPX for async HTTP, Fernet encryption for secrets, Streamlit 1.30+ admin UI." />
+
+      <!-- Prerequisite: Virtual Key Management (Story 8.9) -->
+      <doc path="docs/stories/8-9-virtual-key-management.md" title="Story 8.9: Virtual Key Management" section="Implementation Patterns" snippet="Lines 1-80: LLMService class with create_virtual_key_for_tenant(), get_llm_client_for_tenant(), rotate_virtual_key(), validate_virtual_key() methods. Database schema: litellm_virtual_key column in tenant_configs table (encrypted with Fernet). Audit logging for all key operations." />
+
+      <!-- Prerequisite: Provider Configuration (Story 8.11) -->
+      <doc path="docs/stories/8-11-provider-configuration-ui.md" title="Story 8.11: Provider Configuration UI" section="Encryption Best Practices" snippet="Lines 225-240: Fernet encryption pattern using cryptography.fernet.Fernet with settings.encryption_key. Encrypt API keys before database storage, decrypt for use. Pattern reusable for BYOK tenant keys." />
+
+      <!-- Prerequisite: Recent Patterns (Story 8.12) -->
+      <doc path="docs/stories/8-12-fallback-chain-configuration.md" title="Story 8.12: Fallback Chain Configuration" section="LiteLLM Config + Streamlit Patterns" snippet="Lines 200-260: LiteLLM router_settings structure in YAML, retry/fallback/cooldown mechanisms. Streamlit 1.30+ patterns: st.data_editor(), @st.fragment for auto-refresh, st.spinner() for loading states. Pydantic v2 + SQLAlchemy 2.0+ compliance patterns." />
+    </docs>
+    <code>
+      <!-- LLM Service - Existing Virtual Key Management -->
+      <file path="src/services/llm_service.py" kind="service" symbol="LLMService" lines="65-494" reason="Existing virtual key methods to extend for BYOK. Methods: create_virtual_key_for_tenant (221-285), get_llm_client_for_tenant (287-363), rotate_virtual_key (365-409), validate_virtual_key (411-459), log_audit_entry (461-494). Will add BYOK variants that use tenant-provided keys instead of platform keys." />
+
+      <!-- Tenant Service - Integration Point -->
+      <file path="src/services/tenant_service.py" kind="service" symbol="TenantService" reason="Handles tenant operations. Will extend with get_byok_status() and get_cost_tracking_mode() methods for AC#1 and AC#6." />
+
+      <!-- Provider Service - Encryption Patterns -->
+      <file path="src/services/provider_service.py" kind="service" symbol="ProviderService" lines="28-494" reason="Contains Fernet encryption pattern for API keys (Story 8.11). Methods: create_provider, test_provider_connection (320-485). Reuse encryption/decryption logic for BYOK keys." />
+
+      <!-- Database Model - Schema Extension Point -->
+      <file path="src/database/models.py" kind="model" symbol="TenantConfig" lines="34-188" reason="Tenant configuration model. Currently has litellm_virtual_key (line 134), litellm_key_created_at (139), litellm_key_last_rotated (144). Will add 5 BYOK columns: byok_enabled, byok_openai_key_encrypted, byok_anthropic_key_encrypted, byok_virtual_key, byok_enabled_at." />
+
+      <!-- Authorization Pattern - Reuse in BYOK API -->
+      <file path="src/api/fallback_chains.py" kind="api" symbol="require_admin" lines="33" reason="Authorization dependency function used in Story 8.12. Pattern: async def require_admin(x_admin_key: str = Header(...)) validates X-Admin-Key header. Reuse for BYOK endpoints (AC#3, AC#4, AC#7, AC#8)." />
+
+      <!-- Tenant Admin UI - BYOK Interface Location -->
+      <file path="src/admin/pages/2_Tenants.py" kind="ui" lines="1-559" reason="Tenant management page. Currently 559 lines (12% over 500 line limit). Will add BYOK configuration section (AC#1, AC#2, AC#3, AC#6, AC#7, AC#8). CRITICAL: Extract BYOK UI logic to src/admin/utils/byok_helpers.py to manage file size constraint." />
+
+      <!-- Tenant Helpers - Encryption Utilities -->
+      <file path="src/admin/utils/tenant_helper.py" kind="utility" reason="Contains decrypt_field, mask_sensitive_field utilities used by 2_Tenants.py. Reference for encryption patterns and UI helper organization." />
+
+      <!-- Configuration - Encryption Key -->
+      <file path="src/config.py" kind="config" symbol="encryption_key" lines="150" reason="Application settings. Contains encryption_key: str field used for Fernet encryption. Will be used to encrypt BYOK tenant keys (AC#2)." />
+    </code>
+    <dependencies>
+      <python>
+        - fastapi (0.104+): Web framework for BYOK API endpoints
+        - pydantic (2.x): Data validation for BYOKEnableRequest, BYOKTestKeysRequest schemas
+        - sqlalchemy (2.0+): ORM for database operations with tenant_configs table
+        - alembic (latest): Database migration for 5 new BYOK columns
+        - cryptography.fernet (latest): Fernet encryption for tenant API keys (reuse from Story 8.11)
+        - httpx (latest): Async HTTP client for provider key validation (OpenAI/Anthropic APIs)
+        - streamlit (1.30+): Admin UI framework for BYOK configuration interface
+        - pytest + pytest-asyncio (latest): Testing framework (≥43 tests required)
+      </python>
+      <external_apis>
+        - LiteLLM Proxy API: POST /key/generate, POST /key/{key_id}/regenerate, POST /key/delete
+        - OpenAI API: GET https://api.openai.com/v1/models (key validation - AC#3)
+        - Anthropic API: GET https://api.anthropic.com/v1/models (key validation - AC#3)
+      </external_apis>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" category="file_size" priority="HIGH">
+      All Python files must be ≤500 lines. 2_Tenants.py is currently 559 lines (12% over). BYOK UI logic MUST be extracted to src/admin/utils/byok_helpers.py to comply with this constraint (lesson from Story 8.12: fallback_helpers.py pattern).
+    </constraint>
+
+    <constraint id="C2" category="pydantic" priority="CRITICAL">
+      Use Pydantic v2 patterns exclusively: model_config = ConfigDict(from_attributes=True), @field_validator, @model_validator(mode='after'). NEVER use deprecated class Config pattern (Story 8.12 lesson).
+    </constraint>
+
+    <constraint id="C3" category="sqlalchemy" priority="CRITICAL">
+      Use SQLAlchemy 2.0+ boolean query pattern: .filter(TenantConfig.byok_enabled.is_(True)). NEVER use direct comparison == True (Story 8.12 lesson).
+    </constraint>
+
+    <constraint id="C4" category="encryption" priority="CRITICAL">
+      All tenant API keys MUST be encrypted with Fernet before database storage. Reuse encryption pattern from Story 8.11 (ProviderService). Store encrypted keys in _encrypted columns, decrypt only when needed for API calls (AC#2, AC#4, AC#7).
+    </constraint>
+
+    <constraint id="C5" category="authorization" priority="CRITICAL">
+      All BYOK API endpoints (/api/tenants/{id}/byok/*) MUST require admin authorization. Reuse require_admin() dependency pattern from Story 8.12 with X-Admin-Key header validation.
+    </constraint>
+
+    <constraint id="C6" category="litellm_integration" priority="HIGH">
+      BYOK does NOT require litellm-config.yaml modifications (unlike Stories 8.11, 8.12). Tenant keys stored in virtual key metadata, not config file. No LiteLLM proxy restart required for BYOK operations (AC#4, AC#7, AC#8).
+    </constraint>
+
+    <constraint id="C7" category="virtual_keys" priority="HIGH">
+      BYOK tenants require separate virtual key from platform virtual key. Database must store TWO keys: litellm_virtual_key (platform, existing from Story 8.9) and byok_virtual_key (tenant-provided keys). LLMService.get_llm_client_for_tenant() must check byok_enabled flag to route correctly (AC#5).
+    </constraint>
+
+    <constraint id="C8" category="cost_tracking" priority="MEDIUM">
+      BYOK tenants must have max_budget=null in virtual key metadata to disable platform spend tracking. UI must display "N/A (using own keys)" badge for BYOK tenants instead of cost metrics (AC#6).
+    </constraint>
+
+    <constraint id="C9" category="testing" priority="HIGH">
+      Minimum 43 tests required: ≥20 unit tests (LLMService BYOK methods), ≥15 unit tests (API endpoints), ≥8 integration tests (end-to-end workflows). Security tests: Bandit scan, no plaintext keys in logs, encryption roundtrip validation.
+    </constraint>
+
+    <constraint id="C10" category="audit_logging" priority="HIGH">
+      All BYOK operations MUST be audit logged: BYOK enable (tenant_id, providers, timestamp, admin), key rotation (old/new virtual_key_id, timestamp), revert to platform (tenant_id, timestamp). Reuse LLMService.log_audit_entry() pattern from Story 8.9 (AC#8).
+    </constraint>
+
+    <constraint id="C11" category="documentation" priority="MEDIUM">
+      Create docs/byok-setup-guide.md (300+ lines) with setup instructions, provider key generation guides, rotation best practices, troubleshooting, security considerations. Update docs/architecture.md with BYOK workflow diagrams and encryption approach.
+    </constraint>
+
+    <constraint id="C12" category="code_quality" priority="HIGH">
+      Follow project standards: Black formatting, Ruff linting, Mypy type checking, Google-style docstrings. PEP8 compliance. Use httpx (not requests) for async HTTP. Use latest datetime patterns: datetime.now(timezone.utc) instead of deprecated datetime.utcnow().
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- LiteLLM Proxy API - Virtual Key Management -->
+    <interface name="LiteLLM /key/generate API" kind="REST" signature="POST /key/generate" path="external://litellm-proxy">
+      Request Body (BYOK): {
+        "models": ["gpt-4", "claude-3-5-sonnet"],
+        "user_id": tenant_id,
+        "metadata": {
+          "byok_enabled": true,
+          "openai_api_key": "os.environ/OPENAI_KEY_TENANT_123",
+          "anthropic_api_key": "os.environ/ANTHROPIC_KEY_TENANT_123"
+        },
+        "max_budget": null  // No platform tracking for BYOK
+      }
+      Response: {"key": "sk-...", "key_id": "..."}
+      Used for: AC#4 - Custom virtual key creation with tenant's API keys
+    </interface>
+
+    <!-- OpenAI Key Validation -->
+    <interface name="OpenAI Models API" kind="REST" signature="GET https://api.openai.com/v1/models" path="external://openai">
+      Headers: {"Authorization": "Bearer {openai_key}"}
+      Response 200: {"data": [{"id": "gpt-4"}, {"id": "gpt-3.5-turbo"}, ...]}
+      Response 401/403: Invalid API key
+      Used for: AC#3 - Validate tenant-provided OpenAI keys
+    </interface>
+
+    <!-- Anthropic Key Validation -->
+    <interface name="Anthropic Models API" kind="REST" signature="GET https://api.anthropic.com/v1/models" path="external://anthropic">
+      Headers: {"x-api-key": "{anthropic_key}"}
+      Response 200: {"data": [{"name": "claude-3-5-sonnet"}, ...]}
+      Response 401/403: Invalid API key
+      Used for: AC#3 - Validate tenant-provided Anthropic keys
+    </interface>
+
+    <!-- LLMService Interface to Extend -->
+    <interface name="LLMService.get_llm_client_for_tenant" kind="function" signature="async def get_llm_client_for_tenant(tenant_id: str) -> AsyncOpenAI" path="src/services/llm_service.py:287-363">
+      Current behavior: Returns AsyncOpenAI client with tenant's platform virtual key
+      Extension needed: Check TenantConfig.byok_enabled flag. If True, use byok_virtual_key instead of litellm_virtual_key
+      Impact: AC#5 - All LLM calls must route through correct virtual key (platform or BYOK)
+    </interface>
+
+    <!-- Authorization Dependency Pattern -->
+    <interface name="require_admin" kind="dependency" signature="async def require_admin(x_admin_key: str = Header(...)) -> None" path="src/api/fallback_chains.py:33">
+      Validates X-Admin-Key header against settings.ADMIN_API_KEY
+      Raises HTTPException(403) if invalid
+      Reuse for: All 4 BYOK endpoints (enable, test-keys, rotate, disable)
+    </interface>
+
+    <!-- Fernet Encryption Pattern -->
+    <interface name="Fernet Encryption" kind="pattern" signature="Fernet(settings.ENCRYPTION_KEY.encode())" path="src/services/provider_service.py">
+      Pattern from Story 8.11:
+      cipher = Fernet(settings.ENCRYPTION_KEY.encode())
+      encrypted = cipher.encrypt(api_key.encode()).decode()
+      decrypted = cipher.decrypt(encrypted.encode()).decode()
+      Reuse for: Encrypting byok_openai_key_encrypted, byok_anthropic_key_encrypted (AC#2)
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Framework: pytest (7.4.3+) with pytest-asyncio (0.21.1+) for async test support, pytest-mock (3.12.0+) for mocking, pytest-httpx (0.22.0+) for HTTP mocking.
+
+      Test Organization: tests/ directory with subdirectories: unit/ (function-level tests), integration/ (workflow tests), admin/ (Streamlit UI tests), security/ (security-focused tests). Fixtures in tests/conftest.py (shared) and tests/fixtures/ (domain-specific).
+
+      Coverage Requirements: Minimum 43 tests for Story 8.13 (≥20 unit LLMService, ≥15 unit API, ≥8 integration). Story 8.9 baseline: 25 tests (LLMService virtual keys). Story 8.11 baseline: 26 unit tests (provider config). Story 8.12 baseline: 24 integration tests (fallback chains).
+
+      Async Patterns: Use @pytest.mark.asyncio decorator for async test functions. Use pytest-httpx for mocking httpx async requests (provider key validation). Use AsyncMock from unittest.mock for async service methods.
+
+      Security Testing: Bandit security scanner (zero vulnerabilities required). Encryption roundtrip validation (Fernet encrypt/decrypt cycle). No plaintext API keys in logs (validate all log statements). Admin authorization tests (X-Admin-Key header validation).
+
+      Code Quality: Black formatting (100% compliance), Ruff linting (zero issues), Mypy strict mode (zero type errors). Google-style docstrings for all test functions. PEP8 compliance.
+    </standards>
+
+    <locations>
+      tests/unit/test_byok_service.py - LLMService BYOK methods (≥20 tests)
+      tests/unit/test_byok_api.py - BYOK API endpoints (≥15 tests)
+      tests/integration/test_byok_workflow.py - End-to-end BYOK workflows (≥8 tests)
+      tests/admin/test_byok_ui.py - Streamlit BYOK interface (manual validation)
+      tests/security/test_byok_security.py - Bandit scan, encryption validation, audit logging
+    </locations>
+
+    <ideas>
+      <!-- AC#1: Tenant Settings BYOK Configuration Section -->
+      - Test BYOK UI section displays radio buttons: "Use platform keys" (default) vs "Use own keys (BYOK)"
+      - Test radio button state persists correctly across page refreshes
+      - Test BYOK mode selection shows conditional input fields (OpenAI/Anthropic API keys)
+
+      <!-- AC#2: BYOK Mode Input Fields with Encryption -->
+      - Test OpenAI API key input field accepts valid keys (starts with "sk-")
+      - Test Anthropic API key input field accepts valid keys (starts with "sk-ant-")
+      - Test API keys encrypted with Fernet before database save
+      - Test encrypted keys can be decrypted successfully (roundtrip validation)
+      - Test input validation rejects invalid key formats
+
+      <!-- AC#3: Test Keys Button with Provider Validation -->
+      - Test "Test Keys" button calls OpenAI /v1/models API with tenant key
+      - Test "Test Keys" button calls Anthropic /v1/models API with tenant key
+      - Test valid OpenAI key returns model list (gpt-4, gpt-3.5-turbo, etc.)
+      - Test valid Anthropic key returns model list (claude-3-5-sonnet, etc.)
+      - Test invalid OpenAI key returns 401/403 error
+      - Test invalid Anthropic key returns 401/403 error
+      - Test mixed valid/invalid keys displays separate success/error states
+      - Test network errors handled gracefully (timeout, connection failure)
+
+      <!-- AC#4: Custom Virtual Key Creation -->
+      - Test BYOK enable creates LiteLLM virtual key with metadata.byok_enabled=true
+      - Test virtual key metadata includes tenant's OpenAI/Anthropic keys (encrypted references)
+      - Test virtual key created with max_budget=null (no platform tracking)
+      - Test virtual key stored in TenantConfig.byok_virtual_key column
+      - Test virtual key creation failure rolls back BYOK enable operation
+
+      <!-- AC#5: Agent Execution Uses Tenant Keys -->
+      - Test LLMService.get_llm_client_for_tenant() checks byok_enabled flag
+      - Test BYOK tenant uses byok_virtual_key (not litellm_virtual_key)
+      - Test platform tenant uses litellm_virtual_key (not byok_virtual_key)
+      - Test agent LLM calls route through correct virtual key based on BYOK status
+      - Test fallback to platform key when byok_virtual_key missing/invalid
+
+      <!-- AC#6: Cost Tracking Separated -->
+      - Test BYOK tenant displays "N/A (using own keys)" badge in UI
+      - Test BYOK tenant cost metrics hidden (no platform spend tracking)
+      - Test platform tenant displays standard cost metrics and spend tracking
+      - Test BYOK tenant cannot see/modify max_budget (always null)
+
+      <!-- AC#7: Key Rotation -->
+      - Test key rotation validates new keys before creating new virtual key
+      - Test key rotation deletes old virtual key via LiteLLM API
+      - Test key rotation creates new virtual key with new tenant keys
+      - Test key rotation updates TenantConfig with new encrypted keys
+      - Test key rotation logs audit entry (old/new virtual_key_id, timestamp)
+      - Test key rotation failure preserves existing keys (atomic operation)
+
+      <!-- AC#8: Revert to Platform Keys -->
+      - Test revert deletes BYOK virtual key via LiteLLM API
+      - Test revert creates standard platform virtual key (Story 8.9 pattern)
+      - Test revert sets byok_enabled=false and nulls encrypted keys
+      - Test revert logs audit entry (tenant_id, timestamp, admin_user)
+      - Test agents migrate to platform key after reversion
+
+      <!-- Integration Tests (End-to-End) -->
+      - Test complete BYOK enable workflow (AC#1-4): UI → API → virtual key creation → database
+      - Test complete key validation workflow (AC#3): UI → provider APIs → success/error display
+      - Test complete key rotation workflow (AC#7): old key delete → new key create → agent migration
+      - Test complete revert workflow (AC#8): BYOK delete → platform create → cost tracking restore
+      - Test multi-tenant isolation (tenant A BYOK doesn't affect tenant B platform keys)
+      - Test BYOK enable/disable idempotency (multiple calls don't create duplicate keys)
+
+      <!-- Security Tests -->
+      - Test Bandit scan: zero security vulnerabilities in BYOK code
+      - Test no plaintext API keys in application logs (all BYOK operations)
+      - Test Fernet encryption strength (cannot decrypt without correct key)
+      - Test admin authorization on all BYOK endpoints (require_admin dependency)
+      - Test tenant key deletion on tenant deactivation (cleanup validation)
+    </ideas>
+  </tests>
+</story-context>

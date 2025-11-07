@@ -1,39 +1,47 @@
 """
 Prompt management service for agent system prompts and templates.
 
-Provides business logic for:
-- Saving and retrieving prompt versions with history
-- Reverting to previous prompt versions
-- Creating, updating, and deleting custom prompt templates
-- Enforcing multi-tenancy and soft deletes
-- Template-to-prompt substitution with runtime variables
+Delegates to specialized services:
+- PromptVersionService: Version history, reverting
+- Template management: Creating, updating, deleting custom templates
+- LLM testing: Testing prompts via LiteLLM proxy
+- Variable substitution: Runtime variable replacement
 
 Following 2025 async patterns and service layer architecture.
 """
 
+import logging
 import re
-from datetime import datetime
-from typing import Optional
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING, Optional
 from uuid import UUID
 
 from sqlalchemy import and_, desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.database.models import AgentPromptTemplate, AgentPromptVersion
+from src.database.models import AgentPromptTemplate
 from src.schemas.agent import (
     PromptTemplateCreate,
     PromptTemplateResponse,
+    PromptTestResponse,
     PromptVersionDetail,
     PromptVersionResponse,
 )
+from src.services.prompt_version_service import PromptVersionService
+
+if TYPE_CHECKING:
+    pass
+
+logger = logging.getLogger(__name__)
 
 
 class PromptService:
     """
-    Service layer for prompt management operations.
+    Unified service layer for prompt management operations.
 
+    Delegates version management to PromptVersionService.
+    Handles template operations and LLM testing locally.
     All methods enforce multi-tenancy through tenant_id validation.
-    Prompt versions are immutable (insert-only), versions are soft-deleted via is_active flag.
     """
 
     def __init__(self, db: AsyncSession):
@@ -44,6 +52,7 @@ class PromptService:
             db: Async SQLAlchemy session
         """
         self.db = db
+        self._version_service = PromptVersionService(db)
 
     async def get_prompt_versions(
         self,
@@ -52,50 +61,8 @@ class PromptService:
         limit: int = 20,
         offset: int = 0,
     ) -> list[PromptVersionResponse]:
-        """
-        Retrieve prompt version history for an agent.
-
-        Ordered by created_at DESC (newest first). Does not include full prompt_text
-        to reduce response size (use get_prompt_version_detail for full text).
-
-        Args:
-            agent_id: Agent UUID
-            tenant_id: Tenant identifier for isolation check
-            limit: Maximum number of versions (default 20, max 100)
-            offset: Pagination offset (default 0)
-
-        Returns:
-            List of PromptVersionResponse (without full text)
-
-        Raises:
-            ValueError: If agent doesn't belong to tenant
-        """
-        limit = min(limit, 100)  # Enforce max limit
-
-        # Verify agent belongs to tenant (will raise 404 in API layer)
-        from src.database.models import Agent
-
-        agent = await self.db.execute(
-            select(Agent).where(
-                and_(Agent.id == agent_id, Agent.tenant_id == tenant_id)
-            )
-        )
-        if agent.scalars().first() is None:
-            raise ValueError(f"Agent {agent_id} not found for tenant {tenant_id}")
-
-        # Fetch versions
-        stmt = (
-            select(AgentPromptVersion)
-            .where(AgentPromptVersion.agent_id == agent_id)
-            .order_by(desc(AgentPromptVersion.created_at))
-            .limit(limit)
-            .offset(offset)
-        )
-
-        result = await self.db.execute(stmt)
-        versions = result.scalars().all()
-
-        return [PromptVersionResponse.from_orm(v) for v in versions]
+        """Get prompt version history (delegates to PromptVersionService)."""
+        return await self._version_service.get_prompt_versions(agent_id, tenant_id, limit, offset)
 
     async def get_prompt_version_detail(
         self,
@@ -103,46 +70,10 @@ class PromptService:
         agent_id: UUID,
         tenant_id: str,
     ) -> PromptVersionDetail:
-        """
-        Retrieve full prompt version details including text.
-
-        Args:
-            version_id: Version UUID
-            agent_id: Agent UUID (for validation)
-            tenant_id: Tenant identifier for isolation check
-
-        Returns:
-            PromptVersionDetail with full prompt_text
-
-        Raises:
-            ValueError: If version not found or doesn't belong to agent/tenant
-        """
-        from src.database.models import Agent
-
-        # Verify agent belongs to tenant
-        agent = await self.db.execute(
-            select(Agent).where(
-                and_(Agent.id == agent_id, Agent.tenant_id == tenant_id)
-            )
+        """Get full prompt version details (delegates to PromptVersionService)."""
+        return await self._version_service.get_prompt_version_detail(
+            version_id, agent_id, tenant_id
         )
-        if agent.scalars().first() is None:
-            raise ValueError(f"Agent {agent_id} not found for tenant {tenant_id}")
-
-        # Fetch version
-        stmt = select(AgentPromptVersion).where(
-            and_(
-                AgentPromptVersion.id == version_id,
-                AgentPromptVersion.agent_id == agent_id,
-            )
-        )
-
-        result = await self.db.execute(stmt)
-        version = result.scalars().first()
-
-        if version is None:
-            raise ValueError(f"Prompt version {version_id} not found")
-
-        return PromptVersionDetail.from_orm(version)
 
     async def save_prompt_version(
         self,
@@ -152,78 +83,10 @@ class PromptService:
         description: Optional[str] = None,
         created_by: Optional[str] = None,
     ) -> PromptVersionResponse:
-        """
-        Save a new prompt version and mark as current.
-
-        Sets is_current=true for this version and is_current=false for all previous versions.
-        Also updates agents.system_prompt to the new text.
-
-        Args:
-            agent_id: Agent UUID
-            tenant_id: Tenant identifier for isolation
-            prompt_text: New system prompt (10-32000 chars)
-            description: Optional description of changes
-            created_by: User who created this version
-
-        Returns:
-            PromptVersionResponse with new version ID
-
-        Raises:
-            ValueError: If agent not found or prompt validation fails
-        """
-        from src.database.models import Agent
-
-        # Validate prompt length
-        if not (10 <= len(prompt_text) <= 32000):
-            raise ValueError(
-                f"Prompt text must be 10-32000 characters. Got {len(prompt_text)}."
-            )
-
-        # Verify agent belongs to tenant
-        agent = await self.db.execute(
-            select(Agent).where(
-                and_(Agent.id == agent_id, Agent.tenant_id == tenant_id)
-            )
+        """Save new prompt version (delegates to PromptVersionService)."""
+        return await self._version_service.save_prompt_version(
+            agent_id, tenant_id, prompt_text, description, created_by
         )
-        agent_obj = agent.scalars().first()
-        if agent_obj is None:
-            raise ValueError(f"Agent {agent_id} not found for tenant {tenant_id}")
-
-        # Mark previous versions as not current
-        stmt = (
-            update(AgentPromptVersion)
-            .where(
-                and_(
-                    AgentPromptVersion.agent_id == agent_id,
-                    AgentPromptVersion.is_current == True,
-                )
-            )
-            .values(is_current=False)
-        )
-        await self.db.execute(stmt)
-
-        # Create new version
-        new_version = AgentPromptVersion(
-            agent_id=agent_id,
-            prompt_text=prompt_text,
-            description=description,
-            created_by=created_by,
-            is_current=True,
-        )
-        self.db.add(new_version)
-
-        # Update agent's system_prompt
-        stmt = (
-            update(Agent)
-            .where(Agent.id == agent_id)
-            .values(system_prompt=prompt_text)
-        )
-        await self.db.execute(stmt)
-
-        await self.db.commit()
-        await self.db.refresh(new_version)
-
-        return PromptVersionResponse.from_orm(new_version)
 
     async def revert_to_version(
         self,
@@ -232,81 +95,10 @@ class PromptService:
         tenant_id: str,
         created_by: Optional[str] = None,
     ) -> bool:
-        """
-        Revert agent to a previous prompt version.
-
-        Marks the target version as current and all others as not current.
-        Optionally creates a new version entry to track the revert action.
-
-        Args:
-            version_id: Version UUID to revert to
-            agent_id: Agent UUID
-            tenant_id: Tenant identifier
-            created_by: Optional user performing revert
-
-        Returns:
-            True if revert successful
-
-        Raises:
-            ValueError: If version not found or doesn't belong to agent
-        """
-        from src.database.models import Agent
-
-        # Verify agent belongs to tenant
-        agent = await self.db.execute(
-            select(Agent).where(
-                and_(Agent.id == agent_id, Agent.tenant_id == tenant_id)
-            )
+        """Revert to previous version (delegates to PromptVersionService)."""
+        return await self._version_service.revert_to_version(
+            version_id, agent_id, tenant_id, created_by
         )
-        agent_obj = agent.scalars().first()
-        if agent_obj is None:
-            raise ValueError(f"Agent {agent_id} not found for tenant {tenant_id}")
-
-        # Fetch target version
-        stmt = select(AgentPromptVersion).where(
-            and_(
-                AgentPromptVersion.id == version_id,
-                AgentPromptVersion.agent_id == agent_id,
-            )
-        )
-        result = await self.db.execute(stmt)
-        target_version = result.scalars().first()
-
-        if target_version is None:
-            raise ValueError(f"Prompt version {version_id} not found")
-
-        # Mark all current versions as not current
-        stmt = (
-            update(AgentPromptVersion)
-            .where(
-                and_(
-                    AgentPromptVersion.agent_id == agent_id,
-                    AgentPromptVersion.is_current == True,
-                )
-            )
-            .values(is_current=False)
-        )
-        await self.db.execute(stmt)
-
-        # Mark target version as current
-        stmt = (
-            update(AgentPromptVersion)
-            .where(AgentPromptVersion.id == version_id)
-            .values(is_current=True)
-        )
-        await self.db.execute(stmt)
-
-        # Update agent's system_prompt
-        stmt = (
-            update(Agent)
-            .where(Agent.id == agent_id)
-            .values(system_prompt=target_version.prompt_text)
-        )
-        await self.db.execute(stmt)
-
-        await self.db.commit()
-
-        return True
 
     async def get_prompt_templates(
         self,
@@ -349,8 +141,8 @@ class PromptService:
 
         stmt = (
             select(AgentPromptTemplate)
-            .where(and_(*conditions))
-            .order_by(desc(AgentPromptTemplate.created_at))
+            .where(and_(*conditions))  # type: ignore[arg-type]
+            .order_by(desc(AgentPromptTemplate.created_at))  # type: ignore[arg-type]
             .limit(limit)
             .offset(offset)
         )
@@ -424,9 +216,9 @@ class PromptService:
         # Fetch template
         stmt = select(AgentPromptTemplate).where(
             and_(
-                AgentPromptTemplate.id == template_id,
-                AgentPromptTemplate.tenant_id == tenant_id,
-                AgentPromptTemplate.is_builtin == False,
+                AgentPromptTemplate.id == template_id,  # type: ignore[arg-type]
+                AgentPromptTemplate.tenant_id == tenant_id,  # type: ignore[arg-type]
+                AgentPromptTemplate.is_builtin == False,  # type: ignore[arg-type]
             )
         )
 
@@ -434,15 +226,13 @@ class PromptService:
         template = result.scalars().first()
 
         if template is None:
-            raise ValueError(
-                f"Template {template_id} not found or is built-in (cannot edit)"
-            )
+            raise ValueError(f"Template {template_id} not found or is built-in (cannot edit)")
 
         # Update fields
         template.name = update_schema.name
         template.description = update_schema.description
         template.template_text = update_schema.template_text
-        template.updated_at = datetime.utcnow()
+        template.updated_at = datetime.now(timezone.utc)
 
         self.db.add(template)
         await self.db.commit()
@@ -474,9 +264,9 @@ class PromptService:
         # Fetch template
         stmt = select(AgentPromptTemplate).where(
             and_(
-                AgentPromptTemplate.id == template_id,
-                AgentPromptTemplate.tenant_id == tenant_id,
-                AgentPromptTemplate.is_builtin == False,
+                AgentPromptTemplate.id == template_id,  # type: ignore[arg-type]
+                AgentPromptTemplate.tenant_id == tenant_id,  # type: ignore[arg-type]
+                AgentPromptTemplate.is_builtin == False,  # type: ignore[arg-type]
             )
         )
 
@@ -484,17 +274,15 @@ class PromptService:
         template = result.scalars().first()
 
         if template is None:
-            raise ValueError(
-                f"Template {template_id} not found or is built-in (cannot delete)"
-            )
+            raise ValueError(f"Template {template_id} not found or is built-in (cannot delete)")
 
         # Soft delete
-        stmt = (
+        update_stmt = (
             update(AgentPromptTemplate)
-            .where(AgentPromptTemplate.id == template_id)
+            .where(AgentPromptTemplate.id == template_id)  # type: ignore[arg-type]
             .values(is_active=False)
         )
-        await self.db.execute(stmt)
+        await self.db.execute(update_stmt)
 
         await self.db.commit()
 
@@ -507,7 +295,7 @@ class PromptService:
         model: str = "gpt-4",
         temperature: float = 0.7,
         max_tokens: int = 1000,
-    ) -> "PromptTestResponse":
+    ) -> PromptTestResponse:
         """
         Test a system prompt by calling LiteLLM proxy.
 
@@ -527,20 +315,18 @@ class PromptService:
         """
         import asyncio
         import time
-        from datetime import datetime
         from httpx import AsyncClient
-
-        # Import PromptTestResponse
-        from src.schemas.agent import PromptTestResponse, TokenCount
 
         # LiteLLM proxy configuration
         litellm_base_url = "http://litellm-proxy:4000"  # Service name in Docker network
 
         start_time = time.time()
         try:
+            from httpx import Limits
+
             async with AsyncClient(
                 timeout=30.0,
-                limits=AsyncClient.Limits(max_connections=10, max_keepalive_connections=5),
+                limits=Limits(max_connections=10, max_keepalive_connections=5),
             ) as client:
                 response = await client.post(
                     f"{litellm_base_url}/chat/completions",
@@ -556,12 +342,12 @@ class PromptService:
                     headers={"Content-Type": "application/json"},
                 )
                 response.raise_for_status()
-                
+
                 # Parse response
                 result = response.json()
                 completion = result.get("choices", [{}])[0].get("message", {})
                 usage = result.get("usage", {})
-                
+
                 execution_time = time.time() - start_time
 
                 # Estimate cost (simplified - would need real pricing)
@@ -572,13 +358,12 @@ class PromptService:
 
                 return PromptTestResponse(
                     text=completion.get("content", ""),
-                    tokens_used=TokenCount(
-                        input=input_tokens,
-                        output=output_tokens,
-                    ),
-                    execution_time_ms=int(execution_time * 1000),
-                    cost_estimate=round(cost, 6),
-                    tested_at=datetime.utcnow().isoformat(),
+                    tokens_used={
+                        "input": input_tokens,
+                        "output": output_tokens,
+                    },
+                    execution_time=int(execution_time * 1000),
+                    cost=round(cost, 6),
                 )
 
         except asyncio.TimeoutError:
@@ -608,10 +393,10 @@ class PromptService:
             variables: Dict mapping variable names to values
 
         Returns:
-            str: Template with substituted variables
+            Template with substituted variables
         """
 
-        def replace_var(match):
+        def replace_var(match: re.Match[str]) -> str:
             var_name = match.group(1)
             return variables.get(var_name, f"[UNDEFINED: {var_name}]")
 

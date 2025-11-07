@@ -10,7 +10,7 @@ Supports both local development (via .env file) and Kubernetes production
 """
 
 import os
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -206,6 +206,55 @@ class Settings(BaseSettings):
         description="Timeout for LLM API calls (seconds)",
         ge=5,
         le=120,
+    )
+
+    # LiteLLM Proxy Configuration (Story 8.9)
+    litellm_proxy_url: str = Field(
+        default="http://litellm:4000",
+        description="LiteLLM proxy URL for virtual key management and LLM routing",
+    )
+    litellm_master_key: str = Field(
+        ...,
+        description="LiteLLM master key for admin operations (virtual key management)",
+        min_length=10,
+    )
+
+
+    # Notification Configuration (Story 8.10 - Budget Enforcement)
+    smtp_host: Optional[str] = Field(
+        default=None,
+        description="SMTP server hostname for email notifications (optional)",
+    )
+    smtp_port: int = Field(
+        default=587,
+        description="SMTP server port (default: 587 for TLS)",
+        ge=1,
+        le=65535,
+    )
+    smtp_username: Optional[str] = Field(
+        default=None,
+        description="SMTP authentication username (optional)",
+    )
+    smtp_password: Optional[str] = Field(
+        default=None,
+        description="SMTP authentication password (optional)",
+    )
+    smtp_from_email: str = Field(
+        default="noreply@ai-agents.local",
+        description="From email address for notifications",
+    )
+    smtp_use_tls: bool = Field(
+        default=True,
+        description="Use TLS for SMTP connection",
+    )
+    slack_webhook_url: Optional[str] = Field(
+        default=None,
+        description="Slack incoming webhook URL for notifications (optional)",
+    )
+    litellm_webhook_secret: str = Field(
+        ...,
+        description="Shared secret for LiteLLM budget webhook signature validation",
+        min_length=32,
     )
 
     model_config = SettingsConfigDict(

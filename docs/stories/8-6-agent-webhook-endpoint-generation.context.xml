@@ -1,0 +1,366 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>6</storyId>
+    <title>Agent Webhook Endpoint Generation</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-6-agent-webhook-endpoint-generation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system administrator</asA>
+    <iWant>unique webhook URLs auto-generated for each agent</iWant>
+    <soThat>external systems can trigger specific agents securely</soThat>
+    <tasks>
+### Task 1: Auto-Generate Webhook URL on Agent Creation (AC: #1)
+- Update agent creation service to generate webhook URL and HMAC secret
+- Create default webhook trigger on agent creation
+- Update AgentResponse schema to include webhook_url and hmac_secret
+
+### Task 2: Display Webhook URL and Secret in Agent Detail UI (AC: #3, #4)
+- Add "Webhook Configuration" section to agent detail view
+- Implement HMAC secret show/hide toggle with security warnings
+- Add copy-to-clipboard functionality for URL and secret
+
+### Task 3: Implement "Regenerate Secret" Functionality (AC: #5)
+- Add API endpoint POST `/api/agents/{agent_id}/regenerate-webhook-secret`
+- Implement confirmation dialog and audit logging
+- Create service method for secure regeneration
+
+### Task 4: Implement Webhook Endpoint with HMAC Validation (AC: #6)
+- Create webhook endpoint POST `/agents/{agent_id}/webhook`
+- Implement HMAC signature validation using constant-time comparison
+- Enqueue agent execution task with Celery
+
+### Task 5: Implement Payload Schema Validation (AC: #7)
+- Update AgentTriggerCreate schema to support payload_schema
+- Store schema in agent_triggers.payload_schema JSONB column
+- Implement JSON Schema validation in webhook endpoint
+
+### Task 6: Create Webhook Testing UI (AC: #8)
+- Add "Test Webhook" section to Agent Detail View
+- Implement test webhook sending with HMAC signature
+- Display test results and execution status
+
+### Task 7: Create API Endpoint for Fetching Webhook Secret (Backend)
+- Implement GET `/api/agents/{agent_id}/webhook-secret` with rate limiting
+- Add audit logging for secret access
+- Enforce tenant isolation and authentication
+
+### Task 8: Update Database Schema (if needed)
+- Verify agent_triggers table has required columns (webhook_url, hmac_secret, payload_schema)
+
+### Task 9: Create Service Layer Methods
+- Create src/services/webhook_service.py with HMAC functions
+- Update agent_service.py to integrate webhook generation
+
+### Task 10: Create Comprehensive Tests
+- Unit tests for webhook_service.py (HMAC validation, secret generation)
+- Integration tests for webhook endpoint (signature validation, payload validation)
+- UI tests for webhook configuration and testing features
+
+### Task 11: Security Hardening
+- Implement timestamp validation (prevent replay attacks)
+- Add rate limiting on webhook endpoint
+- Implement audit logging for all webhook operations
+- Enforce HTTPS in production
+
+### Task 12: Documentation
+- Create webhook integration guide with code examples
+- Document API endpoints in OpenAPI spec
+- Add inline code documentation with Google-style docstrings
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. Webhook URL auto-generated on agent creation: `/agents/{agent_id}/webhook` or `/tenants/{tenant_id}/agents/{agent_id}/webhook`
+2. HMAC secret auto-generated (32-byte random, base64-encoded) and stored encrypted in agent_triggers table
+3. Webhook URL displayed in agent detail UI with "Copy URL" button
+4. HMAC secret displayed with "Show/Hide" toggle (masked by default)
+5. "Regenerate Secret" button creates new HMAC secret, invalidates old webhooks
+6. Webhook endpoint implemented: POST `/agents/{agent_id}/webhook` validates HMAC signature, enqueues agent execution task
+7. Payload validation: validates against payload_schema (if defined), rejects invalid payloads
+8. Webhook testing UI: "Send Test Webhook" form with sample payload, displays response
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Epic 8 Requirements -->
+      <doc path="docs/epics.md" title="Epic 8: AI Agent Orchestration Platform" section="Story 8.6">
+        <snippet>Story 8.6 requirements specify webhook URL auto-generation, HMAC secret management, signature validation with constant-time comparison, payload schema validation (JSON Schema), and testing UI for webhook integration.</snippet>
+      </doc>
+
+      <!-- Architecture -->
+      <doc path="docs/architecture.md" title="Decision Architecture" section="Technology Stack">
+        <snippet>FastAPI for async API with automatic OpenAPI documentation, PostgreSQL for multi-tenant database with JSONB support, HTTPX for async HTTP client, Streamlit for admin UI, Black/Ruff/Mypy for code quality. Python 3.12 with SQLAlchemy 2.0+ ORM.</snippet>
+      </doc>
+
+      <!-- Database Schema -->
+      <doc path="docs/database-schema.md" title="Database Schema" section="agent_triggers table">
+        <snippet>agent_triggers table already exists with required columns: id (UUID), agent_id (FK CASCADE), trigger_type (webhook/schedule), webhook_url (VARCHAR 500), hmac_secret (TEXT encrypted), payload_schema (JSONB), created_at, updated_at. Index on agent_id for fast lookups.</snippet>
+      </doc>
+
+      <!-- Related Stories -->
+      <doc path="docs/stories/8-2-agent-database-schema-and-models.md" title="Story 8.2: Agent Database Schema" section="AgentTrigger Model">
+        <snippet>AgentTrigger SQLAlchemy model defined with Fernet encryption for hmac_secret, JSON validation for payload_schema, relationship to Agent with cascade delete. All required database columns exist.</snippet>
+      </doc>
+
+      <doc path="docs/stories/2-2-implement-webhook-signature-validation.md" title="Story 2.2: Webhook Signature Validation" section="HMAC Implementation">
+        <snippet>Existing webhook_validator.py service implements HMAC-SHA256 signature validation with hmac.compare_digest() for timing-attack prevention. Pattern: compute signature, use constant-time comparison, raise HTTPException(401) on failure.</snippet>
+      </doc>
+
+      <!-- 2025 Best Practices (Context7 + Web Research) -->
+      <doc path="external:fastapi-security" title="FastAPI Security Patterns" section="Dependencies">
+        <snippet>FastAPI dependency injection pattern for security: create validation dependency, extract headers/body, raise HTTPException for failures. Use Depends() for middleware-like behavior. OAuth2PasswordBearer and Security() for advanced auth.</snippet>
+      </doc>
+
+      <doc path="external:hmac-security-2025" title="HMAC Webhook Security 2025" section="Best Practices">
+        <snippet>Always use hmac.compare_digest() to prevent timing attacks (constant-time comparison). Never use == operator for signature comparison. Use strong hash functions (SHA-256/SHA-512). Rotate secrets regularly. Log failed attempts. Implement timestamp validation to prevent replay attacks (reject requests older than 5 minutes). Enforce HTTPS.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <!-- Existing HMAC Validation Implementation -->
+      <artifact path="src/services/webhook_validator.py" kind="service" symbol="validate_signature" lines="303-328">
+        <reason>Existing HMAC validation pattern to reuse - uses hmac.compare_digest() for timing-attack prevention. Shows proper structure for webhook signature validation functions.</reason>
+      </artifact>
+
+      <artifact path="src/services/webhook_validator.py" kind="service" symbol="compute_hmac_signature" lines="N/A">
+        <reason>Helper function for computing HMAC-SHA256 signatures. Can be reused for webhook signature generation in testing UI and validation endpoint.</reason>
+      </artifact>
+
+      <artifact path="src/services/webhook_validator.py" kind="service" symbol="secure_compare" lines="N/A">
+        <reason>Constant-time comparison wrapper using hmac.compare_digest(). Critical for preventing timing attacks in signature validation.</reason>
+      </artifact>
+
+      <!-- Agent Service Pattern -->
+      <artifact path="src/services/agent_service.py" kind="service" symbol="AgentService.create_agent" lines="50-119">
+        <reason>Shows current agent creation pattern including webhook URL generation, HMAC secret generation (base64-encoded 32 bytes), trigger creation. TODO comment notes Fernet encryption needed for hmac_secret storage.</reason>
+      </artifact>
+
+      <!-- Database Models -->
+      <artifact path="src/database/models.py" kind="model" symbol="AgentTrigger" lines="644-728">
+        <reason>AgentTrigger SQLAlchemy model with all required columns: webhook_url, hmac_secret (TEXT for encrypted storage), payload_schema (JSON/JSONB), trigger_type. Relationship to Agent with CASCADE delete.</reason>
+      </artifact>
+
+      <!-- API Endpoints Pattern -->
+      <artifact path="src/api/agents.py" kind="controller" symbol="create_agent,list_agents,get_agent,update_agent,delete_agent,activate_agent" lines="N/A">
+        <reason>Existing agent API endpoint patterns showing FastAPI async route structure, Depends() usage, tenant isolation, error handling with HTTPException. Follow this pattern for webhook endpoints.</reason>
+      </artifact>
+
+      <!-- Streamlit Admin UI Pattern -->
+      <artifact path="src/admin/pages/05_Agent_Management.py" kind="component" symbol="N/A" lines="1-80">
+        <reason>Existing agent management UI showing session state patterns, cached data fetching, helper module usage (agent_helpers.py, agent_forms.py). Template for webhook configuration UI section.</reason>
+      </artifact>
+
+      <artifact path="src/admin/components/agent_forms.py" kind="component" symbol="agent_detail_view,create_agent_form,edit_agent_form" lines="N/A">
+        <reason>Agent form components where webhook configuration section will be added. Shows patterns for expandable sections, form validation, async API calls.</reason>
+      </artifact>
+
+      <!-- Celery Task Pattern -->
+      <artifact path="src/workers/tasks.py" kind="worker" symbol="@celery_app.task" lines="47-89">
+        <reason>Celery task decorator pattern showing task configuration (bind=True, name, track_started), logging with task metadata, error handling. Template for agent execution task.</reason>
+      </artifact>
+
+      <!-- Testing Patterns -->
+      <artifact path="tests/unit/test_webhook_validator.py" kind="test" symbol="N/A" lines="N/A">
+        <reason>Existing webhook validation tests showing HMAC testing patterns, fixture usage, valid/invalid signature scenarios. Template for new webhook endpoint tests.</reason>
+      </artifact>
+
+      <artifact path="tests/integration/test_webhook_security.py" kind="test" symbol="N/A" lines="N/A">
+        <reason>Integration test patterns for webhook security including signature validation, timing attack prevention testing. Reference for new webhook endpoint integration tests.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <!-- Core Dependencies (from architecture) -->
+      <python version="3.12">
+        <package name="fastapi" version="0.104+">Async web framework for webhook endpoint</package>
+        <package name="sqlalchemy" version="2.0+">ORM for agent_triggers table queries</package>
+        <package name="pydantic" version="2.x">Schema validation for AgentCreate/Update/Response</package>
+        <package name="celery" version="5.x">Task queue for agent execution</package>
+        <package name="redis" version="7.x">Message broker for Celery tasks</package>
+        <package name="httpx" version="latest">Async HTTP client for webhook testing</package>
+        <package name="cryptography" version="latest">Fernet encryption for HMAC secret storage</package>
+        <package name="jsonschema" version="latest">Payload schema validation (JSON Schema Draft 7)</package>
+        <package name="streamlit" version="1.30+">Admin UI framework for webhook configuration</package>
+        <package name="pytest" version="latest">Testing framework</package>
+        <package name="pytest-asyncio" version="latest">Async test support</package>
+      </python>
+
+      <!-- Standard Library -->
+      <python-stdlib>
+        <module name="hmac">HMAC signature generation and validation</module>
+        <module name="hashlib">SHA256 hashing for HMAC</module>
+        <module name="secrets">Cryptographically strong random secret generation</module>
+        <module name="base64">Base64 encoding for HMAC secrets</module>
+      </python-stdlib>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- From architecture.md and project conventions -->
+    <constraint id="C1" type="multi-tenancy">All webhook operations scoped to tenant_id. Enforce tenant isolation in webhook validation - cross-tenant webhook triggering forbidden (403 Forbidden).</constraint>
+
+    <constraint id="C2" type="security">HMAC-SHA256 signature validation MUST use hmac.compare_digest() for constant-time comparison (prevent timing attacks). Never use == operator for signature comparison. This is CRITICAL for security.</constraint>
+
+    <constraint id="C3" type="security">HMAC secrets MUST be encrypted with Fernet before storage in database. Use tenant-level encryption key from tenant_configs. Never store plaintext secrets.</constraint>
+
+    <constraint id="C4" type="security">Secret generation MUST use secrets.token_bytes(32) for cryptographically strong 256-bit keys. Never use random module or weak secret generation.</constraint>
+
+    <constraint id="C5" type="async">All API endpoints and database operations MUST be async (async def, AsyncSession, await). Follow existing FastAPI async patterns from Story 8.3.</constraint>
+
+    <constraint id="C6" type="database">Use existing agent_triggers table columns (webhook_url VARCHAR(500), hmac_secret TEXT, payload_schema JSONB). No new migrations needed per Story 8.2.</constraint>
+
+    <constraint id="C7" type="validation">Payload schema validation MUST use jsonschema library with JSON Schema Draft 7 format. Validate schema format before storing. Return detailed validation errors (400 Bad Request).</constraint>
+
+    <constraint id="C8" type="file-size">All files MUST be ≤500 lines. Split webhook_service.py into modules if needed. Follow project CLAUDE.md rules.</constraint>
+
+    <constraint id="C9" type="code-quality">Black formatting, mypy strict mode, Google-style docstrings REQUIRED. Test coverage ≥80% for new code (especially HMAC validation logic).</constraint>
+
+    <constraint id="C10" type="testing">Create unit tests (webhook_service.py functions) AND integration tests (webhook endpoint HTTP requests). Include security tests (timing-attack resistance, replay attack prevention, invalid signature handling).</constraint>
+
+    <constraint id="C11" type="api-design">Webhook URL format: /agents/{agent_id}/webhook (no tenant prefix in URL - tenant extracted from JWT/signature validation). Signature header: X-Hub-Signature-256: sha256={hexdigest} (GitHub/Stripe convention).</constraint>
+
+    <constraint id="C12" type="error-handling">Standard HTTP error codes: 401 Unauthorized (HMAC fail), 400 Bad Request (payload validation fail), 403 Forbidden (agent inactive/cross-tenant), 404 Not Found (agent doesn't exist), 429 Too Many Requests (rate limit), 202 Accepted (success).</constraint>
+  </constraints>
+  <interfaces>
+    <!-- API Interfaces to Implement -->
+    <interface name="POST /agents/{agent_id}/webhook" kind="REST endpoint" signature="async def webhook_endpoint(agent_id: UUID, request: Request, db: AsyncSession)">
+      <path>/agents/{agent_id}/webhook</path>
+      <description>Webhook endpoint for triggering agent execution. Validates HMAC signature, payload schema, enqueues Celery task.</description>
+      <request>
+        <headers>
+          <header name="X-Hub-Signature-256" required="true">sha256={hex_hmac_signature}</header>
+          <header name="Content-Type" required="true">application/json</header>
+        </headers>
+        <body type="application/json">Arbitrary JSON payload (validated against payload_schema if defined)</body>
+      </request>
+      <response status="202">{"status": "queued", "execution_id": "uuid", "message": "Agent execution queued"}</response>
+      <errors>
+        <error status="401">Invalid HMAC signature</error>
+        <error status="400">Payload validation failed</error>
+        <error status="403">Agent inactive or cross-tenant access</error>
+        <error status="404">Agent not found</error>
+      </errors>
+    </interface>
+
+    <interface name="GET /api/agents/{agent_id}/webhook-secret" kind="REST endpoint" signature="async def get_webhook_secret(agent_id: UUID, tenant_id: str, db: AsyncSession)">
+      <path>/api/agents/{agent_id}/webhook-secret</path>
+      <description>Fetch unmasked HMAC secret for agent. Rate-limited (10 req/min). Audit logged.</description>
+      <response status="200">{"hmac_secret": "base64encodedstring..."}</response>
+      <errors>
+        <error status="403">Cross-tenant access forbidden</error>
+        <error status="404">Agent not found</error>
+        <error status="429">Rate limit exceeded (10 req/min)</error>
+      </errors>
+    </interface>
+
+    <interface name="POST /api/agents/{agent_id}/regenerate-webhook-secret" kind="REST endpoint" signature="async def regenerate_webhook_secret(agent_id: UUID, tenant_id: str, db: AsyncSession)">
+      <path>/api/agents/{agent_id}/regenerate-webhook-secret</path>
+      <description>Generate new HMAC secret, invalidate old webhooks. Audit logged.</description>
+      <response status="200">{"success": true, "message": "HMAC secret regenerated", "new_secret_masked": "***...***"}</response>
+      <errors>
+        <error status="403">Cross-tenant access forbidden</error>
+        <error status="404">Agent not found</error>
+      </errors>
+    </interface>
+
+    <!-- Service Layer Interfaces -->
+    <interface name="generate_webhook_url" kind="function signature" signature="def generate_webhook_url(agent_id: UUID, base_url: str) -> str">
+      <description>Generate webhook URL for agent: {base_url}/agents/{agent_id}/webhook</description>
+    </interface>
+
+    <interface name="generate_hmac_secret" kind="function signature" signature="def generate_hmac_secret() -> str">
+      <description>Generate cryptographically strong 32-byte HMAC secret, return base64-encoded string</description>
+    </interface>
+
+    <interface name="validate_hmac_signature" kind="function signature" signature="def validate_hmac_signature(payload: bytes, signature: str, secret: str) -> bool">
+      <description>Validate HMAC signature using constant-time comparison (hmac.compare_digest). Returns True if valid.</description>
+    </interface>
+
+    <interface name="validate_payload_schema" kind="function signature" signature="def validate_payload_schema(payload: dict, schema: dict) -> tuple[bool, Optional[str]]">
+      <description>Validate payload against JSON Schema. Returns (True, None) if valid, (False, error_message) if invalid.</description>
+    </interface>
+
+    <!-- Celery Task Interface -->
+    <interface name="execute_agent" kind="Celery task" signature="@celery_app.task def execute_agent(agent_id: UUID, payload: dict) -> dict">
+      <description>Celery task for agent execution. Queued by webhook endpoint. Returns execution result.</description>
+    </interface>
+
+    <!-- UI Component Interfaces (Streamlit) -->
+    <interface name="webhook_configuration_section" kind="Streamlit component" signature="def render_webhook_config(agent: dict) -> None">
+      <description>Webhook configuration section in agent detail view. Shows webhook URL, HMAC secret toggle, regenerate button, test webhook form.</description>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+Project uses pytest with pytest-asyncio for async test support. Test framework: pytest>=7.4.3, pytest-asyncio>=0.21.1, pytest-mock>=3.12.0, pytest-httpx>=0.22.0.
+
+Test patterns from existing codebase (tests/unit/test_webhook_validator.py):
+- Fixtures for sample payloads, secrets, valid signatures using @pytest.fixture
+- HMAC signature generation: hmac.new(key.encode(), msg, hashlib.sha256).hexdigest()
+- Constant-time comparison validation testing
+- AsyncMock for async dependencies, Mock for sync
+- HTTPException assertion for error cases
+- Google-style docstrings for test functions
+
+Code quality requirements (pyproject.toml):
+- Black formatting (line-length=100, py312)
+- Ruff linting (E, F, I, N, W rules)
+- Mypy strict mode (disallow_untyped_defs=true, warn_return_any=true)
+- Test coverage target: ≥80% for new code (especially HMAC validation, signature generation, payload validation)
+
+Test file structure mirrors src/ structure:
+- tests/unit/test_webhook_service.py - Unit tests for webhook_service.py functions
+- tests/integration/test_webhook_api.py - Integration tests for webhook endpoints with real HTTP requests
+- tests/security/test_webhook_signature_validation.py - Security tests for timing attacks, replay attacks
+    </standards>
+    <locations>
+tests/unit/ - Unit tests for service layer functions (webhook_service.py, agent_service.py modifications)
+tests/integration/ - Integration tests for API endpoints (webhook endpoint, regenerate secret, get secret)
+tests/security/ - Security-focused tests (timing attack resistance, HMAC validation edge cases)
+tests/admin/ - Streamlit UI component tests (webhook configuration section, test webhook form)
+    </locations>
+    <ideas>
+<!-- Unit Tests (tests/unit/test_webhook_service.py) -->
+AC1: test_generate_webhook_url_format - Verify webhook URL format /agents/{agent_id}/webhook
+AC1: test_generate_hmac_secret_length - Verify 32-byte secret generation, base64 encoding (44 chars output)
+AC2: test_hmac_secret_encrypted_storage - Verify Fernet encryption before database storage
+AC2: test_hmac_secret_base64_encoding - Verify proper base64 encoding of 32-byte secret
+AC6: test_validate_hmac_signature_valid - Valid signature returns True
+AC6: test_validate_hmac_signature_invalid - Invalid signature returns False
+AC6: test_validate_hmac_signature_timing_safe - Verify hmac.compare_digest() usage (no timing leaks)
+AC6: test_validate_hmac_signature_empty_secret - Raise ValueError for empty/None secret
+AC7: test_validate_payload_schema_valid - Valid payload passes JSON Schema validation
+AC7: test_validate_payload_schema_invalid - Invalid payload returns detailed error message
+AC7: test_validate_payload_schema_missing_required - Missing required field returns validation error
+AC5: test_regenerate_hmac_secret - New secret generated, different from old secret
+
+<!-- Integration Tests (tests/integration/test_webhook_api.py) -->
+AC6: test_webhook_endpoint_valid_request - Valid HMAC signature + payload → 202 Accepted, execution_id returned
+AC6: test_webhook_endpoint_invalid_signature - Invalid signature → 401 Unauthorized
+AC6: test_webhook_endpoint_missing_signature - Missing X-Hub-Signature-256 header → 401 Unauthorized
+AC7: test_webhook_endpoint_payload_validation_fail - Invalid payload against schema → 400 Bad Request
+AC6: test_webhook_endpoint_agent_not_found - Non-existent agent_id → 404 Not Found
+AC6: test_webhook_endpoint_agent_inactive - Agent status != ACTIVE → 403 Forbidden
+AC6: test_webhook_endpoint_cross_tenant_access - Webhook from different tenant → 403 Forbidden (tenant isolation)
+AC5: test_regenerate_secret_invalidates_old - Old HMAC secret fails after regeneration
+AC6: test_webhook_endpoint_enqueues_celery_task - Verify Celery task created with correct agent_id and payload
+
+<!-- Security Tests (tests/security/test_webhook_security.py) -->
+AC6: test_timing_attack_resistance - Verify constant-time comparison (measure response times for valid/invalid signatures)
+AC6: test_replay_attack_prevention - Timestamp validation rejects requests older than 5 minutes
+AC6: test_rate_limiting_webhook_endpoint - Verify 100 req/min limit per agent (429 Too Many Requests)
+AC6: test_audit_logging_hmac_failures - Verify failed HMAC validations logged to audit_log table
+AC3/AC4: test_secret_access_rate_limiting - Verify 10 req/min limit for GET /webhook-secret (429 Too Many Requests)
+
+<!-- UI Tests (tests/admin/test_webhook_ui.py or manual) -->
+AC3: test_copy_webhook_url_button - "Copy URL" button copies correct webhook URL to clipboard
+AC4: test_show_hide_secret_toggle - Toggle displays/masks HMAC secret correctly
+AC5: test_regenerate_secret_confirmation - Confirmation dialog shown before regeneration
+AC8: test_send_test_webhook_valid - "Send Test Webhook" with valid payload → success message
+AC8: test_send_test_webhook_invalid_payload - Test with invalid payload → validation error displayed
+    </ideas>
+  </tests>
+</story-context>

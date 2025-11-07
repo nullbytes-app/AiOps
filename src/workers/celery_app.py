@@ -22,6 +22,7 @@ import redis
 from celery import Celery
 from celery.exceptions import Retry
 from celery.signals import task_prerun, worker_process_init
+from celery.schedules import crontab
 
 from src.config import settings
 from src.utils.secrets import validate_secrets
@@ -144,6 +145,29 @@ celery_app.conf.update(
     task_retry_backoff_max=8,  # Max backoff: 8 seconds
     task_retry_jitter=True,  # Add jitter to prevent thundering herd
 )
+
+# ============================================================================
+# PERIODIC TASK SCHEDULE (Story 8.10C - Budget Automation)
+# ============================================================================
+
+celery_app.conf.beat_schedule = {
+    # Budget reset task - runs daily at 00:00 UTC
+    'reset-tenant-budgets-daily': {
+        'task': 'tasks.reset_tenant_budgets',
+        'schedule': crontab(hour=0, minute=0),  # Daily at 00:00 UTC
+        'options': {
+            'expires': 3600,  # Task expires after 1 hour if not executed
+        },
+    },
+    # Budget override expiry task - runs hourly at :00 minutes
+    'expire-budget-overrides-hourly': {
+        'task': 'tasks.expire_budget_overrides',
+        'schedule': crontab(minute=0),  # Every hour at :00
+        'options': {
+            'expires': 1800,  # Task expires after 30 minutes if not executed
+        },
+    },
+}
 
 
 # ============================================================================

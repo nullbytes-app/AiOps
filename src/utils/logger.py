@@ -345,6 +345,42 @@ class AuditLogger:
             },
         )
 
+    @staticmethod
+    def audit_provider_operation(
+        operation: str,
+        provider_id: int,
+        provider_name: str,
+        provider_type: str,
+        user: str = "system",
+        status: str = "success",
+        **extra: Any,
+    ) -> None:
+        """
+        Log LLM provider operations.
+
+        Args:
+            operation: Operation type (create, update, delete, test_connection, config_generated)
+            provider_id: Provider identifier
+            provider_name: Provider name
+            provider_type: Provider type (openai, anthropic, azure_openai, etc.)
+            user: User who performed the operation (default: system)
+            status: Operation status (success, failure, warning)
+            **extra: Additional context fields (e.g., error_message, config_changes)
+        """
+        logger.info(
+            f"LLM provider {operation}",
+            extra={
+                "operation": f"provider_{operation}",
+                "provider_id": provider_id,
+                "provider_name": provider_name,
+                "provider_type": provider_type,
+                "user": user,
+                "status": status,
+                "service": "provider_service",
+                **extra,
+            },
+        )
+
 
 def configure_logging() -> None:
     """

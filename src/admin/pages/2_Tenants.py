@@ -28,6 +28,12 @@ from admin.utils.tenant_helper import (
     update_tenant,
     validate_tenant_form,
 )
+from admin.utils.byok_helpers import (
+    show_byok_configuration_section,
+    show_byok_status_display,
+    show_key_rotation_section,
+    show_revert_to_platform_section,
+)
 from database.models import TenantConfig
 
 
@@ -63,16 +69,21 @@ def add_tenant_dialog():
                     resp = client.get(f"{API_BASE_URL}/api/v1/plugins/")
                     if resp.status_code == 200:
                         plugins_data = resp.json()
-                        available_plugins = [(p["tool_type"], p["name"]) for p in plugins_data.get("plugins", [])]
+                        available_plugins = [
+                            (p["tool_type"], p["name"]) for p in plugins_data.get("plugins", [])
+                        ]
             except:
                 # Fallback if plugin API not available
-                available_plugins = [("servicedesk_plus", "ServiceDesk Plus"), ("jira", "Jira Service Management")]
+                available_plugins = [
+                    ("servicedesk_plus", "ServiceDesk Plus"),
+                    ("jira", "Jira Service Management"),
+                ]
 
             tool_type = st.selectbox(
                 "Tool Type *",
                 options=[p[0] for p in available_plugins],
                 format_func=lambda x: next((p[1] for p in available_plugins if p[0] == x), x),
-                help="Select ticketing tool plugin"
+                help="Select ticketing tool plugin",
             )
             servicedesk_url = st.text_input(
                 "ServiceDesk URL *", placeholder="https://acme.servicedesk.com"
@@ -99,6 +110,44 @@ def add_tenant_dialog():
             "ip_lookup": "IP Lookup" in prefs,
             "monitoring": "Monitoring Data" in prefs,
         }
+
+        # Budget Configuration (Story 8.10 AC#1, AC#2)
+        st.markdown("**💰 Budget Configuration**")
+        col1_budget, col2_budget = st.columns(2)
+
+        with col1_budget:
+            max_budget = st.number_input(
+                "Max Monthly Budget ($)",
+                min_value=0.0,
+                max_value=100000.0,
+                value=500.0,  # Default: $500
+                step=50.0,
+                help="Maximum LLM spend allowed per month (default: $500)",
+            )
+
+            alert_threshold = st.slider(
+                "Alert Threshold (%)",
+                min_value=50,
+                max_value=100,
+                value=80,  # Default: 80%
+                help="Send notification when budget reaches this % (default: 80%)",
+            )
+
+        with col2_budget:
+            grace_threshold = st.slider(
+                "Grace Threshold (%)",
+                min_value=100,
+                max_value=150,
+                value=110,  # Default: 110%
+                help="Block requests when budget exceeds this % (default: 110%)",
+            )
+
+            budget_duration = st.selectbox(
+                "Budget Reset Period",
+                options=["30d", "60d", "90d"],
+                index=0,  # Default: 30d
+                help="How often budget resets (default: 30 days)",
+            )
 
         col1, col2, col3 = st.columns([1, 1, 2])
         with col1:
@@ -132,6 +181,10 @@ def add_tenant_dialog():
             "servicedesk_url": servicedesk_url,
             "api_key": api_key,
             "enhancement_preferences": enhancement_preferences,
+            "max_budget": max_budget,
+            "alert_threshold": alert_threshold,
+            "grace_threshold": grace_threshold,
+            "budget_duration": budget_duration,
         }
 
         # Validate form
@@ -142,9 +195,7 @@ def add_tenant_dialog():
         else:
             # Test connection before saving
             with st.spinner("Testing connection..."):
-                conn_success, conn_message = test_servicedesk_connection(
-                    servicedesk_url, api_key
-                )
+                conn_success, conn_message = test_servicedesk_connection(servicedesk_url, api_key)
 
             if not conn_success:
                 st.error(f"{conn_message}\n\n⚠️ Please fix connection issues before saving.")
@@ -159,7 +210,9 @@ def add_tenant_dialog():
                     )
 
                     st.success(f"✅ Tenant '{name}' created successfully!")
-                    st.info(f"**Webhook URL:** (copy to ServiceDesk Plus config)\n\n`{webhook_url}`")
+                    st.info(
+                        f"**Webhook URL:** (copy to ServiceDesk Plus config)\n\n`{webhook_url}`"
+                    )
                     st.code(webhook_url, language="text")
 
                     # Clear cache and close dialog
@@ -194,7 +247,9 @@ def edit_tenant_dialog(tenant_id: str):
             update_api_key = st.checkbox("Update API Key")
 
             # Show masked webhook secret
-            masked_secret = mask_sensitive_field(decrypt_field(tenant.webhook_signing_secret_encrypted))
+            masked_secret = mask_sensitive_field(
+                decrypt_field(tenant.webhook_signing_secret_encrypted)
+            )
             st.text_input("Current Webhook Secret (masked)", value=masked_secret, disabled=True)
             update_webhook_secret = st.checkbox("Update Webhook Secret")
 
@@ -238,6 +293,48 @@ def edit_tenant_dialog(tenant_id: str):
             "monitoring": "Monitoring Data" in selected_prefs,
         }
 
+        # Budget Configuration (Story 8.10 AC#1)
+        st.markdown("**💰 Budget Configuration**")
+        col1_budget, col2_budget = st.columns(2)
+
+        with col1_budget:
+            max_budget = st.number_input(
+                "Max Monthly Budget ($)",
+                min_value=0.0,
+                max_value=100000.0,
+                value=float(tenant.max_budget) if tenant.max_budget else 500.0,
+                step=50.0,
+                help="Maximum LLM spend allowed per month (default: $500)",
+            )
+
+            alert_threshold = st.slider(
+                "Alert Threshold (%)",
+                min_value=50,
+                max_value=100,
+                value=tenant.alert_threshold if tenant.alert_threshold else 80,
+                help="Send notification when budget reaches this % (default: 80%)",
+            )
+
+        with col2_budget:
+            grace_threshold = st.slider(
+                "Grace Threshold (%)",
+                min_value=100,
+                max_value=150,
+                value=tenant.grace_threshold if tenant.grace_threshold else 110,
+                help="Block requests when budget exceeds this % (default: 110%)",
+            )
+
+            budget_duration = st.selectbox(
+                "Budget Reset Period",
+                options=["30d", "60d", "90d"],
+                index=(
+                    ["30d", "60d", "90d"].index(tenant.budget_duration)
+                    if tenant.budget_duration in ["30d", "60d", "90d"]
+                    else 0
+                ),
+                help="How often budget resets (default: 30 days)",
+            )
+
         col1, col2 = st.columns(2)
         with col1:
             submit = st.form_submit_button("✅ Save Changes", use_container_width=True)
@@ -252,6 +349,10 @@ def edit_tenant_dialog(tenant_id: str):
             "name": name,
             "servicedesk_url": servicedesk_url,
             "enhancement_preferences": enhancement_preferences,
+            "max_budget": max_budget,
+            "alert_threshold": alert_threshold,
+            "grace_threshold": grace_threshold,
+            "budget_duration": budget_duration,
         }
 
         if update_api_key and new_api_key:
@@ -265,7 +366,9 @@ def edit_tenant_dialog(tenant_id: str):
             "name": name,
             "tenant_id": tenant_id,
             "servicedesk_url": servicedesk_url,
-            "api_key": new_api_key if update_api_key else "dummy",  # Skip api_key validation if not updating
+            "api_key": (
+                new_api_key if update_api_key else "dummy"
+            ),  # Skip api_key validation if not updating
         }
         is_valid, errors = validate_tenant_form(
             form_data, skip_duplicate_check=True
@@ -381,7 +484,11 @@ def show() -> None:
         tenant_data = []
         for t in tenants:
             # Story 7.8: Add plugin assignment column
-            plugin_name = "ServiceDesk Plus" if t.tool_type == "servicedesk_plus" else t.tool_type.replace("_", " ").title() if t.tool_type else "Not assigned"
+            plugin_name = (
+                "ServiceDesk Plus"
+                if t.tool_type == "servicedesk_plus"
+                else t.tool_type.replace("_", " ").title() if t.tool_type else "Not assigned"
+            )
             tenant_data.append(
                 {
                     "Name": t.name,
@@ -412,7 +519,15 @@ def show() -> None:
                 st.markdown(f"**Name:** {tenant.name}")
                 st.markdown(f"**Tenant ID:** `{tenant.tenant_id}`")
                 # Story 7.8: Display assigned plugin
-                plugin_name = "ServiceDesk Plus" if tenant.tool_type == "servicedesk_plus" else tenant.tool_type.replace("_", " ").title() if tenant.tool_type else "Not assigned"
+                plugin_name = (
+                    "ServiceDesk Plus"
+                    if tenant.tool_type == "servicedesk_plus"
+                    else (
+                        tenant.tool_type.replace("_", " ").title()
+                        if tenant.tool_type
+                        else "Not assigned"
+                    )
+                )
                 st.markdown(f"**Assigned Plugin:** {plugin_name}")
                 st.markdown(f"**ServiceDesk URL:** {tenant.servicedesk_url}")
                 st.markdown(f"**Status:** {'✅ Active' if tenant.is_active else '❌ Inactive'}")
@@ -422,9 +537,69 @@ def show() -> None:
                 with st.expander("Enhancement Preferences"):
                     st.json(tenant.enhancement_preferences)
 
+                # Budget Dashboard (Story 8.10 AC#6)
+                with st.expander("💰 Budget Dashboard", expanded=True):
+                    # Display budget configuration
+                    st.markdown(f"**Max Budget:** ${tenant.max_budget:,.2f}")
+                    st.markdown(f"**Alert Threshold:** {tenant.alert_threshold}%")
+                    st.markdown(f"**Grace Threshold:** {tenant.grace_threshold}%")
+                    st.markdown(f"**Reset Period:** {tenant.budget_duration}")
+
+                    # Placeholder for real-time usage (Story 8.10A will implement actual API call)
+                    # TODO: Fetch from BudgetService.get_budget_status(tenant_id)
+                    current_spend = 0.0  # Placeholder
+                    percentage_used = (
+                        (current_spend / tenant.max_budget * 100) if tenant.max_budget > 0 else 0
+                    )
+
+                    # Progress bar with color coding
+                    if percentage_used < tenant.alert_threshold:
+                        bar_color = "🟢"  # Green
+                    elif percentage_used < 100:
+                        bar_color = "🟡"  # Yellow
+                    elif percentage_used < tenant.grace_threshold:
+                        bar_color = "🟠"  # Orange/Red
+                    else:
+                        bar_color = "🔴"  # Dark Red
+
+                    st.markdown(
+                        f"**Current Spend:** ${current_spend:,.2f} / ${tenant.max_budget:,.2f} {bar_color}"
+                    )
+                    st.progress(min(percentage_used / 100, 1.0))
+                    st.caption(
+                        f"Usage: {percentage_used:.1f}% | Status: {'Within budget' if percentage_used < tenant.alert_threshold else 'Alert triggered' if percentage_used < 100 else 'Over budget' if percentage_used < tenant.grace_threshold else 'BLOCKED'}"
+                    )
+
+                    # Days remaining (calculated from budget_reset_at)
+                    if tenant.budget_reset_at:
+                        from datetime import datetime, timezone
+
+                        days_remaining = (tenant.budget_reset_at - datetime.now(timezone.utc)).days
+                        st.markdown(f"**Days Until Reset:** {max(0, days_remaining)} days")
+                    else:
+                        st.caption("Budget reset date not set")
+
+                # BYOK Configuration (Story 8.13 Task 6)
+                with st.expander("🔑 BYOK Configuration", expanded=False):
+                    show_byok_configuration_section(tenant.tenant_id)
+
+                # BYOK Status Display (Story 8.13 Task 7)
+                with st.expander("📊 BYOK Status", expanded=False):
+                    show_byok_status_display(tenant.tenant_id)
+
+                # Key Rotation Interface (Story 8.13 Task 8)
+                with st.expander("♻️ Rotate API Keys", expanded=False):
+                    show_key_rotation_section(tenant.tenant_id)
+
+                # Revert to Platform Keys (Story 8.13 Task 9)
+                with st.expander("⬅️ Revert to Platform Keys", expanded=False):
+                    show_revert_to_platform_section(tenant.tenant_id)
+
             with col2:
                 st.markdown("**Actions:**")
-                if st.button("✏️ Edit Tenant", key=f"edit_{tenant.tenant_id}", use_container_width=True):
+                if st.button(
+                    "✏️ Edit Tenant", key=f"edit_{tenant.tenant_id}", use_container_width=True
+                ):
                     edit_tenant_dialog(tenant.tenant_id)
 
                 if tenant.is_active:

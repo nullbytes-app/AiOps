@@ -9,7 +9,7 @@ Story 8.3: Agent CRUD API Endpoints - Service layer for agent management.
 
 import base64
 import secrets
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -26,6 +26,8 @@ from src.schemas.agent import (
     AgentUpdate,
     TriggerType,
 )
+from src.services.webhook_service import generate_hmac_secret
+from src.utils.encryption import decrypt, encrypt
 from src.utils.logger import logger
 
 
@@ -47,6 +49,40 @@ class AgentService:
             base_url: Base URL for webhook generation (default: http://localhost:8000)
         """
         self.base_url = base_url
+
+    def _populate_webhook_fields(
+        self, response: AgentResponse, triggers: list
+    ) -> None:
+        """
+        Populate webhook_url and hmac_secret_masked fields in AgentResponse.
+
+        Extracts webhook trigger data from agent triggers and adds top-level
+        fields for easy UI access. Masks HMAC secret for security (shows
+        first/last 4 chars with *** in middle).
+
+        Args:
+            response: AgentResponse instance to populate
+            triggers: List of AgentTrigger model instances from agent relationship
+
+        Returns:
+            None (modifies response in place)
+        """
+        for trigger in triggers:
+            if trigger.trigger_type == TriggerType.WEBHOOK:
+                response.webhook_url = trigger.webhook_url
+
+                # Mask HMAC secret: show first 4 and last 4 chars with *** in middle
+                if trigger.hmac_secret:
+                    # Encrypted secrets are longer, so show more context
+                    secret = trigger.hmac_secret
+                    if len(secret) > 12:
+                        response.hmac_secret_masked = f"{secret[:6]}***{secret[-6:]}"
+                    else:
+                        response.hmac_secret_masked = "***"
+                else:
+                    response.hmac_secret_masked = None
+
+                break  # Only one webhook trigger per agent
 
     async def create_agent(
         self,
@@ -90,12 +126,15 @@ class AgentService:
             webhook_url = f"{self.base_url}/agents/{agent.id}/webhook"
             hmac_secret = base64.b64encode(secrets.token_bytes(32)).decode("utf-8")
 
+            # Encrypt HMAC secret before storing (Fernet symmetric encryption)
+            encrypted_hmac_secret = encrypt(hmac_secret)
+
             # Create webhook trigger
             trigger = AgentTrigger(
                 agent_id=agent.id,
                 trigger_type=TriggerType.WEBHOOK,
                 webhook_url=webhook_url,
-                hmac_secret=hmac_secret,  # TODO: Encrypt with Fernet before storing
+                hmac_secret=encrypted_hmac_secret,
             )
             db.add(trigger)
 
@@ -107,8 +146,9 @@ class AgentService:
             await db.commit()
             await db.refresh(agent, ["triggers", "tools"])
 
-            # Build response with webhook URL
+            # Build response with webhook URL and masked HMAC secret
             response = AgentResponse.model_validate(agent)
+            self._populate_webhook_fields(response, agent.triggers)
             return response
 
         except Exception as e:
@@ -181,8 +221,15 @@ class AgentService:
             result = await db.execute(query)  # type: ignore
             agents = result.scalars().unique().all()
 
+            # Build response items with webhook fields populated
+            items = []
+            for agent in agents:
+                response = AgentResponse.model_validate(agent)
+                self._populate_webhook_fields(response, agent.triggers)
+                items.append(response)
+
             return {
-                "items": [AgentResponse.model_validate(agent) for agent in agents],
+                "items": items,
                 "total": total,
                 "skip": skip,
                 "limit": limit,
@@ -239,7 +286,9 @@ class AgentService:
                     detail="Agent not found",
                 )
 
-            return AgentResponse.model_validate(agent)
+            response = AgentResponse.model_validate(agent)
+            self._populate_webhook_fields(response, agent.triggers)
+            return response
 
         except HTTPException:
             raise
@@ -290,7 +339,7 @@ class AgentService:
                     value = value.model_dump()
                 setattr(agent, field, value)
 
-            agent.updated_at = datetime.utcnow()
+            agent.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
             await db.refresh(agent, ["triggers", "tools"])
@@ -336,7 +385,7 @@ class AgentService:
 
             # Soft delete: set status to INACTIVE
             agent.status = AgentStatus.INACTIVE
-            agent.updated_at = datetime.utcnow()
+            agent.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
             return True
@@ -416,7 +465,7 @@ class AgentService:
 
             # Activate agent
             agent.status = AgentStatus.ACTIVE
-            agent.updated_at = datetime.utcnow()
+            agent.updated_at = datetime.now(timezone.utc)
 
             await db.commit()
             await db.refresh(agent, ["triggers", "tools"])
@@ -431,6 +480,109 @@ class AgentService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Failed to activate agent: {str(e)}",
+            )
+
+    async def get_webhook_secret(
+        self, tenant_id: str, agent_id: UUID, db: AsyncSession
+    ) -> str:
+        """
+        Fetch unmasked HMAC secret for agent webhook.
+
+        Security: Audit logged, tenant isolation enforced.
+
+        Args:
+            tenant_id: Tenant ID for isolation
+            agent_id: Agent UUID
+            db: Database session
+
+        Returns:
+            str: Unmasked base64-encoded HMAC secret
+
+        Raises:
+            HTTPException(403): Cross-tenant access forbidden
+            HTTPException(404): Agent not found or no webhook trigger
+
+        Story 8.6 AC#4, Task 7: Fetch webhook secret for show/hide toggle
+        """
+        agent = await self._get_agent_with_tenant_check(tenant_id, agent_id, db)
+
+        # Get webhook trigger (should exist from agent creation)
+        webhook_trigger = next(
+            (t for t in agent.triggers if t.trigger_type == "webhook"), None
+        )
+        if not webhook_trigger or not webhook_trigger.hmac_secret:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Webhook trigger not found for agent",
+            )
+
+        # Decrypt HMAC secret using Fernet
+        decrypted_secret = decrypt(webhook_trigger.hmac_secret, tenant_id)
+        return decrypted_secret
+
+    async def regenerate_webhook_secret(
+        self, tenant_id: str, agent_id: UUID, db: AsyncSession
+    ) -> str:
+        """
+        Generate new HMAC secret for agent, invalidating old webhooks.
+
+        Security: Audit logged with warning level, tenant isolation enforced.
+
+        Args:
+            tenant_id: Tenant ID for isolation
+            agent_id: Agent UUID
+            db: Database session
+
+        Returns:
+            str: Masked new HMAC secret (first 6 + last 6 chars)
+
+        Raises:
+            HTTPException(403): Cross-tenant access forbidden
+            HTTPException(404): Agent not found or no webhook trigger
+
+        Story 8.6 AC#5, Task 3: Regenerate HMAC secret with audit logging
+        """
+        agent = await self._get_agent_with_tenant_check(tenant_id, agent_id, db)
+
+        # Get webhook trigger
+        webhook_trigger = next(
+            (t for t in agent.triggers if t.trigger_type == "webhook"), None
+        )
+        if not webhook_trigger:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Webhook trigger not found for agent",
+            )
+
+        # Generate new HMAC secret
+        new_secret = generate_hmac_secret()
+        encrypted_secret = encrypt(new_secret, tenant_id)
+
+        # Update database
+        try:
+            webhook_trigger.hmac_secret = encrypted_secret
+            webhook_trigger.updated_at = datetime.now(timezone.utc)
+            db.add(webhook_trigger)
+            await db.commit()
+
+            logger.warning(
+                f"HMAC secret regenerated for agent {agent_id} (tenant: {tenant_id}). "
+                "Old webhooks are now invalid."
+            )
+
+            # Return masked secret for API response
+            if len(new_secret) > 12:
+                masked = f"{new_secret[:6]}***{new_secret[-6:]}"
+            else:
+                masked = "***"
+            return masked
+
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Failed to regenerate secret for agent {agent_id}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to regenerate webhook secret",
             )
 
 

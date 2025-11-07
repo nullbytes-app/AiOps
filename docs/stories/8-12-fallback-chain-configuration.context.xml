@@ -1,0 +1,754 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>12</storyId>
+    <title>fallback-chain-configuration</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-07</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-12-fallback-chain-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform administrator</asA>
+    <iWant>to configure fallback chains for LLM providers</iWant>
+    <soThat>the system automatically switches to backup providers when primary fails</soThat>
+    <tasks>
+      <task id="1" ac="#2,#3">
+        <title>Extend Database Schema for Fallback Chains</title>
+        <subtasks>
+          - Create fallback_chains table (id, model_id FK, fallback_order, fallback_model_id FK, enabled, timestamps)
+          - Create fallback_triggers table (id, trigger_type, retry_count, backoff_factor, enabled, created_at)
+          - Create fallback_metrics table (id, model_id FK, trigger_type, fallback_model_id FK, counts, last_triggered_at)
+          - Add SQLAlchemy models: FallbackChain, FallbackTrigger, FallbackMetric
+          - Add Pydantic schemas: FallbackChainCreate/Update/Response, FallbackTriggerConfig, FallbackMetrics
+          - Add unique constraint UNIQUE(model_id, fallback_order)
+          - Add cascade delete for model removal
+          - Test migration upgrade/downgrade
+        </subtasks>
+      </task>
+      <task id="2" ac="#2,#3,#4">
+        <title>Create Fallback Chain Service</title>
+        <subtasks>
+          - Create src/services/fallback_service.py with FallbackService class
+          - Implement create_fallback_chain(model_id, fallback_model_ids[])
+          - Implement update_fallback_chain(model_id, fallback_model_ids[])
+          - Implement delete_fallback_chain(model_id)
+          - Implement get_fallback_chain(model_id)
+          - Implement list_all_fallback_chains()
+          - Implement configure_triggers(trigger_configs[])
+          - Implement get_trigger_config(trigger_type)
+          - Implement record_fallback_event(model_id, trigger_type, fallback_model_id, success)
+          - Implement get_fallback_metrics(model_id, days=7)
+          - Add circular fallback validation
+          - Add fallback model availability validation
+          - Add comprehensive docstrings and type hints
+        </subtasks>
+      </task>
+      <task id="3" ac="#6">
+        <title>Extend LiteLLM Config Generator for Fallbacks</title>
+        <subtasks>
+          - Modify src/services/litellm_config_generator.py
+          - Implement generate_router_settings()
+          - Format fallback chains: fallbacks: [{"gpt-4": ["azure-gpt-4", "claude-3-5-sonnet"]}]
+          - Format retry_policy: {"RateLimitErrorRetries": 3, "TimeoutErrorRetries": 3, "InternalServerErrorRetries": 3}
+          - Format allowed_fails_policy: {"RateLimitErrorAllowedFails": 100, "InternalServerErrorAllowedFails": 20}
+          - Add context_window_fallbacks
+          - Add content_policy_fallbacks
+          - Integrate into generate_config_yaml()
+          - Update backup/validation logic
+          - Validate all fallback model names exist in model_list
+        </subtasks>
+      </task>
+      <task id="4" ac="#2,#6">
+        <title>Create Fallback Chain API Endpoints</title>
+        <subtasks>
+          - Create src/api/fallback_chains.py with FastAPI router
+          - POST /api/llm-models/{model_id}/fallback-chain (create/update)
+          - GET /api/llm-models/{model_id}/fallback-chain (retrieve)
+          - DELETE /api/llm-models/{model_id}/fallback-chain (remove)
+          - GET /api/fallback-chains (list all, paginated)
+          - POST /api/fallback-triggers (configure retry/backoff)
+          - GET /api/fallback-triggers (retrieve configs)
+          - GET /api/llm-models/{model_id}/fallback-metrics (statistics)
+          - POST /api/fallback-chains/regenerate-config (trigger YAML regen)
+          - Add platform admin authorization
+          - Add request validation
+          - OpenAPI documentation with examples
+        </subtasks>
+      </task>
+      <task id="5" ac="#1,#5">
+        <title>Create Fallback Chain UI Component</title>
+        <subtasks>
+          - Extend src/admin/pages/06_LLM_Providers.py with Fallback Configuration tab
+          - Create model selector (st.selectbox)
+          - Implement drag-and-drop fallback ordering (st.data_editor or st.multiselect)
+          - Display current fallback chain (numbered list)
+          - Add/Remove fallback buttons
+          - Save button (POST to API)
+          - Display active provider indicator (🟢 Primary / 🟡 Fallback / 🔴 Failed)
+          - Show fallback trigger history (st.dataframe)
+          - Auto-refresh (30s using @st.fragment)
+          - Error handling (duplicates, circular refs, disabled models)
+          - Success/error messages
+        </subtasks>
+      </task>
+      <task id="6" ac="#3,#4">
+        <title>Create Trigger Configuration UI</title>
+        <subtasks>
+          - Add "Retry & Trigger Settings" section
+          - Create trigger type selector (RateLimitError, TimeoutError, InternalServerError, ConnectionError)
+          - For each trigger: retry_count input (1-10, default 3)
+          - For each trigger: backoff_factor input (1.0-5.0, default 2.0)
+          - Display retry example calculation
+          - Save trigger config button
+          - Display current trigger config table
+          - Enable/disable toggles per trigger
+          - Reset to defaults button
+          - Validation (retry_count 0-10, backoff_factor 1.0-5.0)
+        </subtasks>
+      </task>
+      <task id="7" ac="#7">
+        <title>Create Fallback Testing Interface</title>
+        <subtasks>
+          - Add "Test Fallback Chain" section
+          - Model selector for testing
+          - Failure type selector (Simulate Rate Limit/Timeout/Server Error/Connection)
+          - Test message input
+          - "Run Fallback Test" button
+          - Implement POST /api/llm-models/{model_id}/test-fallback endpoint
+          - Backend: use LiteLLM mock_testing_fallbacks=True parameter
+          - Display test results (each attempt shown)
+          - Show timing data
+          - Show final response
+          - Error handling if all fail
+          - Record test event to metrics
+        </subtasks>
+      </task>
+      <task id="8" ac="#8">
+        <title>Create Fallback Metrics Dashboard</title>
+        <subtasks>
+          - Add "Fallback Metrics" tab
+          - Time range selector (24h/7d/30d)
+          - Model filter (multiselect)
+          - Implement GET /api/fallback-metrics endpoint
+          - Display metrics table (model, total_triggers, fallback_count, success_rate, most_common_trigger, last_triggered)
+          - Plotly chart: Fallback Trigger Count by Type (bar)
+          - Plotly chart: Success Rate After Fallback (line over time)
+          - Plotly chart: Fallback Model Usage (pie)
+          - Summary stats (Total Fallbacks, Success Rate %, Avg Response Time)
+          - Auto-refresh (@st.fragment, 60s)
+          - Export button (CSV download)
+        </subtasks>
+      </task>
+      <task id="9" ac="#6">
+        <title>Integrate Fallback Chain with LiteLLM Proxy</title>
+        <subtasks>
+          - Verify LiteLLM proxy config reload from Story 8.11
+          - Test regenerate_config workflow
+          - Add config validation (parse YAML, verify router_settings syntax)
+          - Test LiteLLM proxy restart after config regeneration
+          - Add config diff display (before/after comparison)
+          - Implement rollback on proxy restart failure
+          - Add health check after config reload
+          - Document manual restart process
+        </subtasks>
+      </task>
+      <task id="10" ac="#2,#3">
+        <title>Security and Validation</title>
+        <subtasks>
+          - Validate circular fallback prevention (A→B→A detection)
+          - Validate fallback model availability (enabled + api_key check)
+          - Validate cross-provider fallbacks (warning for same provider)
+          - Add audit logging (all chain changes logged with user/timestamp/changes)
+          - Add authorization (platform admin only)
+          - Validate trigger settings (retry_count 0-10, backoff_factor 1.0-5.0)
+          - Test permission boundaries (tenants cannot access)
+          - Add rate limiting (test-fallback: max 10/minute)
+        </subtasks>
+      </task>
+      <task id="11" ac="All">
+        <title>Unit Tests</title>
+        <subtasks>
+          - Test FallbackService.create_fallback_chain (valid/invalid/circular/disabled)
+          - Test FallbackService.update_fallback_chain (replace/reorder/add/remove)
+          - Test FallbackService.configure_triggers (valid/invalid retry/backoff)
+          - Test FallbackService.record_fallback_event (metrics increment)
+          - Test ConfigGenerator.generate_router_settings (format validation)
+          - Test ConfigGenerator.generate_config_yaml (includes router_settings)
+          - Test fallback chain API endpoints (POST 201, GET 200, DELETE 204)
+          - Test trigger config API (POST 201, GET 200, invalid 400)
+          - Test metrics API (GET 200, filters)
+          - Test circular fallback detection (400 error)
+          - Test disabled model validation (400 error)
+          - Test test-fallback endpoint (simulate failures)
+          - Achieve 80%+ coverage for fallback_service.py
+          - Follow test patterns from test_provider_service.py
+        </subtasks>
+      </task>
+      <task id="12" ac="All">
+        <title>Integration Tests</title>
+        <subtasks>
+          - Test end-to-end fallback chain creation (API → DB → YAML)
+          - Test config regeneration workflow (create → regenerate → verify YAML)
+          - Test fallback execution simulation (trigger → retry → fallback success)
+          - Test metrics recording (event → DB update → API retrieval)
+          - Test UI workflow (Streamlit → API → config update)
+          - Test trigger configuration (update → regenerate → verify retry_policy in YAML)
+          - Test circular fallback prevention (attempt A→B→A → 400 error)
+          - Test disabled model validation (400 error)
+          - Test cross-provider fallback (OpenAI → Anthropic syntax)
+          - Test fallback metrics dashboard (triggers → UI display)
+          - Test config backup/rollback (backup created → rollback on failure)
+          - Follow patterns from test_provider_workflow.py
+        </subtasks>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="1">Fallback configuration UI: drag-and-drop interface to order providers (primary → fallback1 → fallback2)</criterion>
+    <criterion id="2">Model-specific fallbacks: configure different fallbacks per model (gpt-4 → azure-gpt-4 → claude-3-5-sonnet)</criterion>
+    <criterion id="3">Fallback triggers configured: on 429 Rate Limit, 500 Server Error, 503 Timeout, connection failures</criterion>
+    <criterion id="4">Retry before fallback: 3 retry attempts with exponential backoff before switching providers</criterion>
+    <criterion id="5">Fallback status displayed: shows which provider is currently active, fallback trigger history</criterion>
+    <criterion id="6">litellm-config.yaml updated: fallback chains written to config file, reloads LiteLLM proxy</criterion>
+    <criterion id="7">Testing interface: "Test Fallback" button simulates primary failure, verifies fallback works</criterion>
+    <criterion id="8">Metrics tracked: fallback trigger count per provider, success rate after fallback</criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics.md</path>
+        <title>Epic 8: AI Agent Orchestration Platform</title>
+        <section>Story 8.12: Fallback Chain Configuration (lines 1673-1691)</section>
+        <snippet>
+          As a platform administrator, I want to configure fallback chains for LLM providers, so that the system automatically switches to backup providers when primary fails.
+
+          Acceptance Criteria:
+          1. Fallback configuration UI: drag-and-drop interface to order providers (primary → fallback1 → fallback2)
+          2. Model-specific fallbacks: configure different fallbacks per model (gpt-4 → azure-gpt-4 → claude-3-5-sonnet)
+          3. Fallback triggers configured: on 429 Rate Limit, 500 Server Error, 503 Timeout, connection failures
+          4. Retry before fallback: 3 retry attempts with exponential backoff before switching providers
+          5. Fallback status displayed: shows which provider is currently active, fallback trigger history
+          6. litellm-config.yaml updated: fallback chains written to config file, reloads LiteLLM proxy
+          7. Testing interface: "Test Fallback" button simulates primary failure, verifies fallback works
+          8. Metrics tracked: fallback trigger count per provider, success rate after fallback
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Architecture Documentation</title>
+        <section>Epic 8: LiteLLM Proxy Integration (Story 8.1)</section>
+        <snippet>
+          LiteLLM service added to docker-compose.yml (image: ghcr.io/berriai/litellm-database:main-stable).
+          config/litellm-config.yaml created with default providers (OpenAI, Anthropic, Azure fallback).
+          Fallback chain configured: gpt-4 → azure-gpt-4 → claude-3-5-sonnet.
+          Retry logic configured: 3 attempts, exponential backoff, 30s timeout.
+          LiteLLM requires container restart (no hot reload support) - Config regeneration workflow: backup → generate → validate → write → manual restart.
+        </snippet>
+      </doc>
+      <doc>
+        <path>Context7 MCP: /berriai/litellm</path>
+        <title>LiteLLM 2025 Fallback Configuration Best Practices</title>
+        <section>Router Settings Structure (litellm-config.yaml)</section>
+        <snippet>
+          router_settings:
+            routing_strategy: simple-shuffle  # RECOMMENDED for best performance
+            fallbacks: [{"gpt-4": ["azure-gpt-4", "claude-3-5-sonnet"]}]
+            retry_policy: {
+              "RateLimitErrorRetries": 3,
+              "TimeoutErrorRetries": 3,
+              "InternalServerErrorRetries": 3,
+              "ContentPolicyViolationErrorRetries": 4
+            }
+            allowed_fails_policy: {
+              "RateLimitErrorAllowedFails": 100,
+              "InternalServerErrorAllowedFails": 20
+            }
+            context_window_fallbacks: [{"gpt-4": ["gpt-4-32k"]}]
+            content_policy_fallbacks: [{"gpt-4": ["claude-3-5-sonnet"]}]
+
+          Retry Behavior: RateLimitError uses exponential backoff (automatic), other errors use immediate retry up to num_retries limit.
+          Default backoff formula: retry_n_wait = backoff_factor ^ (retry_count - 1). Example with backoff_factor=2, 3 retries: 2s, 4s, 8s (14s total).
+          Testing: Use mock_testing_fallbacks=True parameter to simulate failures and verify fallback chain execution.
+          Cooldown: allowed_fails + cooldown_time mechanism temporarily disables failing models (e.g., allowed_fails=3, cooldown_time=30 → after 3 failures, model disabled for 30s).
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/stories/8-11-provider-configuration-ui.md</path>
+        <title>Story 8.11: Provider Configuration UI (Prerequisite - COMPLETED)</title>
+        <section>Learnings and Integration Points</section>
+        <snippet>
+          Services Created:
+          - ProviderService at src/services/provider_service.py (373 lines) - Use for fetching enabled providers and validating fallback models
+          - ModelService at src/services/model_service.py (250 lines) - Use for model operations and availability checks
+          - ConfigGenerator at src/services/litellm_config_generator.py (287 lines) - **EXTEND** this for fallback chain configuration
+
+          Key Methods to Reuse:
+          - ProviderService.list_providers(include_disabled=False) - Fetch enabled providers for fallback validation
+          - ModelService.get_model(model_id) - Validate fallback model exists and is enabled
+          - ConfigGenerator.generate_config_yaml() - **EXTEND** to include router_settings section
+          - ConfigGenerator.backup_current_config() - Reuse backup mechanism before config changes
+          - ConfigGenerator.validate_config_syntax() - Reuse YAML validation
+
+          Database Schema:
+          - llm_providers table exists (id, name, provider_type, api_base_url, api_key_encrypted, enabled)
+          - llm_models table exists (id, provider_id, model_name, display_name, enabled, cost_per_input_token, cost_per_output_token, context_window)
+          - **USE THESE** for foreign keys in fallback_chains table
+
+          Admin UI Patterns:
+          - Page structure: src/admin/pages/06_LLM_Providers.py (520 lines after refactoring)
+          - **DO NOT EXCEED 500 LINES** - Extract helpers to src/admin/utils/provider_helpers.py if needed
+          - Tab-based interface: Add "Fallback Configuration" tab to existing provider page
+          - st.data_editor() for table editing, st.multiselect() with order preservation, @st.fragment for auto-refresh
+        </snippet>
+      </doc>
+      <doc>
+        <path>docs/database-schema.md</path>
+        <title>Database Schema Documentation</title>
+        <section>LLM Provider Tables (from Story 8.11)</section>
+        <snippet>
+          llm_providers table: (id, name, provider_type ENUM, api_base_url, api_key_encrypted TEXT, enabled BOOLEAN, created_at, updated_at)
+          llm_models table: (id UUID, provider_id FK, model_name VARCHAR, display_name VARCHAR, enabled BOOLEAN, cost_per_input_token DECIMAL, cost_per_output_token DECIMAL, context_window INTEGER, created_at, updated_at)
+
+          Story 8.12 will add:
+          - fallback_chains table with (model_id FK, fallback_order INTEGER, fallback_model_id FK, enabled, timestamps)
+          - UNIQUE constraint on (model_id, fallback_order) to prevent duplicate positions
+          - Cascade delete when model removed
+        </snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/services/provider_service.py</path>
+        <kind>service</kind>
+        <symbol>ProviderService</symbol>
+        <lines>28-494</lines>
+        <reason>Provides provider validation and listing methods needed for fallback chain validation. Key methods: list_providers(include_disabled=False), get_provider(provider_id), test_provider_connection()</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/model_service.py</path>
+        <kind>service</kind>
+        <symbol>ModelService</symbol>
+        <lines>22-358</lines>
+        <reason>Provides model CRUD operations and availability checks. Key methods: get_model(model_id), list_models_by_provider(provider_id), toggle_model(model_id, enabled) - Essential for validating fallback models exist and are enabled</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/litellm_config_generator.py</path>
+        <kind>service</kind>
+        <symbol>ConfigGenerator</symbol>
+        <lines>29-293</lines>
+        <reason>MUST EXTEND this service to include router_settings generation. Key methods to reuse: generate_config_yaml(), backup_current_config(), validate_config_syntax(), write_config_to_file(), regenerate_config(). Story 8.12 will add generate_router_settings() method to create fallbacks, retry_policy, allowed_fails_policy sections</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>LLMProvider</symbol>
+        <lines>1255-1351</lines>
+        <reason>Existing database model with columns: id, name, provider_type, api_base_url, api_key_encrypted, enabled, created_at, updated_at. Story 8.12 will reference this for provider-level fallback validation</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>model</kind>
+        <symbol>LLMModel</symbol>
+        <lines>1354-1452</lines>
+        <reason>Existing database model with columns: id, provider_id FK, model_name, display_name, enabled, cost_per_input_token, cost_per_output_token, context_window, capabilities JSONB, created_at, updated_at. Story 8.12 will add FallbackChain model with foreign keys to this table (model_id, fallback_model_id)</reason>
+      </artifact>
+      <artifact>
+        <path>src/api/llm_providers.py</path>
+        <kind>api</kind>
+        <symbol>provider router</symbol>
+        <lines>full file</lines>
+        <reason>Existing FastAPI router for provider CRUD operations. Story 8.12 will create separate src/api/fallback_chains.py router that can reference provider endpoints for validation</reason>
+      </artifact>
+      <artifact>
+        <path>src/admin/pages/06_LLM_Providers.py</path>
+        <kind>ui</kind>
+        <symbol>Provider Management Page</symbol>
+        <lines>full file (520 lines after refactoring)</lines>
+        <reason>Story 8.12 will add "Fallback Configuration" tab to this page. CRITICAL: File currently at 520 lines, approaching 500-line limit (Constraint C1). Must extract helper functions to src/admin/utils/provider_helpers.py or create separate fallback helper file if new tab exceeds limit</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/provider.py</path>
+        <kind>schema</kind>
+        <symbol>Provider Pydantic schemas</symbol>
+        <lines>full file (330 lines)</lines>
+        <reason>Existing Pydantic schemas for provider CRUD. Story 8.12 will either extend this file or create src/schemas/fallback.py for FallbackChainCreate, FallbackChainUpdate, FallbackChainResponse, FallbackTriggerConfig, FallbackMetrics schemas</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_provider_service.py</path>
+        <kind>test</kind>
+        <symbol>provider service tests</symbol>
+        <lines>full file</lines>
+        <reason>Test patterns to follow for fallback_service.py unit tests: pytest fixtures, async patterns, proper mocking, 80%+ coverage target</reason>
+      </artifact>
+      <artifact>
+        <path>tests/integration/test_provider_workflow.py</path>
+        <kind>test</kind>
+        <symbol>provider workflow tests</symbol>
+        <lines>full file</lines>
+        <reason>Integration test patterns to follow for fallback chain workflow tests: end-to-end API → DB → YAML verification</reason>
+      </artifact>
+      <artifact>
+        <path>config/litellm-config.yaml</path>
+        <kind>config</kind>
+        <symbol>LiteLLM configuration</symbol>
+        <lines>full file</lines>
+        <reason>Existing LiteLLM configuration that Story 8.12 will extend with router_settings section containing fallbacks, retry_policy, allowed_fails_policy, context_window_fallbacks, content_policy_fallbacks</reason>
+      </artifact>
+      <artifact>
+        <path>alembic/versions/002_add_llm_provider_tables.py</path>
+        <kind>migration</kind>
+        <symbol>provider tables migration</symbol>
+        <lines>full file (248 lines)</lines>
+        <reason>Migration pattern to follow for 003_add_fallback_chain_tables.py: includes LLMProvider and LLMModel table creation, indexes, constraints. Story 8.12 will add fallback_chains, fallback_triggers, fallback_metrics tables following same patterns</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="sqlalchemy" version="2.0+">ORM for fallback_chains, fallback_triggers, fallback_metrics table models</package>
+        <package name="alembic" version="latest">Database migration for new fallback tables</package>
+        <package name="pydantic" version="2.x">Validation schemas for FallbackChain CRUD, trigger configs, metrics</package>
+        <package name="fastapi" version="0.104+">REST API endpoints for fallback chain management</package>
+        <package name="streamlit" version="1.30+">Admin UI components: st.data_editor for drag-and-drop ordering, st.multiselect with order preservation, @st.fragment for auto-refresh</package>
+        <package name="plotly" version="latest">Interactive charts for fallback metrics dashboard (trigger count, success rate, fallback usage)</package>
+        <package name="pyyaml" version="latest">YAML generation for router_settings in litellm-config.yaml</package>
+        <package name="redis" version="latest">Caching fallback chains with 60s TTL for performance</package>
+        <package name="pytest" version="latest">Unit and integration testing framework</package>
+        <package name="pytest-asyncio" version="latest">Async test support for fallback service methods</package>
+      </python>
+      <external>
+        <service name="LiteLLM Proxy" version="main-stable">Consumes generated router_settings configuration. Requires container restart to reload config (no hot reload support)</service>
+        <service name="PostgreSQL" version="17">Database storage for fallback_chains, fallback_triggers, fallback_metrics tables</service>
+        <service name="Redis" version="7.x">Caching layer for fallback chain configurations</service>
+      </external>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1">
+      <type>File Size Limit</type>
+      <description>All files MUST be ≤500 lines. Current 06_LLM_Providers.py is 520 lines (already over). Adding fallback tab will exceed limit - MUST extract helpers to src/admin/utils/fallback_helpers.py or refactor existing provider_helpers.py</description>
+      <impact>HIGH</impact>
+    </constraint>
+    <constraint id="C2">
+      <type>Database Foreign Keys</type>
+      <description>fallback_chains table MUST use existing llm_models.id for model_id and fallback_model_id foreign keys. Cannot create new model tables - reuse existing schema from Story 8.11</description>
+      <impact>CRITICAL</impact>
+    </constraint>
+    <constraint id="C3">
+      <type>Config Generator Extension</type>
+      <description>MUST extend existing src/services/litellm_config_generator.py, NOT create new config service. Add generate_router_settings() method that integrates with existing generate_config_yaml() workflow</description>
+      <impact>CRITICAL</impact>
+    </constraint>
+    <constraint id="C4">
+      <type>LiteLLM Config Reload</type>
+      <description>LiteLLM does NOT support hot reload - requires container restart. Config regeneration workflow: backup → generate → validate → write → MANUAL restart. Must document restart process and add health check validation</description>
+      <impact>HIGH</impact>
+    </constraint>
+    <constraint id="C5">
+      <type>Circular Fallback Prevention</type>
+      <description>MUST validate and prevent circular fallback chains (A→B→A). Validation logic required in FallbackService before saving to database. Return 400 error with clear message if circular chain detected</description>
+      <impact>CRITICAL</impact>
+    </constraint>
+    <constraint id="C6">
+      <type>Fallback Model Availability</type>
+      <description>MUST validate all fallback models are enabled=True and have valid api_key before allowing fallback chain creation. Use ModelService.get_model() for validation</description>
+      <impact>HIGH</impact>
+    </constraint>
+    <constraint id="C7">
+      <type>Testing Coverage</type>
+      <description>MUST achieve 80%+ code coverage for fallback_service.py. Follow existing test patterns from test_provider_service.py: pytest fixtures, async patterns, proper mocking</description>
+      <impact>MEDIUM</impact>
+    </constraint>
+    <constraint id="C8">
+      <type>API Authorization</type>
+      <description>ALL fallback chain API endpoints require platform admin role. Tenants CANNOT access fallback configuration - this is platform-level configuration only</description>
+      <impact>CRITICAL</impact>
+    </constraint>
+    <constraint id="C9">
+      <type>Path Format</type>
+      <description>ALL paths in context file MUST be project-relative (e.g., "src/services/fallback_service.py" NOT "/Users/.../src/services/fallback_service.py"). Strip project root prefix from all file references</description>
+      <impact>LOW</impact>
+    </constraint>
+    <constraint id="C10">
+      <type>LiteLLM 2025 Spec Compliance</type>
+      <description>Router settings MUST follow LiteLLM 2025 YAML specification from Context7 MCP research: fallbacks as List[Dict[str, List[str]]], retry_policy with error type keys, allowed_fails_policy with error type keys, routing_strategy: simple-shuffle (recommended)</description>
+      <impact>CRITICAL</impact>
+    </constraint>
+    <constraint id="C11">
+      <type>Retry Before Fallback</type>
+      <description>MUST implement retry_policy with 3 attempts + exponential backoff BEFORE switching to fallback model. Retry logic: RateLimitError gets automatic exponential backoff, other errors get immediate retry up to num_retries. Example: backoff_factor=2, 3 retries = 2s, 4s, 8s (14s total)</description>
+      <impact>HIGH</impact>
+    </constraint>
+    <constraint id="C12">
+      <type>Unique Fallback Order</type>
+      <description>Database MUST enforce UNIQUE constraint on (model_id, fallback_order) to prevent duplicate fallback positions in chain. Constraint added in Alembic migration</description>
+      <impact>MEDIUM</impact>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>ProviderService.list_providers</name>
+      <kind>method</kind>
+      <signature>async def list_providers(self, include_disabled: bool = False) -> List[LLMProvider]</signature>
+      <path>src/services/provider_service.py</path>
+      <usage>Use in fallback chain validation to fetch all enabled providers for cross-provider fallback warnings (OpenAI → Anthropic valid, OpenAI → OpenAI warning)</usage>
+    </interface>
+    <interface>
+      <name>ModelService.get_model</name>
+      <kind>method</kind>
+      <signature>async def get_model(self, model_id: UUID) -> Optional[LLMModel]</signature>
+      <path>src/services/model_service.py</path>
+      <usage>CRITICAL: Use to validate fallback model exists and is enabled before creating fallback chain. Return 400 error if model not found or disabled</usage>
+    </interface>
+    <interface>
+      <name>ModelService.list_models_by_provider</name>
+      <kind>method</kind>
+      <signature>async def list_models_by_provider(self, provider_id: UUID, enabled_only: bool = True) -> List[LLMModel]</signature>
+      <path>src/services/model_service.py</path>
+      <usage>Use in fallback UI to populate model selector dropdown, filtered by enabled models only</usage>
+    </interface>
+    <interface>
+      <name>ConfigGenerator.generate_config_yaml</name>
+      <kind>method</kind>
+      <signature>async def generate_config_yaml(self) -> dict</signature>
+      <path>src/services/litellm_config_generator.py</path>
+      <usage>EXTEND this method to call new generate_router_settings() and include router_settings section in final YAML output. DO NOT duplicate logic - integrate with existing workflow</usage>
+    </interface>
+    <interface>
+      <name>ConfigGenerator.backup_current_config</name>
+      <kind>method</kind>
+      <signature>def backup_current_config(self) -> Path</signature>
+      <path>src/services/litellm_config_generator.py</path>
+      <usage>Reuse for creating timestamped backups before regenerating config with new fallback chains. Format: config/litellm-config.backup.YYYY-MM-DD-HH-MM-SS.yaml</usage>
+    </interface>
+    <interface>
+      <name>ConfigGenerator.validate_config_syntax</name>
+      <kind>method</kind>
+      <signature>def validate_config_syntax(self, config_dict: dict) -> bool</signature>
+      <path>src/services/litellm_config_generator.py</path>
+      <usage>Reuse to validate generated YAML includes valid router_settings syntax before writing to file. Ensure all fallback model names exist in model_list</usage>
+    </interface>
+    <interface>
+      <name>LLMModel database table</name>
+      <kind>database</kind>
+      <signature>Table: llm_models (id UUID PK, provider_id UUID FK, model_name VARCHAR, enabled BOOLEAN, ...)</signature>
+      <path>src/database/models.py</path>
+      <usage>Use llm_models.id as foreign key for fallback_chains.model_id and fallback_chains.fallback_model_id. Add relationship in FallbackChain model: model = relationship("LLMModel", foreign_keys=[model_id]), fallback_model = relationship("LLMModel", foreign_keys=[fallback_model_id])</usage>
+    </interface>
+    <interface>
+      <name>POST /api/llm-providers (for reference)</name>
+      <kind>REST API</kind>
+      <signature>POST /api/llm-providers → 201 Created with provider_id</signature>
+      <path>src/api/llm_providers.py</path>
+      <usage>Follow this pattern for fallback chain API: POST /api/llm-models/{model_id}/fallback-chain creates/updates chain, returns 201 with fallback_chain_id</usage>
+    </interface>
+    <interface>
+      <name>Streamlit st.data_editor pattern</name>
+      <kind>UI component</kind>
+      <signature>st.data_editor(df, column_config={"order": st.column_config.NumberColumn(...)})</signature>
+      <path>Streamlit 1.30+ documentation</path>
+      <usage>Use for drag-and-drop fallback ordering UI. Alternative: st.multiselect with order preserved by selection sequence (Streamlit 1.30+)</usage>
+    </interface>
+    <interface>
+      <name>LiteLLM router_settings YAML structure</name>
+      <kind>configuration</kind>
+      <signature>router_settings: { routing_strategy, fallbacks, retry_policy, allowed_fails_policy, context_window_fallbacks, content_policy_fallbacks }</signature>
+      <path>Context7 MCP: /berriai/litellm</path>
+      <usage>MUST follow this exact structure in ConfigGenerator.generate_router_settings(). Example: fallbacks: [{"gpt-4": ["azure-gpt-4", "claude-3-5-sonnet"]}], retry_policy: {"RateLimitErrorRetries": 3, ...}</usage>
+    </interface>
+    <interface>
+      <name>LiteLLM mock_testing_fallbacks parameter</name>
+      <kind>API parameter</kind>
+      <signature>router.completion(model="gpt-4", messages=[...], mock_testing_fallbacks=True)</signature>
+      <path>Context7 MCP: /berriai/litellm</path>
+      <usage>Use in test-fallback endpoint implementation to simulate primary model failure and trigger fallback chain for testing. Returns response from fallback model when mock_testing_fallbacks=True</usage>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>Project uses pytest with pytest-asyncio for async testing. Unit tests follow pattern: test_&lt;action&gt;_&lt;scenario&gt; with comprehensive mocking of database (AsyncMock for session), Redis (patch redis client), and external services (patch httpx requests). Integration tests follow pattern: test_&lt;workflow_name&gt;_workflow covering end-to-end API → DB → YAML verification. All tests use fixtures from conftest.py for environment setup, plugin mocking, and failure mode testing. Target 80%+ code coverage for all service modules. Test organization: tests/unit/ for isolated function/class tests, tests/integration/ for multi-component workflows, tests/conftest.py for shared fixtures.</standards>
+    <locations>
+      <location>tests/unit/test_fallback_service.py</location>
+      <location>tests/unit/test_litellm_config_generator.py (extend existing)</location>
+      <location>tests/integration/test_fallback_workflow.py</location>
+      <location>tests/integration/test_provider_workflow.py (extend existing)</location>
+      <location>tests/unit/test_fallback_chains_api.py</location>
+    </locations>
+    <ideas>
+      <!-- AC1: Fallback chain CRUD operations -->
+      <idea ac="AC1" priority="HIGH">
+        <test>test_create_fallback_chain_success</test>
+        <description>Unit test FallbackService.create_fallback_chain() with valid model_id, fallback_model_id, fallback_order, triggers. Verify database insert with correct foreign keys to llm_models table</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC1" priority="CRITICAL">
+        <test>test_create_fallback_chain_circular_prevention</test>
+        <description>Unit test FallbackService validates and rejects circular fallback chains (A→B→C→A). Expect ValidationError with message "Circular fallback chain detected"</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC1" priority="MEDIUM">
+        <test>test_update_fallback_chain_order</test>
+        <description>Unit test FallbackService.update_fallback_chain() changes fallback_order and validates UNIQUE constraint on (model_id, fallback_order). Test reordering from order 1→2 updates database correctly</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC1" priority="MEDIUM">
+        <test>test_delete_fallback_chain_cascade</test>
+        <description>Unit test FallbackService.delete_fallback_chain() removes chain and verifies cascading deletes to fallback_triggers, fallback_metrics tables</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC1" priority="HIGH">
+        <test>test_fallback_chain_crud_workflow</test>
+        <description>Integration test full CRUD workflow: POST /api/llm-models/{model_id}/fallback-chain → GET chain → PUT update order → DELETE chain. Verify config regeneration triggers at each step</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+
+      <!-- AC2: Model-specific fallback configuration -->
+      <idea ac="AC2" priority="HIGH">
+        <test>test_model_specific_fallback_gpt4_to_claude</test>
+        <description>Unit test fallback mapping creation: gpt-4 → azure-gpt-4 → claude-3-5-sonnet. Verify all models validated via ModelService.get_model() before creation</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC2" priority="MEDIUM">
+        <test>test_cross_provider_fallback_validation</test>
+        <description>Unit test FallbackService validates cross-provider fallbacks (OpenAI → Anthropic). Verify warning logged but chain creation allowed</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC2" priority="CRITICAL">
+        <test>test_fallback_model_enabled_validation</test>
+        <description>Unit test FallbackService rejects fallback chain if fallback_model has enabled=False. Expect ValidationError with message "Fallback model must be enabled"</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC2" priority="HIGH">
+        <test>test_multi_model_fallback_configuration_workflow</test>
+        <description>Integration test configuring fallback chains for multiple models (gpt-4, gpt-3.5-turbo, claude-3-opus) simultaneously. Verify config generation includes all chains in router_settings.fallbacks</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+
+      <!-- AC3: Fallback triggers configuration -->
+      <idea ac="AC3" priority="HIGH">
+        <test>test_trigger_configuration_rate_limit</test>
+        <description>Unit test creating FallbackTrigger with error_code=429, error_type=RateLimitError, trigger_enabled=True. Verify retry_policy includes RateLimitErrorRetries=3</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC3" priority="MEDIUM">
+        <test>test_trigger_configuration_timeout</test>
+        <description>Unit test creating FallbackTrigger with error_code=503, error_type=Timeout, trigger_enabled=True. Verify retry_policy includes TimeoutErrorRetries=3</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC3" priority="MEDIUM">
+        <test>test_trigger_configuration_server_error</test>
+        <description>Unit test creating FallbackTrigger with error_code=500, error_type=InternalServerError, trigger_enabled=True. Verify retry_policy includes InternalServerErrorRetries=3</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC3" priority="HIGH">
+        <test>test_trigger_configuration_workflow</test>
+        <description>Integration test POST /api/fallback-chains/{chain_id}/triggers with triggers=[{error_code: 429, ...}, {error_code: 503, ...}]. Verify config regeneration includes allowed_fails_policy for both error types</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+
+      <!-- AC4: Retry configuration with exponential backoff -->
+      <idea ac="AC4" priority="CRITICAL">
+        <test>test_retry_policy_three_attempts</test>
+        <description>Unit test ConfigGenerator.generate_router_settings() includes retry_policy with num_retries=3 for all error types (RateLimitErrorRetries, TimeoutErrorRetries, InternalServerErrorRetries)</description>
+        <location>tests/unit/test_litellm_config_generator.py</location>
+      </idea>
+      <idea ac="AC4" priority="HIGH">
+        <test>test_exponential_backoff_calculation</test>
+        <description>Unit test retry_policy includes timeout=600 (10min total), backoff_factor=2 for exponential backoff. Verify calculation: retry 1=2s, retry 2=4s, retry 3=8s (14s total before fallback)</description>
+        <location>tests/unit/test_litellm_config_generator.py</location>
+      </idea>
+      <idea ac="AC4" priority="MEDIUM">
+        <test>test_retry_before_fallback_sequence</test>
+        <description>Integration test verifies retry logic BEFORE fallback: primary model fails → 3 retry attempts with exponential backoff → fallback to secondary model. Requires mock_testing_fallbacks=True parameter</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+
+      <!-- AC5: Config regeneration with router_settings -->
+      <idea ac="AC5" priority="CRITICAL">
+        <test>test_generate_router_settings_structure</test>
+        <description>Unit test ConfigGenerator.generate_router_settings() returns dict with keys: routing_strategy, fallbacks, retry_policy, allowed_fails_policy, context_window_fallbacks, content_policy_fallbacks. Verify LiteLLM 2025 spec compliance</description>
+        <location>tests/unit/test_litellm_config_generator.py</location>
+      </idea>
+      <idea ac="AC5" priority="HIGH">
+        <test>test_config_yaml_includes_router_settings</test>
+        <description>Unit test ConfigGenerator.generate_config_yaml() output includes router_settings section alongside existing model_list, litellm_settings. Verify valid YAML syntax with PyYAML.safe_load()</description>
+        <location>tests/unit/test_litellm_config_generator.py</location>
+      </idea>
+      <idea ac="AC5" priority="MEDIUM">
+        <test>test_backup_before_regeneration</test>
+        <description>Integration test config regeneration workflow: backup_current_config() creates timestamped backup → generate_config_yaml() → validate_config_syntax() → write_config_to_file(). Verify backup file exists in config/ directory</description>
+        <location>tests/integration/test_provider_workflow.py</location>
+      </idea>
+      <idea ac="AC5" priority="HIGH">
+        <test>test_fallbacks_list_structure_compliance</test>
+        <description>Unit test router_settings.fallbacks format: [{"gpt-4": ["azure-gpt-4", "claude-3-5-sonnet"]}, {"gpt-3.5-turbo": ["azure-gpt-35-turbo"]}]. Verify List[Dict[str, List[str]]] structure per LiteLLM 2025 spec</description>
+        <location>tests/unit/test_litellm_config_generator.py</location>
+      </idea>
+
+      <!-- AC6: Mock testing interface -->
+      <idea ac="AC6" priority="CRITICAL">
+        <test>test_mock_testing_fallbacks_parameter</test>
+        <description>Integration test POST /api/fallback-chains/{chain_id}/test with mock_testing_fallbacks=True parameter. Verify endpoint calls LiteLLM router.completion() with this parameter and returns fallback model response</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+      <idea ac="AC6" priority="HIGH">
+        <test>test_simulate_primary_model_failure</test>
+        <description>Integration test mock testing interface simulates primary model (gpt-4) failure. Verify response metadata includes: fallback_triggered=True, fallback_model_used="azure-gpt-4", primary_model_failed=True</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+      <idea ac="AC6" priority="MEDIUM">
+        <test>test_fallback_chain_execution_in_test_mode</test>
+        <description>Integration test verifies complete fallback chain execution: gpt-4 (fail) → azure-gpt-4 (fail) → claude-3-5-sonnet (success). Mock all models, verify fallback traversal order and final success response</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+
+      <!-- AC7: Metrics tracking for fallback events -->
+      <idea ac="AC7" priority="HIGH">
+        <test>test_track_fallback_event_metrics</test>
+        <description>Unit test FallbackService.track_fallback_event() creates FallbackMetric record with: chain_id, trigger_error_code, fallback_executed=True, fallback_success=True/False, latency_ms, created_at timestamp</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC7" priority="MEDIUM">
+        <test>test_metrics_dashboard_data_retrieval</test>
+        <description>Unit test FallbackService.get_fallback_metrics() returns aggregated metrics: total_fallback_events, success_rate, avg_latency_ms, fallback_frequency_by_model, error_code_distribution</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC7" priority="MEDIUM">
+        <test>test_fallback_success_rate_calculation</test>
+        <description>Unit test metrics calculation: 10 fallback events, 8 successful, 2 failed → success_rate=80%. Verify FallbackService.calculate_success_rate() returns correct percentage</description>
+        <location>tests/unit/test_fallback_service.py</location>
+      </idea>
+      <idea ac="AC7" priority="HIGH">
+        <test>test_metrics_tracking_workflow</test>
+        <description>Integration test end-to-end metrics workflow: trigger fallback via test endpoint → verify FallbackMetric created in database → GET /api/fallback-metrics returns aggregated dashboard data with Plotly chart structure</description>
+        <location>tests/integration/test_fallback_workflow.py</location>
+      </idea>
+
+      <!-- AC8: Admin UI for fallback management -->
+      <idea ac="AC8" priority="HIGH">
+        <test>test_fallback_tab_renders_correctly</test>
+        <description>UI test verifies "Fallback Configuration" tab renders in 06_LLM_Providers.py with sections: Model Selection, Fallback Chain Editor (st.data_editor or st.multiselect), Trigger Configuration, Test Fallback button, Metrics Dashboard</description>
+        <location>tests/integration/test_fallback_ui.py (new)</location>
+      </idea>
+      <idea ac="AC8" priority="MEDIUM">
+        <test>test_drag_and_drop_fallback_ordering</test>
+        <description>UI test st.data_editor allows reordering fallback models via drag-and-drop. Verify updated order persisted to fallback_chains.fallback_order on Save</description>
+        <location>tests/integration/test_fallback_ui.py (new)</location>
+      </idea>
+      <idea ac="AC8" priority="HIGH">
+        <test>test_save_fallback_chain_ui_workflow</test>
+        <description>UI test complete workflow: select model → add fallback models → configure triggers → click Save → verify POST /api/llm-models/{model_id}/fallback-chain → config regeneration → success message displayed</description>
+        <location>tests/integration/test_fallback_ui.py (new)</location>
+      </idea>
+      <idea ac="AC8" priority="MEDIUM">
+        <test>test_metrics_dashboard_plotly_charts</test>
+        <description>UI test metrics dashboard renders Plotly charts: fallback frequency over time (line chart), error code distribution (pie chart), success rate by model (bar chart). Verify charts use @st.fragment for auto-refresh</description>
+        <location>tests/integration/test_fallback_ui.py (new)</location>
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -40,6 +40,7 @@ Multi-tenant AI enhancement platform for MSP technicians. This system receives w
 - 🚀 [Kubernetes Deployment Guide](docs/deployment.md) - Production deployment and scaling
 - 📋 [Tech Specification](docs/tech-spec-epic-1.md) - Detailed technical requirements and specifications
 - 🖥️ [Admin UI Guide](docs/admin-ui-guide.md) - Comprehensive Streamlit admin interface documentation (setup, deployment, features, troubleshooting)
+- 🔑 [BYOK (Bring Your Own Key) Setup Guide](docs/byok-setup-guide.md) - Enable tenants to use their own OpenAI/Anthropic API keys (Story 8.13)
 
 **Development:**
 - 💻 [Contributing Guidelines](#contributing) - Development workflow and code standards

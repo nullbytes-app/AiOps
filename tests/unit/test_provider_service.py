@@ -123,9 +123,9 @@ async def test_create_provider_success(
     decrypted = decrypt(result.api_key_encrypted)
     assert decrypted == "sk-test123"
 
-    # Verify database operations
-    mock_db.add.assert_called_once()
-    mock_db.commit.assert_called_once()
+    # Verify database operations (provider + audit log)
+    assert mock_db.add.call_count == 2  # Provider + AuditLog
+    assert mock_db.commit.call_count == 2  # After provider, after audit
 
     # Verify cache invalidation
     mock_redis.delete.assert_called()
@@ -334,7 +334,7 @@ async def test_update_provider_success(
     assert result.name == "Updated OpenAI"
     assert result.api_base_url == "https://api.openai.com/v2"
 
-    mock_db.commit.assert_called_once()
+    assert mock_db.commit.call_count == 2  # After update, after audit
     mock_redis.delete.assert_called()  # Cache invalidation
 
 
@@ -391,7 +391,7 @@ async def test_delete_provider_success(
     # Assertions
     assert result is True
     assert sample_provider_openai.enabled is False
-    mock_db.commit.assert_called_once()
+    assert mock_db.commit.call_count == 2  # After delete, after audit
     mock_redis.delete.assert_called()  # Cache invalidation
 
 

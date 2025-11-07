@@ -1,0 +1,344 @@
+<story-context id="bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>8</epicId>
+    <storyId>7</storyId>
+    <title>Tool Assignment UI</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-06</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/8-7-tool-assignment-ui.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>system administrator</asA>
+    <iWant>to assign MCP tools to agents via checkboxes in the admin UI</iWant>
+    <soThat>agents can access the specific tools they need for their tasks</soThat>
+    <tasks>
+### Tasks / Subtasks
+
+- [x] Task 1: Enhance Tools Tab UI in Create Agent Form (AC#1, AC#2)
+  - [x] 1.1: Update `create_agent_form()` in `agent_forms.py` to improve Tools tab layout
+  - [x] 1.2: Replace simple multiselect with expandable tool cards showing descriptions
+  - [x] 1.3: Add tool capability details (operations, parameters) on expand/hover using st.expander
+  - [x] 1.4: Implement checkbox UI with st.checkbox for each tool (2025 Streamlit best practice per Context7 MCP)
+  - [x] 1.5: Add visual indicators for required vs optional tools
+
+- [x] Task 2: Enhance Tools Display in Edit Agent Form (AC#1, AC#2, AC#5)
+  - [x] 2.1: Update `edit_agent_form()` to match create form tool selection UI
+  - [x] 2.2: Pre-populate currently assigned tools from agent.tool_ids
+  - [x] 2.3: Show "currently assigned" vs "available" tool states clearly
+  - [x] 2.4: Implement unassign logic (remove from tool_ids list on form submit)
+
+- [x] Task 3: Improve Agent Detail View Tool Display (AC#4)
+  - [x] 3.1: Update `agent_detail_view()` tool section (lines 690-699)
+  - [x] 3.2: Replace simple text with badge/chip components (st.pills or custom styling)
+  - [x] 3.3: Show tool names with icons (🔧 prefix maintained)
+  - [x] 3.4: Add tool descriptions on hover using st.tooltip or help parameter
+  - [x] 3.5: Display "No tools assigned" message if tools list empty
+
+- [x] Task 4: Implement Tool Usage Tracking (AC#6)
+  - [x] 4.1: Create `get_tool_usage_stats()` function in `agent_helpers.py`
+  - [x] 4.2: Query database to count agents using each tool (GROUP BY tool_id)
+  - [x] 4.3: Display usage count in tool selection UI ("ServiceDesk Plus - 5 agents")
+  - [x] 4.4: Add caching to usage stats query (@st.cache_data with TTL=60s)
+
+- [x] Task 5: Add Form Validation for Tool Assignment (AC#7)
+  - [x] 5.1: Update `validate_form_data()` in `agent_forms.py` to check tool_ids
+  - [x] 5.2: Add configurable validation mode (warning or error) - default: warning
+  - [x] 5.3: Show st.warning() if no tools selected in create/edit forms
+  - [x] 5.4: Prevent form submission if hard validation enabled (optional strict mode)
+
+- [x] Task 6: Integrate MCP Tool Metadata (AC#8)
+  - [x] 6.1: Create `fetch_mcp_tool_metadata()` async function in `agent_helpers.py`
+  - [x] 6.2: Query MCP servers for tool schemas and descriptions (if available)
+  - [x] 6.3: Merge MCP metadata with AVAILABLE_TOOLS fallback dict
+  - [x] 6.4: Cache MCP metadata with @st.cache_data(ttl=300) to avoid repeated server calls
+  - [x] 6.5: Handle MCP server unavailability gracefully (fallback to static descriptions)
+
+- [x] Task 7: Update API Integration for Tool Assignment (AC#3, AC#5)
+  - [x] 7.1: Verify `create_agent_async()` correctly sends tool_ids in payload
+  - [x] 7.2: Verify `update_agent_async()` correctly updates tool_ids
+  - [x] 7.3: Test soft delete behavior for tool unassignment (audit trail preserved)
+  - [x] 7.4: Add error handling for tool assignment API failures
+
+- [x] Task 8: Create Comprehensive Unit Tests (AC#1-8)
+  - [x] 8.1: Test tool selection UI rendering with all AVAILABLE_TOOLS
+  - [x] 8.2: Test tool assignment save to database (tool_ids array)
+  - [x] 8.3: Test tool unassignment (removal from tool_ids)
+  - [x] 8.4: Test tool usage tracking query and display
+  - [x] 8.5: Test form validation (no tools selected scenarios)
+  - [x] 8.6: Test MCP metadata fetching and fallback logic
+  - [x] 8.7: Test agent detail view tool display (badges/chips)
+  - [x] 8.8: Integration test: create agent → assign tools → verify in detail view
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. **"Tools" tab in agent create/edit form displays available MCP tools** - UI displays all tools from AVAILABLE_TOOLS dict with clear names and descriptions
+2. **Checkboxes for each tool with hover/expand descriptions** - Each tool shows capabilities and operations on hover or expand, following existing UI patterns from Story 8.4
+3. **Tool assignment saved to agent_tools junction table** - Form submit correctly saves tool_ids to agent database record following Story 8.2 schema
+4. **Agent detail view displays assigned tools with badges/chips** - Detail modal shows assigned tools visually following Story 8.4 patterns (lines 690-699)
+5. **Unassigning tools removes junction table entries** - Editing agent and removing tool checkboxes correctly updates database with soft delete for audit trail
+6. **Tool usage tracking displays count** - UI shows "X agents" using each tool, helping admins understand tool adoption
+7. **Validation enforces at least one tool** - Form validation shows warning/error if no tools selected (configurable: warning or hard block)
+8. **MCP tool metadata integration** - Tool descriptions pulled from actual MCP server metadata when available, with fallback to AVAILABLE_TOOLS dict
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- Epic 8 Requirements -->
+      <doc path="docs/epics.md" title="Epic 8: AI Agent Orchestration Platform" section="Story 8.7: Tool Assignment UI (lines 1573-1589)">
+        User story and 8 acceptance criteria for tool assignment UI. Key requirements: checkbox UI for tool selection, tool usage tracking, MCP metadata integration, form validation for minimum one tool.
+      </doc>
+
+      <!-- Architecture Documentation -->
+      <doc path="docs/architecture.md" title="AI Agents Architecture" section="Admin UI Framework (line 51)">
+        Streamlit 1.30+ selected as admin UI framework for rapid prototyping, built-in components, and beginner-friendly development (5-10x faster than React).
+      </doc>
+
+      <doc path="docs/plugin-architecture.md" title="Plugin Architecture Guide" section="Overview and Architecture Summary">
+        Plugin pattern for multi-tool support (ServiceDesk Plus, Jira, future tools). Plugin Manager routes by tenant tool_type, enabling extensibility and isolation.
+      </doc>
+
+      <!-- Story Dependencies -->
+      <doc path="docs/stories/8-2-agent-database-schema-and-models.md" title="Story 8.2: Agent Database Schema" section="Schema Design">
+        Agents table has tool_ids column (TEXT[] array) for storing assigned tools. No junction table - simplified design using PostgreSQL array.
+      </doc>
+
+      <doc path="docs/stories/8-3-agent-crud-api-endpoints.md" title="Story 8.3: Agent CRUD API" section="API Endpoints">
+        POST /api/agents and PUT /api/agents/{id} accept tool_ids array in request body. API layer ready for tool assignment.
+      </doc>
+
+      <doc path="docs/stories/8-4-agent-management-ui-basic.md" title="Story 8.4: Agent Management UI Basic" section="UI Patterns">
+        Base agent management UI with create/edit forms (multi-tab interface), agent detail view, and form validation patterns. Current Tools tab uses st.multiselect (enhancement needed for this story).
+      </doc>
+
+      <doc path="docs/stories/8-6-agent-webhook-endpoint-generation.md" title="Story 8.6: Webhook Integration" section="Learnings and Patterns">
+        Recent patterns for expandable UI sections (st.expander), session state management, async helper functions, Context7 MCP research for latest library docs, comprehensive testing strategies.
+      </doc>
+
+      <!-- 2025 Best Practices (Context7 MCP Research) -->
+      <doc path="external:streamlit-docs" title="Streamlit Documentation 2025" section="Forms, Session State, Caching">
+        Best practices: Use st.session_state with callbacks for form state management, st.expander for collapsible sections, @st.cache_data(ttl=60) for expensive queries, st.pills (v1.30+) for badge/chip display.
+      </doc>
+
+      <doc path="external:mcp-python-sdk" title="Model Context Protocol Python SDK" section="Client Session and Tool Discovery">
+        MCP client pattern: ClientSession.list_tools() for dynamic tool discovery from MCP servers. Async pattern with stdio_client for server communication.
+      </doc>
+    </docs>
+    <code>
+      <!-- Current Tools Tab Implementation (needs enhancement) -->
+      <artifact path="src/admin/components/agent_forms.py" kind="file" symbol="create_agent_form" lines="259-268" reason="Current Tools tab uses simple st.multiselect - need to enhance with checkboxes, expandable descriptions, and usage tracking per AC#1-2">
+        Current implementation: st.multiselect with AVAILABLE_TOOLS dict for formatting. Stores selections in form_data["tools"] list.
+      </artifact>
+
+      <artifact path="src/admin/components/agent_forms.py" kind="file" symbol="edit_agent_form" lines="399-404" reason="Edit form also uses st.multiselect for tools - needs same enhancements as create form per AC#2, AC#5">
+        Pre-populates from agent.tool_ids, uses same st.multiselect pattern. Need to add tool unassignment logic.
+      </artifact>
+
+      <artifact path="src/admin/components/agent_forms.py" kind="file" symbol="agent_detail_view" lines="690-699" reason="Tool display in detail view - needs enhancement with badges/chips per AC#4">
+        Currently displays tools in 3-column layout with 🔧 prefix and AVAILABLE_TOOLS formatting. Need st.pills or custom badge styling.
+      </artifact>
+
+      <!-- Helper Functions and Constants -->
+      <artifact path="src/admin/utils/agent_helpers.py" kind="constant" symbol="AVAILABLE_TOOLS" lines="41-47" reason="Static tool definitions - will serve as fallback when MCP metadata unavailable per AC#8">
+        Dict mapping tool IDs to display names: servicedesk_plus, jira, knowledge_base, monitoring, logs.
+      </artifact>
+
+      <artifact path="src/admin/utils/agent_helpers.py" kind="function" symbol="validate_form_data" lines="140-185" reason="Form validation logic - need to update for tool assignment validation per AC#7">
+        Current validation checks tools exist (line 164), errors if empty. Need configurable warning vs hard block mode.
+      </artifact>
+
+      <artifact path="src/admin/utils/agent_helpers.py" kind="function" symbol="create_agent_async" lines="257-288" reason="API integration for agent creation - already sends tool_ids in payload per AC#3">
+        Makes POST /api/agents with tool_ids array. Error handling already implemented. No changes needed.
+      </artifact>
+
+      <!-- API Schema -->
+      <artifact path="src/schemas/agent.py" kind="class" symbol="AgentCreate" lines="195-221" reason="Pydantic schema for agent creation - validates tool_ids field">
+        Field definition: tool_ids: list[str] = Field(default_factory=list, max_length=20). API accepts array format.
+      </artifact>
+
+      <!-- Plugin Architecture (for MCP integration) -->
+      <artifact path="src/plugins/registry.py" kind="class" symbol="PluginManager" lines="87-346" reason="Singleton plugin registry - can be queried for available tools via list_registered_plugins() per AC#8">
+        Methods: list_registered_plugins() returns tool_types, get_plugin(tool_type) retrieves instances, discover_plugins() auto-loads from src/plugins/.
+      </artifact>
+
+      <!-- File Size Warning -->
+      <artifact path="src/admin/components/agent_forms.py" kind="file" lines="1-714" reason="FILE SIZE CONSTRAINT: Currently 714 lines, exceeds 500-line limit by 42%. This story will add ~100-150 lines. Consider refactoring into modules.">
+        CRITICAL: File approaching 800+ lines after this story. Dev Notes mention this as technical debt (lines 148, 200, 206).
+      </artifact>
+    </code>
+    <dependencies>
+      <!-- Python Dependencies (from Story 8.6 patterns) -->
+      <python>
+        <package name="streamlit" version="1.30+">st.expander, st.pills, st.checkbox, st.session_state, @st.cache_data</package>
+        <package name="httpx" version="latest">Async HTTP client for MCP server communication (if implementing AC#8)</package>
+        <package name="pydantic" version="2.x">Data validation (already in use)</package>
+      </python>
+
+      <!-- MCP Integration (Optional for AC#8) -->
+      <mcp>
+        <package name="mcp" version="latest" optional="true">Model Context Protocol Python SDK for tool discovery via ClientSession.list_tools()</package>
+      </mcp>
+
+      <!-- Existing Stack -->
+      <database>PostgreSQL 17 - tool_ids stored as TEXT[] array in agents table</database>
+      <api>FastAPI - POST/PUT /api/agents endpoints accept tool_ids</api>
+      <plugins>PluginManager singleton for registered tools (servicedesk_plus, jira)</plugins>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- File Size Constraint (CRITICAL) -->
+    <constraint id="C1" severity="HIGH" category="code-quality">
+      File size limit 500 lines - agent_forms.py currently 714 lines (42% over limit). This story adds ~100-150 lines. MUST refactor or will exceed 850 lines. Consider splitting into agent_forms_create.py, agent_forms_edit.py, agent_forms_detail.py modules.
+    </constraint>
+
+    <!-- Testing Requirements -->
+    <constraint id="C3" severity="HIGH" category="testing">
+      Comprehensive test coverage required: 8 unit tests (Tasks 8.1-8.7) + 1 integration test (Task 8.8). Tests must cover: UI rendering, tool assignment/unassignment, usage tracking, validation, MCP metadata fallback, detail view display.
+    </constraint>
+
+    <!-- Type Hints -->
+    <constraint id="C5" severity="MEDIUM" category="code-quality">
+      All new functions must include type annotations. Follow patterns from agent_helpers.py (e.g., validate_form_data returns tuple[bool, list[str]]).
+    </constraint>
+
+    <!-- Async Patterns -->
+    <constraint id="C7" severity="MEDIUM" category="architecture">
+      MCP metadata fetching (AC#8, Task 6) must use async/await pattern. Follow send_test_webhook_async() pattern from Story 8.6. Use async_to_sync() wrapper for Streamlit integration.
+    </constraint>
+
+    <!-- UI Consistency -->
+    <constraint id="C8" severity="MEDIUM" category="ui-design">
+      Must follow existing UI patterns from Story 8.4: multi-tab interface, session_state for form data, st.form for submissions, error messages with emoji prefixes (❌ ✅ ⚠️).
+    </constraint>
+
+    <!-- Database Schema (no changes allowed) -->
+    <constraint id="C9" severity="HIGH" category="database">
+      Database schema from Story 8.2 is FROZEN. tool_ids is TEXT[] array, NOT a junction table. No migration changes allowed for this story.
+    </constraint>
+
+    <!-- MCP Integration (optional) -->
+    <constraint id="C10" severity="LOW" category="feature">
+      AC#8 (MCP metadata integration) is enhancement, not blocker. Must gracefully fallback to AVAILABLE_TOOLS dict if MCP unavailable. Cache MCP data with @st.cache_data(ttl=300).
+    </constraint>
+
+    <!-- 2025 Best Practices -->
+    <constraint id="C11" severity="MEDIUM" category="best-practices">
+      Follow 2025 Streamlit patterns from Context7 research: session_state with callbacks, st.expander for descriptions, st.pills for badges (v1.30+), @st.cache_data for expensive queries.
+    </constraint>
+  </constraints>
+  <interfaces>
+    <!-- API Endpoints (Story 8.3) -->
+    <interface name="POST /api/agents" kind="REST endpoint" signature="POST /api/agents" path="src/api/agents.py">
+      Accepts AgentCreate schema with tool_ids: list[str]. Returns created agent with webhook_url. Already implemented - no changes needed.
+    </interface>
+
+    <interface name="PUT /api/agents/{id}" kind="REST endpoint" signature="PUT /api/agents/{agent_id}" path="src/api/agents.py">
+      Accepts AgentUpdate schema with tool_ids: list[str]. Returns updated agent. Already implemented - no changes needed.
+    </interface>
+
+    <!-- Plugin Manager (Story 7.2) -->
+    <interface name="PluginManager.list_registered_plugins" kind="function signature" signature="def list_registered_plugins() -> List[str]" path="src/plugins/registry.py">
+      Returns list of registered tool_type strings (e.g., ["servicedesk_plus", "jira"]). Used for dynamic tool discovery per AC#8.
+    </interface>
+
+    <interface name="PluginManager.is_plugin_registered" kind="function signature" signature="def is_plugin_registered(tool_type: str) -> bool" path="src/plugins/registry.py">
+      Checks if tool_type is registered. Useful for validation before assigning tools to agents.
+    </interface>
+
+    <!-- Helper Functions (to create for this story) -->
+    <interface name="get_tool_usage_stats" kind="function signature" signature="def get_tool_usage_stats() -> dict[str, int]" path="src/admin/utils/agent_helpers.py">
+      NEW FUNCTION (Task 4.1): Returns dict mapping tool_id -> agent count. Queries database with GROUP BY tool_id. Cache with @st.cache_data(ttl=60).
+    </interface>
+
+    <interface name="fetch_mcp_tool_metadata" kind="function signature" signature="async def fetch_mcp_tool_metadata() -> dict[str, dict]" path="src/admin/utils/agent_helpers.py">
+      NEW FUNCTION (Task 6.1): Fetches tool schemas/descriptions from MCP servers. Returns dict mapping tool_id -> {name, description, operations}. Cache with @st.cache_data(ttl=300). Gracefully handles MCP unavailability.
+    </interface>
+
+    <!-- Constants -->
+    <interface name="AVAILABLE_TOOLS" kind="constant" signature="Dict[str, str]" path="src/admin/utils/agent_helpers.py">
+      Fallback tool definitions. Format: {"tool_id": "Tool Name - Description"}. Used when MCP metadata unavailable.
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      **Testing Framework:** pytest with pytest-asyncio (asyncio_mode="auto")
+
+      **Test Structure:**
+      - Unit tests: tests/unit/test_agent_forms_tool_assignment.py (NEW FILE - Task 8)
+      - Integration tests: tests/integration/test_agent_tool_workflow.py (NEW FILE - Task 8.8)
+      - Manual UI tests: tests/manual/tool_assignment_ui_scenarios.md (OPTIONAL)
+
+      **Existing Patterns (from test_agent_management_ui.py, test_agent_service.py):**
+      - Mock async API calls with pytest-asyncio fixtures
+      - Use pytest.mark.asyncio for async tests
+      - Mock st.session_state with monkeypatch
+      - Test validation logic with parametrized inputs (valid/invalid cases)
+      - Mock streamlit components (st.button, st.selectbox, etc.) for UI tests
+
+      **Coverage Requirements:**
+      - All ACs (1-8) must have corresponding test coverage
+      - Test both success paths and error scenarios
+      - Mock external dependencies (API, MCP servers, database)
+      - Verify UI rendering without actually running Streamlit
+
+      **2025 Best Practices:**
+      - Streamlit AppTest framework (Story 8.6 advisory - project-wide issue, document blockers)
+      - Type hints in test functions for better IDE support
+      - Clear test names following pattern: test_{feature}_{scenario}_{expected_outcome}
+    </standards>
+    <locations>
+      tests/unit/ - Unit tests for UI components and helper functions
+      tests/integration/ - End-to-end workflow tests
+      tests/manual/ - Manual UI test scenarios (optional documentation)
+    </locations>
+    <ideas>
+      <!-- Mapped to Acceptance Criteria -->
+
+      **AC#1 Tests (Tool Display in Create/Edit Forms):**
+      - test_create_form_displays_all_available_tools() - Verify AVAILABLE_TOOLS rendered
+      - test_edit_form_pre_populates_assigned_tools() - Verify tool_ids loaded correctly
+
+      **AC#2 Tests (Checkboxes with Descriptions):**
+      - test_tool_checkboxes_rendered_with_st_checkbox() - Verify checkbox UI pattern
+      - test_tool_descriptions_expand_on_click() - Verify st.expander functionality
+      - test_tool_capabilities_displayed_on_hover() - Verify tooltip/help text
+
+      **AC#3 Tests (Tool Assignment Save to Database):**
+      - test_create_agent_sends_tool_ids_in_payload() - Verify API payload format
+      - test_update_agent_updates_tool_ids_array() - Verify PUT request correct
+      - test_tool_ids_stored_as_array_not_junction() - Verify schema compliance
+
+      **AC#4 Tests (Detail View Tool Display):**
+      - test_detail_view_displays_tools_with_badges() - Verify st.pills or custom styling
+      - test_detail_view_shows_no_tools_message_when_empty() - Verify "No tools assigned"
+      - test_tool_descriptions_on_hover_in_detail_view() - Verify tooltip functionality
+
+      **AC#5 Tests (Tool Unassignment):**
+      - test_edit_form_removes_tools_from_tool_ids() - Verify removal logic
+      - test_unassign_tool_updates_database() - Verify API call correct
+      - test_audit_trail_preserved_on_unassignment() - Verify soft delete (if applicable)
+
+      **AC#6 Tests (Tool Usage Tracking):**
+      - test_get_tool_usage_stats_queries_database() - Verify GROUP BY query
+      - test_usage_count_displayed_in_ui() - Verify "X agents" display
+      - test_usage_stats_cached_with_ttl_60s() - Verify @st.cache_data(ttl=60)
+
+      **AC#7 Tests (Form Validation):**
+      - test_validation_shows_warning_when_no_tools_selected() - Verify st.warning()
+      - test_validation_blocks_submission_in_strict_mode() - Verify hard block mode
+      - test_validation_allows_submission_with_warning_mode() - Verify soft warning mode
+
+      **AC#8 Tests (MCP Metadata Integration):**
+      - test_fetch_mcp_metadata_from_servers() - Verify MCP client call
+      - test_mcp_metadata_merged_with_available_tools() - Verify fallback logic
+      - test_mcp_unavailable_gracefully_falls_back() - Verify error handling
+      - test_mcp_metadata_cached_with_ttl_300s() - Verify @st.cache_data(ttl=300)
+
+      **Integration Test (Task 8.8):**
+      - test_end_to_end_tool_assignment_workflow() - Create agent → assign tools → verify in detail view → edit tools → verify update
+    </ideas>
+  </tests>
+</story-context>

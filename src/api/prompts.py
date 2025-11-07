@@ -67,9 +67,9 @@ async def get_prompt_versions(
         404: If agent not found or doesn't belong to tenant
         403: If accessing another tenant's agent
     """
-    prompt_service = PromptService(db, tenant_id)
+    prompt_service = PromptService(db)
     versions = await prompt_service.get_prompt_versions(
-        agent_id, limit=limit, offset=offset
+        agent_id, tenant_id, limit=limit, offset=offset
     )
     if not versions:
         logger.warning(f"No prompt versions found for agent {agent_id}")
@@ -104,8 +104,8 @@ async def get_prompt_version_detail(
         404: If version not found
         403: If accessing another tenant's agent
     """
-    prompt_service = PromptService(db, tenant_id)
-    version = await prompt_service.get_prompt_version_detail(version_id, agent_id)
+    prompt_service = PromptService(db)
+    version = await prompt_service.get_prompt_version_detail(version_id, agent_id, tenant_id)
     if not version:
         raise HTTPException(status_code=404, detail="Prompt version not found")
     return version
@@ -122,7 +122,7 @@ async def revert_prompt_version(
     tenant_id: Annotated[str, Depends(get_tenant_id)],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
     request_body: Annotated[
-        dict,
+        dict[str, str],
         Body(
             openapi_examples={
                 "revert_example": {
@@ -133,7 +133,7 @@ async def revert_prompt_version(
             }
         ),
     ] = {},
-) -> dict:
+) -> dict[str, str]:
     """
     Revert to a previous prompt version.
 
@@ -160,15 +160,15 @@ async def revert_prompt_version(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid version_id format")
 
-    prompt_service = PromptService(db, tenant_id)
-    success = await prompt_service.revert_to_version(version_id, agent_id)
+    prompt_service = PromptService(db)
+    success = await prompt_service.revert_to_version(version_id, agent_id, tenant_id)
     if not success:
         raise HTTPException(status_code=400, detail="Failed to revert prompt version")
 
     logger.info(f"Reverted prompt for agent {agent_id} to version {version_id}")
     return {
-        "success": True,
-        "message": f"Successfully reverted to previous version",
+        "success": "true",
+        "message": "Successfully reverted to previous version",
     }
 
 
@@ -195,9 +195,9 @@ async def list_prompt_templates(
     Returns:
         List of PromptTemplateResponse objects
     """
-    prompt_service = PromptService(db, tenant_id)
+    prompt_service = PromptService(db)
     templates = await prompt_service.get_prompt_templates(
-        include_builtin=include_builtin
+        tenant_id, include_builtin=include_builtin
     )
     return templates
 
@@ -269,11 +269,10 @@ async def create_prompt_template(
         400: If validation fails (name too short, missing fields)
         409: If template name already exists for tenant
     """
-    prompt_service = PromptService(db, tenant_id)
+    prompt_service = PromptService(db)
     template = await prompt_service.create_custom_template(
-        name=template_data.name,
-        description=template_data.description,
-        template_text=template_data.template_text,
+        tenant_id,
+        template_data,
     )
     logger.info(f"Created custom template: {template.id}")
     return template
@@ -307,12 +306,11 @@ async def update_prompt_template(
         403: If template is built-in or belongs to another tenant
         404: If template not found
     """
-    prompt_service = PromptService(db, tenant_id)
+    prompt_service = PromptService(db)
     template = await prompt_service.update_custom_template(
-        template_id=template_id,
-        name=template_data.name,
-        description=template_data.description,
-        template_text=template_data.template_text,
+        template_id,
+        tenant_id,
+        template_data,
     )
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
@@ -330,7 +328,7 @@ async def delete_prompt_template(
     template_id: UUID,
     tenant_id: Annotated[str, Depends(get_tenant_id)],
     db: Annotated[AsyncSession, Depends(get_tenant_db)],
-) -> dict:
+) -> dict[str, bool | str]:
     """
     Delete a custom prompt template.
 
@@ -346,8 +344,8 @@ async def delete_prompt_template(
         403: If template is built-in or belongs to another tenant
         404: If template not found
     """
-    prompt_service = PromptService(db, tenant_id)
-    success = await prompt_service.delete_custom_template(template_id)
+    prompt_service = PromptService(db)
+    success = await prompt_service.delete_custom_template(template_id, tenant_id)
     if not success:
         raise HTTPException(status_code=404, detail="Template not found or is built-in")
     logger.info(f"Deleted template: {template_id}")
@@ -407,19 +405,19 @@ async def test_prompt(
         503: If LiteLLM proxy is unavailable
         504: If request times out (>30s)
     """
-    prompt_service = PromptService(db, tenant_id)
+    prompt_service = PromptService(db)
     try:
         result = await prompt_service.test_prompt(
             system_prompt=request.system_prompt,
             user_message=request.user_message,
             model=request.model,
-            temperature=request.temperature,
-            max_tokens=request.max_tokens,
+            temperature=request.temperature or 0.7,
+            max_tokens=request.max_tokens or 1000,
         )
         logger.info(
             f"Prompt test completed for tenant {tenant_id}: "
-            f"{result.tokens_used.input} input tokens, "
-            f"{result.tokens_used.output} output tokens"
+            f"{result.tokens_used['input']} input tokens, "
+            f"{result.tokens_used['output']} output tokens"
         )
         return result
     except TimeoutError:
