@@ -45,23 +45,31 @@ router = APIRouter(
 )
 
 
-async def require_admin(x_admin_key: str = Header(...)) -> None:
+async def require_admin(x_admin_key: str = Header(None, alias="X-Admin-Key")) -> None:
     """
     Validate admin authorization via X-Admin-Key header.
 
     All BYOK endpoints require this authorization. Reuses pattern from Story 8.12.
+    Header is optional initially, but explicitly checked for presence and validity.
 
     Args:
-        x_admin_key: Admin key from request header
+        x_admin_key: Admin key from request header (optional in signature for early validation)
 
     Raises:
-        HTTPException: 403 Forbidden if key doesn't match
+        HTTPException: 403 Forbidden if key is missing or doesn't match
 
     Example:
         >>> @router.post("/test")
         >>> async def test_endpoint(_: None = Depends(require_admin)):
         >>>     return {"status": "authorized"}
     """
+    if not x_admin_key:
+        logger.warning("BYOK endpoint accessed without X-Admin-Key header")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required",
+        )
+
     if x_admin_key != settings.admin_api_key:
         logger.warning(f"Unauthorized BYOK access attempt with key: {x_admin_key[:10]}...")
         raise HTTPException(
