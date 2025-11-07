@@ -34,15 +34,16 @@ class TestValidateProviderKeys:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            mock_client.get.return_value = Response(
-                status_code=200,
-                json=lambda: {
-                    "data": [
-                        {"id": "gpt-4"},
-                        {"id": "gpt-3.5-turbo"},
-                    ]
-                },
-            )
+            # Mock response with proper json() method
+            mock_response = MagicMock(spec=Response)
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "data": [
+                    {"id": "gpt-4"},
+                    {"id": "gpt-3.5-turbo"},
+                ]
+            }
+            mock_client.get.return_value = mock_response
 
             result = await service.validate_provider_keys(
                 openai_key="sk-valid-key", anthropic_key=None
@@ -62,15 +63,16 @@ class TestValidateProviderKeys:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            mock_client.get.return_value = Response(
-                status_code=200,
-                json=lambda: {
-                    "data": [
-                        {"name": "claude-3-5-sonnet"},
-                        {"name": "claude-3-opus"},
-                    ]
-                },
-            )
+            # Mock response with proper json() method
+            mock_response = MagicMock(spec=Response)
+            mock_response.status_code = 200
+            mock_response.json.return_value = {
+                "data": [
+                    {"name": "claude-3-5-sonnet"},
+                    {"name": "claude-3-opus"},
+                ]
+            }
+            mock_client.get.return_value = mock_response
 
             result = await service.validate_provider_keys(
                 openai_key=None, anthropic_key="sk-ant-valid-key"
@@ -89,9 +91,12 @@ class TestValidateProviderKeys:
             mock_client = AsyncMock()
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
-            mock_client.get.return_value = Response(
-                status_code=401, json=lambda: {"error": {"message": "Unauthorized"}}
-            )
+            # Mock response with proper json() method
+            mock_response = MagicMock(spec=Response)
+            mock_response.status_code = 401
+            mock_response.text = "Unauthorized"
+            mock_response.json.return_value = {"error": {"message": "Unauthorized"}}
+            mock_client.get.return_value = mock_response
 
             result = await service.validate_provider_keys(
                 openai_key="sk-invalid-key", anthropic_key=None
@@ -111,10 +116,15 @@ class TestValidateProviderKeys:
             mock_client_class.return_value.__aenter__.return_value = mock_client
 
             # Mock sequential calls: first for OpenAI, then Anthropic
-            mock_client.get.side_effect = [
-                Response(status_code=200, json=lambda: {"data": [{"id": "gpt-4"}]}),
-                Response(status_code=200, json=lambda: {"data": [{"name": "claude-3-5-sonnet"}]}),
-            ]
+            openai_response = MagicMock(spec=Response)
+            openai_response.status_code = 200
+            openai_response.json.return_value = {"data": [{"id": "gpt-4"}]}
+
+            anthropic_response = MagicMock(spec=Response)
+            anthropic_response.status_code = 200
+            anthropic_response.json.return_value = {"data": [{"name": "claude-3-5-sonnet"}]}
+
+            mock_client.get.side_effect = [openai_response, anthropic_response]
 
             result = await service.validate_provider_keys(
                 openai_key="sk-valid-key", anthropic_key="sk-ant-valid-key"
