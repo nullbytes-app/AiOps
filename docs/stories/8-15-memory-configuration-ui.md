@@ -685,7 +685,7 @@ Claude Haiku 4.5 (claude-haiku-4-5-20251001)
 ### Review Validation Checklist
 
 - [x] Story file loaded from `docs/stories/8-15-memory-configuration-ui.md`
-- [x] Story Status verified as "review" (updating to "done")
+- [x] Story Status verified as "review" (remains "review" until SM approval moves to "done")
 - [x] Epic and Story IDs resolved (8.15)
 - [x] Story Context located at docs/stories/8-15-memory-configuration-ui.context.xml
 - [x] Epic Tech Spec search performed - confirmed in docs/ (Story 8 technical requirements)
