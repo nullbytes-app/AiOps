@@ -1,0 +1,87 @@
+# Render Blueprint for AI Ops Platform
+# This file defines all services needed for deployment
+# Docs: https://render.com/docs/blueprint-spec
+
+services:
+  # FastAPI Backend Service
+  - type: web
+    name: ai-ops-api
+    runtime: docker
+    dockerfilePath: ./docker/backend.dockerfile
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: AI_AGENTS_DATABASE_URL
+        fromDatabase:
+          name: ai-ops-postgres
+          property: connectionString
+      - key: AI_AGENTS_REDIS_URL
+        fromService:
+          type: redis
+          name: ai-ops-redis
+          property: connectionString
+      - key: AI_AGENTS_CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: ai-ops-redis
+          property: connectionString
+      - key: AI_AGENTS_CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: ai-ops-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false  # You'll add this manually in Render dashboard
+      - key: DEFAULT_TENANT_ID
+        generateValue: true  # Auto-generate UUID
+      - key: SECRET_KEY
+        generateValue: true  # Auto-generate random key
+      - key: SERVICEDESK_PLUS_WEBHOOK_SECRET
+        sync: false  # You'll add this manually
+
+  # Celery Worker Service
+  - type: worker
+    name: ai-ops-worker
+    runtime: docker
+    dockerfilePath: ./docker/backend.dockerfile
+    dockerCommand: celery -A src.workers.celery_app worker --loglevel=info
+    plan: free
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: AI_AGENTS_DATABASE_URL
+        fromDatabase:
+          name: ai-ops-postgres
+          property: connectionString
+      - key: AI_AGENTS_REDIS_URL
+        fromService:
+          type: redis
+          name: ai-ops-redis
+          property: connectionString
+      - key: AI_AGENTS_CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: ai-ops-redis
+          property: connectionString
+      - key: AI_AGENTS_CELERY_RESULT_BACKEND
+        fromService:
+          type: redis
+          name: ai-ops-redis
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DEFAULT_TENANT_ID
+        generateValue: true
+
+databases:
+  # PostgreSQL Database (Free tier: 1GB, expires in 90 days)
+  - name: ai-ops-postgres
+    databaseName: ai_agents
+    user: aiagents
+    plan: free
+
+  # Redis Cache (Free tier: 25MB ephemeral)
+  - name: ai-ops-redis
+    plan: free
