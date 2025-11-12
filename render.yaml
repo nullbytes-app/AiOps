@@ -80,6 +80,7 @@ services:
     name: ai-ops-redis
     plan: free
     maxmemoryPolicy: allkeys-lru  # Evict least recently used keys when memory is full
+    ipAllowList: []  # Empty list allows access from any Render service in the same account
 
 databases:
   # PostgreSQL Database (Free tier: 1GB, expires in 90 days)
