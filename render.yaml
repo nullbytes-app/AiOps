@@ -75,13 +75,15 @@ services:
       - key: DEFAULT_TENANT_ID
         generateValue: true
 
+  # Redis Cache Service (Free tier: 25MB ephemeral)
+  - type: redis
+    name: ai-ops-redis
+    plan: free
+    maxmemoryPolicy: allkeys-lru  # Evict least recently used keys when memory is full
+
 databases:
   # PostgreSQL Database (Free tier: 1GB, expires in 90 days)
   - name: ai-ops-postgres
     databaseName: ai_agents
     user: aiagents
-    plan: free
-
-  # Redis Cache (Free tier: 25MB ephemeral)
-  - name: ai-ops-redis
     plan: free
