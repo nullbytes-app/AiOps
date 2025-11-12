@@ -34,12 +34,40 @@ services:
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false  # You'll add this manually in Render dashboard
+      - key: AI_AGENTS_OPENAI_API_KEY
+        sync: false  # You'll add this manually in Render dashboard
       - key: DEFAULT_TENANT_ID
+        generateValue: true  # Auto-generate UUID
+      - key: AI_AGENTS_DEFAULT_TENANT_ID
         generateValue: true  # Auto-generate UUID
       - key: SECRET_KEY
         generateValue: true  # Auto-generate random key
       - key: SERVICEDESK_PLUS_WEBHOOK_SECRET
         sync: false  # You'll add this manually
+      # Required Security Variables
+      - key: AI_AGENTS_WEBHOOK_SECRET
+        generateValue: true  # Auto-generate 32-char secret
+      - key: AI_AGENTS_ADMIN_API_KEY
+        generateValue: true  # Auto-generate 32-char admin key
+      - key: AI_AGENTS_ENCRYPTION_KEY
+        value: gAAAAABlwXxk-k_Nz5mPqR-9jL2xF8vB3cZ1aQ_yH7mJ9dKwL-sA0pR1bC=
+      # Database/Redis Passwords (Render managed, no password required for free tier)
+      - key: AI_AGENTS_POSTGRES_PASSWORD
+        value: not-required-for-render-managed-postgres
+      - key: AI_AGENTS_REDIS_PASSWORD
+        value: not-required-for-render-managed-redis
+      # OpenRouter Configuration
+      - key: AI_AGENTS_OPENROUTER_API_KEY
+        sync: false  # Add manually - get from https://openrouter.ai/keys
+      - key: AI_AGENTS_OPENROUTER_SITE_URL
+        value: https://ai-ops-api.onrender.com
+      - key: AI_AGENTS_OPENROUTER_APP_NAME
+        value: AI Ops Platform
+      # LiteLLM Configuration
+      - key: AI_AGENTS_LITELLM_MASTER_KEY
+        generateValue: true  # Auto-generate master key
+      - key: AI_AGENTS_LITELLM_WEBHOOK_SECRET
+        generateValue: true  # Auto-generate webhook secret
 
   # Celery Worker Service
   - type: worker
@@ -72,7 +100,35 @@ services:
           property: connectionString
       - key: OPENAI_API_KEY
         sync: false
+      - key: AI_AGENTS_OPENAI_API_KEY
+        sync: false
       - key: DEFAULT_TENANT_ID
+        generateValue: true
+      - key: AI_AGENTS_DEFAULT_TENANT_ID
+        generateValue: true
+      # Required Security Variables
+      - key: AI_AGENTS_WEBHOOK_SECRET
+        generateValue: true
+      - key: AI_AGENTS_ADMIN_API_KEY
+        generateValue: true
+      - key: AI_AGENTS_ENCRYPTION_KEY
+        value: gAAAAABlwXxk-k_Nz5mPqR-9jL2xF8vB3cZ1aQ_yH7mJ9dKwL-sA0pR1bC=
+      # Database/Redis Passwords
+      - key: AI_AGENTS_POSTGRES_PASSWORD
+        value: not-required-for-render-managed-postgres
+      - key: AI_AGENTS_REDIS_PASSWORD
+        value: not-required-for-render-managed-redis
+      # OpenRouter Configuration
+      - key: AI_AGENTS_OPENROUTER_API_KEY
+        sync: false
+      - key: AI_AGENTS_OPENROUTER_SITE_URL
+        value: https://ai-ops-api.onrender.com
+      - key: AI_AGENTS_OPENROUTER_APP_NAME
+        value: AI Ops Platform
+      # LiteLLM Configuration
+      - key: AI_AGENTS_LITELLM_MASTER_KEY
+        generateValue: true
+      - key: AI_AGENTS_LITELLM_WEBHOOK_SECRET
         generateValue: true
 
   # Redis Cache Service (Free tier: 25MB ephemeral)
