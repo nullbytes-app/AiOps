@@ -67,3 +67,42 @@ k8s/secrets.yaml
 # Streamlit secrets (NEVER commit - only .template)
 .streamlit/secrets.toml
 !.streamlit/secrets.toml.template
+
+# Docker volume data (NEVER commit - contains actual runtime data)
+data/postgres/
+data/redis/
+data/prometheus/
+data/grafana/
+
+# BMAD ephemeral build artifacts
+.bmad-ephemeral/
+
+# Test artifacts and debug files
+*-test-results.json
+all-test-results.json
+current-test-results.json
+debug_*.py
+test_webhook*.py
+curl_*.sh
+trigger_*.sh
+*.sh.bak
+working_webhook.sh
+webhook_verified.sh
+
+# Backup files
+bmad-bak/
+*.bak
+*~.md
+
+# Project management artifacts (stories, epics, sprints, backlogs)
+docs/stories/
+docs/epics/
+docs/retrospectives/
+docs/sprint-status.yaml
+docs/sprint-change-proposal-*.md
+docs/tech-spec-epic-*.md
+docs/epics.md
+docs/backlog.md
+docs/bugs-found-*.md
+docs/epic-*-*.md
+docs/mvp-*.md
