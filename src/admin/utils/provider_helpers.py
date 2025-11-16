@@ -68,7 +68,7 @@ def get_api_base() -> str:
 
 def get_admin_headers() -> dict:
     """Get admin authentication headers."""
-    return {"X-Admin-Key": os.getenv("ADMIN_API_KEY", "")}
+    return {"X-Admin-Key": os.getenv("AI_AGENTS_ADMIN_API_KEY", "")}
 
 
 # ============================================================================
@@ -76,7 +76,7 @@ def get_admin_headers() -> dict:
 # ============================================================================
 
 
-async def fetch_providers():
+def fetch_providers():
     """
     Fetch all LLM providers from API.
 
@@ -84,8 +84,8 @@ async def fetch_providers():
         List of provider dictionaries or empty list on error
     """
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.get(
+        with httpx.Client(timeout=10.0) as client:
+            response = client.get(
                 f"{get_api_base()}/api/llm-providers",
                 headers=get_admin_headers(),
             )
@@ -99,7 +99,7 @@ async def fetch_providers():
         return []
 
 
-async def create_provider_api(name: str, provider_type: str, api_base_url: str, api_key: str):
+def create_provider_api(name: str, provider_type: str, api_base_url: str, api_key: str):
     """
     Create new provider via API.
 
@@ -113,8 +113,8 @@ async def create_provider_api(name: str, provider_type: str, api_base_url: str, 
         Response dictionary or None on error
     """
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.post(
+        with httpx.Client(timeout=10.0) as client:
+            response = client.post(
                 f"{get_api_base()}/api/llm-providers",
                 headers=get_admin_headers(),
                 json={
@@ -134,7 +134,7 @@ async def create_provider_api(name: str, provider_type: str, api_base_url: str, 
         return None
 
 
-async def test_connection_api(provider_id: int):
+def test_connection_api(provider_id: int):
     """
     Test provider connection via API.
 
@@ -145,8 +145,8 @@ async def test_connection_api(provider_id: int):
         Test result dictionary or None on error
     """
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
                 f"{get_api_base()}/api/llm-providers/{provider_id}/test-connection",
                 headers=get_admin_headers(),
             )
@@ -160,7 +160,7 @@ async def test_connection_api(provider_id: int):
         return None
 
 
-async def delete_provider_api(provider_id: int):
+def delete_provider_api(provider_id: int):
     """
     Delete provider via API (soft delete).
 
@@ -171,8 +171,8 @@ async def delete_provider_api(provider_id: int):
         True on success, False on error
     """
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.delete(
+        with httpx.Client(timeout=10.0) as client:
+            response = client.delete(
                 f"{get_api_base()}/api/llm-providers/{provider_id}",
                 headers=get_admin_headers(),
             )
@@ -186,7 +186,7 @@ async def delete_provider_api(provider_id: int):
         return False
 
 
-async def regenerate_config_api():
+def regenerate_config_api():
     """
     Regenerate litellm-config.yaml via API.
 
@@ -194,8 +194,8 @@ async def regenerate_config_api():
         Result dictionary or None on error
     """
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(
+        with httpx.Client(timeout=30.0) as client:
+            response = client.post(
                 f"{get_api_base()}/api/llm-providers/regenerate-config",
                 headers=get_admin_headers(),
             )
@@ -281,9 +281,8 @@ def edit_model_form(model: dict):
 
     if submit:
         # Update model via API
-        import asyncio
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            response = await client.put(
+        with httpx.Client(timeout=10.0) as client:
+            response = client.put(
                 f"{get_api_base()}/api/llm-models/{model['id']}",
                 headers=get_admin_headers(),
                 json={

@@ -190,11 +190,21 @@ class TestBuildHttpxClient:
         with pytest.raises(ValueError, match="Unsupported API key location"):
             build_httpx_client(auth_config, "https://api.example.com")
 
-    def test_oauth2_missing_access_token_raises_error(self):
-        """Test that OAuth 2.0 without access_token raises ValueError."""
-        auth_config = {"type": "oauth2"}  # Missing access_token
-        with pytest.raises(ValueError, match="OAuth 2.0 requires access_token"):
-            build_httpx_client(auth_config, "https://api.example.com")
+    def test_oauth2_without_access_token_allows_creation(self):
+        """Test that OAuth 2.0 without access_token creates client for later token exchange."""
+        auth_config = {
+            "type": "oauth2",
+            "client_id": "test-client-id",
+            "client_secret": "test-client-secret",
+            "token_url": "https://auth.example.com/oauth/token",
+            "scopes": ["read", "write"],
+        }
+        client = build_httpx_client(auth_config, "https://api.example.com")
+
+        # Client should be created without Authorization header
+        # Token exchange will happen at runtime when tool is invoked
+        assert isinstance(client, httpx.AsyncClient)
+        assert "Authorization" not in client.headers
 
 
 # Test Suite: generate_mcp_tools_from_openapi()
@@ -511,16 +521,28 @@ class TestHelperFunctions:
     """Tests for count_generated_tools() and get_tool_list()."""
 
     def test_count_generated_tools(self):
-        """Test tool count extraction from FastMCP instance."""
+        """Test tool count extraction from FastMCP instance with tools attribute."""
         mock_mcp = MagicMock()
+        mock_mcp._tool_manager = None  # Explicitly set to None so it checks tools attribute
         mock_mcp.tools = [MagicMock(), MagicMock(), MagicMock()]
 
         count = count_generated_tools(mock_mcp)
         assert count == 3
 
+    def test_count_generated_tools_from_openapi(self):
+        """Test tool count from FastMCP created via from_openapi()."""
+        # FastMCP.from_openapi() creates instances with _tool_manager
+        mock_mcp = MagicMock()
+        mock_tool_manager = MagicMock()
+        mock_tool_manager._tools = {"tool1": MagicMock(), "tool2": MagicMock()}
+        mock_mcp._tool_manager = mock_tool_manager
+
+        count = count_generated_tools(mock_mcp)
+        assert count == 2
+
     def test_count_generated_tools_no_tools_attribute(self):
         """Test tool count when FastMCP has no tools attribute."""
-        mock_mcp = MagicMock(spec=[])  # No 'tools' attribute
+        mock_mcp = MagicMock(spec=[])  # No 'tools' or '_tool_manager' attribute
 
         count = count_generated_tools(mock_mcp)
         assert count == 0
@@ -539,6 +561,7 @@ class TestHelperFunctions:
         mock_tool2.parameters = {"type": "object", "properties": {"id": {"type": "string"}}}
 
         mock_mcp = MagicMock()
+        mock_mcp._tool_manager = None  # Explicitly set to None so it checks tools attribute
         mock_mcp.tools = [mock_tool1, mock_tool2]
 
         tool_list = await get_tool_list(mock_mcp)

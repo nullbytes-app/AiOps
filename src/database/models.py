@@ -12,6 +12,7 @@ from typing import Optional
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
@@ -22,6 +23,8 @@ from sqlalchemy import (
     String,
     Text,
     func,
+    desc,
+    text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -215,6 +218,22 @@ class TenantConfig(Base):
         DateTime(timezone=True),
         nullable=True,
         doc="Timestamp when BYOK was enabled (audit trail)",
+    )
+
+    # Relationships
+    mcp_servers = relationship(
+        "MCPServer",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+        doc="MCP servers registered for this tenant (CASCADE delete)"
+    )
+
+    mcp_metrics = relationship(
+        "MCPServerMetric",
+        back_populates="tenant",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        doc="MCP server health metrics for this tenant (CASCADE delete)"
     )
 
 
@@ -770,11 +789,13 @@ class Agent(Base):
         status: Agent status (draft, active, suspended, inactive)
         system_prompt: LLM system prompt defining agent behavior
         llm_config: JSONB configuration for LLM (model, temperature, max_tokens)
+        memory_config: Agent memory configuration (short_term, long_term, agentic)
+        assigned_mcp_tools: MCP tool assignments (tools, resources, prompts from MCP servers)
         created_at: Timestamp when agent was created
         updated_at: Timestamp when agent was last updated
         created_by: User who created the agent
         triggers: Relationship to AgentTrigger (webhook/schedule triggers)
-        tools: Relationship to AgentTool (assigned plugin tools)
+        tools: Relationship to AgentTool (assigned OpenAPI tools via agent_tools table)
     """
 
     __tablename__ = "agents"
@@ -820,6 +841,19 @@ class Agent(Base):
         server_default="{}",
         doc="JSONB configuration for LLM (provider, model, temperature, max_tokens)",
     )
+    memory_config: Optional[dict] = Column(
+        JSON,
+        nullable=True,
+        default=None,
+        doc="Agent memory configuration: short_term, long_term, agentic settings",
+    )
+    assigned_mcp_tools: Optional[list] = Column(
+        JSON,
+        nullable=True,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+        doc="MCP tool assignments (tools, resources, prompts) - list of MCPToolAssignment dicts",
+    )
     created_at: datetime = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -853,6 +887,93 @@ class Agent(Base):
     def __repr__(self) -> str:
         """String representation for debugging."""
         return f"<Agent(id={self.id}, name={self.name}, status={self.status})>"
+
+
+class AgentMemory(Base):
+    """
+    Agent memory storage for multi-type memory system.
+
+    Stores short-term, long-term, and agentic memories with optional vector embeddings
+    for semantic similarity search. Supports retention policies for automatic cleanup.
+
+    Attributes:
+        id: UUID primary key
+        agent_id: Reference to Agent
+        tenant_id: Tenant identifier for isolation
+        memory_type: Type of memory (short_term, long_term, agentic)
+        content: JSONB content (flexible structure)
+        embedding: Vector embedding for similarity search (1536 dims)
+        retention_days: Days before auto-deletion
+        created_at: Timestamp when memory was created
+        updated_at: Timestamp when memory was last updated
+    """
+
+    __tablename__ = "agent_memory"
+
+    id: UUID = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+        doc="Memory entry ID (UUID)",
+    )
+    agent_id: UUID = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="ID of agent owning this memory",
+    )
+    tenant_id: str = Column(
+        String(100),
+        ForeignKey("tenant_configs.tenant_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="Tenant identifier for multi-tenant isolation",
+    )
+    memory_type: str = Column(
+        String(20),
+        nullable=False,
+        doc="Memory type: short_term, long_term, or agentic",
+    )
+    content: dict = Column(
+        JSON,
+        nullable=False,
+        doc="Memory content as JSONB (flexible structure for different memory types)",
+    )
+    embedding: Optional[str] = Column(
+        Text,
+        nullable=True,
+        doc="Vector embedding for semantic search (text format for pgvector, 1536 dims)",
+    )
+    retention_days: int = Column(
+        Integer,
+        nullable=False,
+        default=90,
+        doc="Days to retain this memory before auto-deletion",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Timestamp when memory was created",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Timestamp when memory was last updated",
+    )
+
+    # Composite index for agent_id, memory_type, created_at DESC
+    __table_args__ = (
+        Index("idx_agent_memory_agent_type", "agent_id", "memory_type", desc("created_at")),
+    )
+
+    def __repr__(self) -> str:
+        """String representation for debugging."""
+        return f"<AgentMemory(id={self.id}, agent_id={self.agent_id}, memory_type={self.memory_type})>"
 
 
 class AgentTrigger(Base):
@@ -1198,9 +1319,9 @@ class OpenAPITool(Base):
         nullable=False,
         doc="Tool ID",
     )
-    tenant_id: int = Column(
-        Integer,
-        ForeignKey("tenants.id", ondelete="CASCADE"),
+    tenant_id: str = Column(
+        String(100),
+        ForeignKey("tenant_configs.tenant_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
         doc="Tenant identifier for multi-tenant isolation",
@@ -1282,467 +1403,527 @@ class ProviderType(str, Enum):
     CUSTOM = "custom"
 
 
-class LLMProvider(Base):
-    """
-    LLM provider configuration and credentials.
 
-    Stores provider-specific configuration including encrypted API keys,
-    base URLs, and connection test results. Supports multiple providers
-    (OpenAI, Anthropic, Azure OpenAI, etc.) with encrypted credential storage.
+
+class AgentTestExecution(Base):
+    """
+    Agent test execution results for sandbox testing (Story 8.14).
+
+    Stores results of test executions in dry-run mode, including execution traces,
+    token usage, timing breakdowns, and error information. Used for verification
+    before agent activation and for testing/debugging agent behavior.
 
     Attributes:
-        id: Primary key
-        name: Provider display name (e.g., "Production OpenAI", "Azure GPT-4")
-        provider_type: Provider identifier (openai, anthropic, azure_openai, etc.)
-        api_base_url: API endpoint base URL
-        api_key_encrypted: Fernet-encrypted API key
-        enabled: Soft delete flag (false = disabled/deleted)
-        last_test_at: Timestamp of last connection test
-        last_test_success: Result of last connection test (null if never tested)
-        created_at: Creation timestamp
-        updated_at: Last modification timestamp
+        id: UUID primary key
+        agent_id: Foreign key to Agent (cascade delete)
+        tenant_id: Tenant identifier for isolation
+        payload: Test input (webhook payload or trigger parameters)
+        execution_trace: JSON with step-by-step execution details
+        token_usage: JSON with token counts and estimated cost
+        execution_time: JSON with timing breakdown
+        errors: JSON with error details if execution failed
+        status: success or failed
+        task_id: Celery task ID for correlation with webhook response (nullable)
+        created_at: When test was executed
     """
 
-    __tablename__ = "llm_providers"
+    __tablename__ = "agent_test_executions"
 
-    id: int = Column(
-        Integer,
+    id: UUID = Column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True,
+        default=uuid.uuid4,
         nullable=False,
-        doc="Primary key",
+        doc="Test execution ID (globally unique)",
     )
-    name: str = Column(
-        String(255),
-        unique=True,
+    agent_id: UUID = Column(
+        UUID(as_uuid=True),
+        ForeignKey("agents.id", ondelete="CASCADE"),
         nullable=False,
-        doc="Provider display name (must be unique)",
+        index=True,
+        doc="ID of agent being tested",
     )
-    provider_type: str = Column(
+    tenant_id: str = Column(
+        String(100),
+        ForeignKey("tenant_configs.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="Tenant for isolation",
+    )
+    payload: dict = Column(
+        JSON,
+        nullable=False,
+        doc="Test payload: webhook data or trigger parameters",
+    )
+    execution_trace: dict = Column(
+        JSON,
+        nullable=False,
+        doc="Step-by-step execution: {steps: [{step_type, tool_name, input, output, duration_ms}], total_duration_ms}",
+    )
+    token_usage: dict = Column(
+        JSON,
+        nullable=False,
+        doc="Token tracking: {input_tokens, output_tokens, total_tokens, estimated_cost_usd}",
+    )
+    execution_time: dict = Column(
+        JSON,
+        nullable=False,
+        doc="Timing breakdown: {total_duration_ms, steps: [{name, duration_ms}]}",
+    )
+    errors: Optional[dict] = Column(
+        JSON,
+        nullable=True,
+        doc="Error details if failed: {error_type, message, stack_trace}",
+    )
+    status: str = Column(
         String(50),
         nullable=False,
-        doc="Provider type enum value",
+        server_default="success",
+        doc="Execution status: success or failed",
     )
-    api_base_url: str = Column(
-        Text,
-        nullable=False,
-        doc="API base URL (e.g., https://api.openai.com/v1)",
-    )
-    api_key_encrypted: str = Column(
-        Text,
-        nullable=False,
-        doc="Fernet-encrypted API key",
-    )
-    enabled: bool = Column(
-        Boolean,
-        nullable=False,
-        server_default="TRUE",
-        doc="Provider enabled status",
-    )
-    last_test_at: Optional[datetime] = Column(
-        DateTime(timezone=True),
+    task_id: Optional[str] = Column(
+        String(100),
         nullable=True,
-        doc="Timestamp of last connection test",
-    )
-    last_test_success: Optional[bool] = Column(
-        Boolean,
-        nullable=True,
-        doc="Last test result (null if never tested)",
+        index=True,
+        doc="Celery task ID for correlation with webhook response",
     )
     created_at: datetime = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
-        doc="Creation timestamp",
-    )
-    updated_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-        doc="Last modification timestamp",
+        index=True,
+        doc="Timestamp when test was executed",
     )
 
-    # Relationship to models (one-to-many)
-    models = relationship(
-        "LLMModel",
-        back_populates="provider",
-        cascade="all, delete-orphan",
-        passive_deletes=True,
-    )
-
+    # Indexes for common queries
     __table_args__ = (
-        Index("idx_llm_providers_type", "provider_type"),
-        Index("idx_llm_providers_enabled", "enabled"),
+        Index("idx_agent_test_executions_agent_id", "agent_id"),
+        Index("idx_agent_test_executions_tenant_id", "tenant_id"),
+        Index("idx_agent_test_executions_created_at", "created_at", postgresql_ops={"created_at": "DESC"}),
     )
 
     def __repr__(self) -> str:
         """String representation for debugging."""
-        return f"<LLMProvider(id={self.id}, name={self.name}, type={self.provider_type}, enabled={self.enabled})>"
+        return f"<AgentTestExecution(agent_id={self.agent_id}, status={self.status}, created_at={self.created_at})>"
+
+# ============================================================================
+# MCP Server Models (Epic 11)
+# ============================================================================
 
 
-class LLMModel(Base):
+class TransportType(str, Enum):
     """
-    LLM model configuration and pricing.
-
-    Stores model-specific configuration including pricing (cost per token),
-    context window size, and capabilities. Models belong to a provider
-    and are enabled/disabled individually for LiteLLM config generation.
-
+    MCP server transport protocol types.
+    
     Attributes:
-        id: Primary key
-        provider_id: Foreign key to llm_providers
-        model_name: Model identifier (e.g., "gpt-4", "claude-3-5-sonnet-20240620")
-        display_name: User-friendly display name (optional)
-        enabled: Model enabled in LiteLLM config (default: false)
-        cost_per_input_token: Cost per 1M input tokens in USD
-        cost_per_output_token: Cost per 1M output tokens in USD
-        context_window: Maximum context window in tokens
-        capabilities: JSONB with model capabilities (streaming, function_calling, vision)
-        created_at: Creation timestamp
-        updated_at: Last modification timestamp
+        STDIO: Subprocess communication via stdin/stdout (JSON-RPC over pipes)
+        HTTP_SSE: HTTP with Server-Sent Events for streaming (future support)
     """
+    STDIO = "stdio"
+    HTTP_SSE = "http_sse"
 
-    __tablename__ = "llm_models"
 
-    id: int = Column(
-        Integer,
+class MCPServerStatus(str, Enum):
+    """
+    MCP server health and operational status.
+    
+    Attributes:
+        ACTIVE: Server is healthy and ready to process requests
+        INACTIVE: Server is registered but not currently in use
+        ERROR: Server encountered an error during last operation
+    """
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+
+
+class MCPServer(Base):
+    """
+    Model Context Protocol (MCP) server configuration and state.
+    
+    Stores MCP server configurations with support for both stdio and HTTP+SSE
+    transport types. Each tenant can register multiple MCP servers to extend
+    agent capabilities with external tools, resources, and prompts.
+    
+    MCP Specification: https://modelcontextprotocol.io/specification (2025-03-26)
+    
+    Transport Types:
+        - stdio: Subprocess communication (command, args, env)
+        - http_sse: HTTP with Server-Sent Events (url, headers)
+    
+    Discovered Capabilities:
+        - tools: Functions agents can invoke (e.g., read_file, search_docs)
+        - resources: Data sources agents can access (e.g., config files, databases)
+        - prompts: Templated prompts for common tasks (e.g., analyze_code)
+    
+    Attributes:
+        id: Unique server identifier (UUID)
+        tenant_id: Tenant ownership for multi-tenant isolation
+        name: Human-readable server name (unique per tenant)
+        description: Optional detailed description of server purpose
+        transport_type: Protocol type ('stdio' or 'http_sse')
+        command: Executable path for stdio (e.g., 'npx', 'python')
+        args: Command-line arguments array for stdio (JSONB)
+        env: Environment variables object for stdio (JSONB)
+        url: Base URL for HTTP+SSE transport
+        headers: HTTP headers for authentication (JSONB, e.g., Bearer tokens)
+        discovered_tools: Tools from MCP tools/list endpoint (JSONB array)
+        discovered_resources: Resources from resources/list (JSONB array)
+        discovered_prompts: Prompts from prompts/list (JSONB array)
+        status: Current health status ('active', 'inactive', 'error')
+        last_health_check: Timestamp of last health verification
+        error_message: Latest error details if status='error'
+        consecutive_failures: Number of consecutive failed health checks (circuit breaker at >=3)
+        created_at: Server registration timestamp
+        updated_at: Last configuration update timestamp
+
+    Relationships:
+        tenant: Reference to TenantConfig (CASCADE delete)
+
+    Constraints:
+        - Unique (tenant_id, name): Server names unique per tenant
+        - CHECK transport_type IN ('stdio', 'http_sse')
+        - CHECK status IN ('active', 'inactive', 'error')
+
+    Indexes:
+        - idx_mcp_servers_tenant_id: Fast tenant server lookups
+        - idx_mcp_servers_status: Filter by health status
+        - idx_mcp_servers_transport_type: Filter by transport type
+        - idx_mcp_servers_tenant_status: Combined tenant + status queries
+        - idx_mcp_servers_status_health_check: Combined status + last_health_check for health monitoring
+    """
+    __tablename__ = "mcp_servers"
+
+    # Primary key
+    id = Column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True,
-        nullable=False,
-        doc="Primary key",
+        default=uuid.uuid4,
+        doc="Unique server identifier"
     )
-    provider_id: int = Column(
-        Integer,
-        ForeignKey("llm_providers.id", ondelete="CASCADE"),
+    
+    # Tenant isolation
+    tenant_id = Column(
+        String(100),
+        ForeignKey("tenant_configs.tenant_id", ondelete="CASCADE"),
         nullable=False,
-        doc="Foreign key to provider (CASCADE delete)",
+        index=True,
+        doc="Tenant ownership (CASCADE delete when tenant removed)"
     )
-    model_name: str = Column(
+    
+    # Server identification
+    name = Column(
         String(255),
         nullable=False,
-        doc="Model identifier",
+        doc="Human-readable server name (unique per tenant)"
     )
-    display_name: Optional[str] = Column(
-        String(255),
+    
+    description = Column(
+        Text,
         nullable=True,
-        doc="User-friendly display name",
+        doc="Optional detailed description of server purpose"
     )
-    enabled: bool = Column(
-        Boolean,
+    
+    # Transport configuration
+    transport_type = Column(
+        String(20),
         nullable=False,
-        server_default="FALSE",
-        doc="Model enabled status (default: disabled)",
+        index=True,
+        doc="Transport protocol: 'stdio' or 'http_sse'"
     )
-    cost_per_input_token: Optional[float] = Column(
-        Float,
+    
+    # stdio transport fields (required when transport_type='stdio')
+    command = Column(
+        String(500),
         nullable=True,
-        doc="Cost per 1M input tokens (USD)",
+        doc="Executable path for stdio (e.g., 'npx', '/usr/bin/python3')"
     )
-    cost_per_output_token: Optional[float] = Column(
-        Float,
-        nullable=True,
-        doc="Cost per 1M output tokens (USD)",
-    )
-    context_window: Optional[int] = Column(
-        Integer,
-        nullable=True,
-        doc="Context window size (tokens)",
-    )
-    capabilities: Optional[dict] = Column(
+    
+    args = Column(
         JSONB,
         nullable=True,
-        doc="Model capabilities JSONB",
+        default=list,
+        server_default=func.cast(func.text("'[]'"), JSONB),
+        doc="Command-line arguments array for stdio (e.g., ['@modelcontextprotocol/server-filesystem', '/workspace'])"
     )
-    created_at: datetime = Column(
+    
+    env = Column(
+        JSONB,
+        nullable=True,
+        default=dict,
+        server_default=func.cast(func.text("'{}'"), JSONB),
+        doc="Environment variables object for stdio (e.g., {'API_KEY': 'secret', 'LOG_LEVEL': 'debug'})"
+    )
+    
+    # HTTP+SSE transport fields (required when transport_type='http_sse')
+    url = Column(
+        String(500),
+        nullable=True,
+        doc="Base URL for HTTP+SSE transport (e.g., 'https://mcp.example.com/api')"
+    )
+    
+    headers = Column(
+        JSONB,
+        nullable=True,
+        default=dict,
+        server_default=func.cast(func.text("'{}'"), JSONB),
+        doc="HTTP headers for authentication (e.g., {'Authorization': 'Bearer token'})"
+    )
+    
+    # Discovered capabilities from MCP protocol
+    discovered_tools = Column(
+        JSONB,
+        nullable=True,
+        default=list,
+        server_default=func.cast(func.text("'[]'"), JSONB),
+        doc="Tools from MCP tools/list endpoint (array of tool schemas)"
+    )
+    
+    discovered_resources = Column(
+        JSONB,
+        nullable=True,
+        default=list,
+        server_default=func.cast(func.text("'[]'"), JSONB),
+        doc="Resources from MCP resources/list endpoint (array of resource descriptors)"
+    )
+    
+    discovered_prompts = Column(
+        JSONB,
+        nullable=True,
+        default=list,
+        server_default=func.cast(func.text("'[]'"), JSONB),
+        doc="Prompts from MCP prompts/list endpoint (array of prompt templates)"
+    )
+    
+    # Health and status tracking
+    status = Column(
+        String(20),
+        nullable=False,
+        default=MCPServerStatus.INACTIVE.value,
+        server_default=func.text("'inactive'"),
+        index=True,
+        doc="Current health status: 'active', 'inactive', or 'error'"
+    )
+    
+    last_health_check = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp of last health verification"
+    )
+    
+    error_message = Column(
+        Text,
+        nullable=True,
+        doc="Latest error details if status='error'"
+    )
+
+    consecutive_failures = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default=func.text("0"),
+        doc="Number of consecutive failed health checks (circuit breaker triggers at >=3)"
+    )
+
+    # Timestamps
+    created_at = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
-        doc="Creation timestamp",
+        doc="Server registration timestamp"
     )
-    updated_at: datetime = Column(
+    
+    updated_at = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         onupdate=func.now(),
-        doc="Last modification timestamp",
+        doc="Last configuration update timestamp"
     )
-
-    # Relationship to provider (many-to-one)
-    provider = relationship("LLMProvider", back_populates="models")
-
-    __table_args__ = (
-        UniqueConstraint("provider_id", "model_name", name="uq_llm_models_provider_model"),
-        Index("idx_llm_models_provider", "provider_id"),
-        Index("idx_llm_models_enabled", "enabled"),
-    )
-
-    def __repr__(self) -> str:
-        """String representation for debugging."""
-        return f"<LLMModel(id={self.id}, name={self.model_name}, provider_id={self.provider_id}, enabled={self.enabled})>"
-
-
-class FallbackChain(Base):
-    """
-    Fallback chain configuration for LLM models.
-
-    Maps primary models to ordered fallback models for automatic failover.
-    When primary model fails with specific error types, system attempts
-    fallback models in order until success or all fallbacks exhausted.
-
-    Attributes:
-        id: Primary key
-        model_id: Primary model ID (FK to llm_models)
-        fallback_order: Order in fallback chain (0=primary, 1=first fallback, etc)
-        fallback_model_id: Fallback model ID (FK to llm_models)
-        enabled: Chain enabled status (default: true)
-        created_at: Creation timestamp
-        updated_at: Last modification timestamp
-    """
-
-    __tablename__ = "fallback_chains"
-
-    id: int = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        nullable=False,
-        doc="Primary key",
-    )
-    model_id: int = Column(
-        Integer,
-        ForeignKey("llm_models.id", ondelete="CASCADE"),
-        nullable=False,
-        doc="Primary model ID (FK to llm_models)",
-    )
-    fallback_order: int = Column(
-        Integer,
-        nullable=False,
-        doc="Order in fallback chain (0=primary, 1=first fallback, etc)",
-    )
-    fallback_model_id: int = Column(
-        Integer,
-        ForeignKey("llm_models.id", ondelete="CASCADE"),
-        nullable=False,
-        doc="Fallback model ID (FK to llm_models)",
-    )
-    enabled: bool = Column(
-        Boolean,
-        nullable=False,
-        server_default="TRUE",
-        doc="Chain enabled status (default: enabled)",
-    )
-    created_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        doc="Creation timestamp",
-    )
-    updated_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-        doc="Last modification timestamp",
-    )
-
+    
     # Relationships
-    model = relationship(
-        "LLMModel",
-        foreign_keys=[model_id],
-        primaryjoin="FallbackChain.model_id == LLMModel.id",
-    )
-    fallback_model = relationship(
-        "LLMModel",
-        foreign_keys=[fallback_model_id],
-        primaryjoin="FallbackChain.fallback_model_id == LLMModel.id",
+    tenant = relationship(
+        "TenantConfig",
+        back_populates="mcp_servers",
+        doc="Parent tenant configuration (CASCADE delete)"
     )
 
+    metrics = relationship(
+        "MCPServerMetric",
+        back_populates="mcp_server",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        doc="Time-series health metrics (CASCADE delete, 7-day retention)"
+    )
+    
+    # Constraints and indexes
     __table_args__ = (
-        UniqueConstraint(
-            "model_id",
-            "fallback_order",
-            name="uq_fallback_chains_model_order",
+        # CHECK constraints for enum validation
+        CheckConstraint(
+            "transport_type IN ('stdio', 'http_sse')",
+            name="ck_mcp_servers_transport_type"
         ),
-        Index("idx_fallback_chains_model_id", "model_id"),
-        Index("idx_fallback_chains_fallback_model_id", "fallback_model_id"),
-        Index("idx_fallback_chains_enabled", "enabled"),
+        CheckConstraint(
+            "status IN ('active', 'inactive', 'error')",
+            name="ck_mcp_servers_status"
+        ),
+        
+        # Unique constraint: server name unique per tenant
+        UniqueConstraint(
+            "tenant_id",
+            "name",
+            name="uq_mcp_servers_tenant_name"
+        ),
+        
+        # Composite index for common query pattern (tenant's active servers)
+        Index(
+            "idx_mcp_servers_tenant_status",
+            "tenant_id",
+            "status"
+        ),
     )
-
+    
     def __repr__(self) -> str:
         """String representation for debugging."""
-        return f"<FallbackChain(id={self.id}, model_id={self.model_id}, fallback_order={self.fallback_order}, fallback_model_id={self.fallback_model_id}, enabled={self.enabled})>"
+        return (
+            f"<MCPServer("
+            f"id={self.id}, "
+            f"name='{self.name}', "
+            f"transport={self.transport_type}, "
+            f"status={self.status}"
+            f")>"
+        )
 
 
-class FallbackTrigger(Base):
+class MCPServerMetric(Base):
     """
-    Fallback trigger configuration for specific error types.
+    SQLAlchemy model for MCP server health metrics time-series data.
 
-    Configures retry and backoff behavior for different error types
-    (RateLimitError, TimeoutError, InternalServerError, ConnectionError, etc).
-    Each trigger type has independent retry count and backoff factor settings.
+    Story: 11.2.4 - Enhanced MCP Health Monitoring
 
-    Attributes:
-        id: Primary key
-        trigger_type: Error type (RateLimitError, TimeoutError, InternalServerError, ConnectionError, ContentPolicyViolationError)
-        retry_count: Number of retry attempts before fallback (0-10, default 3)
-        backoff_factor: Exponential backoff multiplier (1.0-5.0, default 2.0)
-        enabled: Trigger enabled status (default: true)
-        created_at: Creation timestamp
+    Stores individual health check measurements for performance tracking,
+    failure analysis, and trend detection. Enables:
+    - Response time tracking (millisecond precision)
+    - Success/failure rate calculation
+    - Error pattern detection by type
+    - Capacity planning via request rate monitoring
+
+    Retention: 7 days (managed by Celery cleanup task)
+
+    Relationships:
+        - Many-to-one with MCPServer (CASCADE delete)
+        - Many-to-one with TenantConfig (CASCADE delete)
+
+    Indexes:
+        - idx_mcp_metrics_server_time: (mcp_server_id, check_timestamp DESC)
+        - idx_mcp_metrics_tenant: (tenant_id)
+        - idx_mcp_metrics_status_time: (status, check_timestamp DESC)
+
+    Example query:
+        SELECT AVG(response_time_ms), PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time_ms)
+        FROM mcp_server_metrics
+        WHERE mcp_server_id = ? AND check_timestamp >= NOW() - INTERVAL '24 hours'
     """
 
-    __tablename__ = "fallback_triggers"
+    __tablename__ = "mcp_server_metrics"
 
-    id: int = Column(
-        Integer,
+    # Primary key
+    id = Column(
+        UUID(as_uuid=True),
         primary_key=True,
-        autoincrement=True,
-        nullable=False,
-        doc="Primary key",
+        server_default=text("uuid_generate_v4()"),
+        doc="Primary key for metrics record"
     )
-    trigger_type: str = Column(
+
+    # Foreign keys with CASCADE delete
+    mcp_server_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("mcp_servers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="MCP server this metric belongs to"
+    )
+    tenant_id = Column(
+        String(100),
+        ForeignKey("tenant_configs.tenant_id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        doc="Tenant for row-level security and isolation"
+    )
+
+    # Timing metrics
+    response_time_ms = Column(
+        Integer,
+        nullable=False,
+        doc="Health check response time in milliseconds"
+    )
+    check_timestamp = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="When the health check was performed"
+    )
+
+    # Status metrics
+    status = Column(
+        String(20),
+        nullable=False,
+        doc="Health check result: 'success', 'timeout', 'error', 'connection_failed'"
+    )
+    error_message = Column(
+        Text,
+        nullable=True,
+        doc="Error message if status is not success"
+    )
+    error_type = Column(
+        String(100),
+        nullable=True,
+        doc="Error type classification: 'TimeoutError', 'ProcessCrashed', 'InvalidJSON', etc."
+    )
+
+    # Request metadata
+    check_type = Column(
         String(50),
         nullable=False,
-        doc="Error type: RateLimitError, TimeoutError, InternalServerError, ConnectionError, ContentPolicyViolationError",
+        doc="Type of health check: 'health_check', 'tools_list', 'ping'"
     )
-    retry_count: int = Column(
-        Integer,
+    transport_type = Column(
+        String(20),
         nullable=False,
-        server_default="3",
-        doc="Number of retry attempts before fallback (0-10)",
+        doc="Transport type: 'stdio' or 'http_sse'"
     )
-    backoff_factor: float = Column(
-        Float,
-        nullable=False,
-        server_default="2.0",
-        doc="Exponential backoff multiplier (1.0-5.0)",
-    )
-    enabled: bool = Column(
-        Boolean,
-        nullable=False,
-        server_default="TRUE",
-        doc="Trigger enabled status (default: enabled)",
-    )
-    created_at: datetime = Column(
+
+    # Timestamps
+    created_at = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
-        doc="Creation timestamp",
-    )
-
-    __table_args__ = (
-        UniqueConstraint("trigger_type", name="uq_fallback_triggers_type"),
-        Index("idx_fallback_triggers_type", "trigger_type"),
-    )
-
-    def __repr__(self) -> str:
-        """String representation for debugging."""
-        return f"<FallbackTrigger(id={self.id}, trigger_type={self.trigger_type}, retry_count={self.retry_count}, backoff_factor={self.backoff_factor}, enabled={self.enabled})>"
-
-
-class FallbackMetric(Base):
-    """
-    Fallback event metrics and statistics.
-
-    Records metrics for fallback trigger events including trigger type,
-    fallback model used, success/failure counts, and timing data for analytics
-    and monitoring fallback effectiveness.
-
-    Attributes:
-        id: Primary key
-        model_id: Model ID (FK to llm_models)
-        trigger_type: Error type that triggered fallback
-        fallback_model_id: Fallback model used (FK to llm_models)
-        trigger_count: Number of times this fallback was triggered
-        success_count: Number of successful fallback resolutions
-        failure_count: Number of failed fallback attempts
-        last_triggered_at: Timestamp of last trigger
-        created_at: Creation timestamp
-        updated_at: Last modification timestamp
-    """
-
-    __tablename__ = "fallback_metrics"
-
-    id: int = Column(
-        Integer,
-        primary_key=True,
-        autoincrement=True,
-        nullable=False,
-        doc="Primary key",
-    )
-    model_id: int = Column(
-        Integer,
-        ForeignKey("llm_models.id", ondelete="CASCADE"),
-        nullable=False,
-        doc="Model ID (FK to llm_models)",
-    )
-    trigger_type: str = Column(
-        String(50),
-        nullable=False,
-        doc="Error type that triggered fallback",
-    )
-    fallback_model_id: Optional[int] = Column(
-        Integer,
-        ForeignKey("llm_models.id", ondelete="SET NULL"),
-        nullable=True,
-        doc="Fallback model used (FK to llm_models)",
-    )
-    trigger_count: int = Column(
-        Integer,
-        nullable=False,
-        server_default="1",
-        doc="Number of times this fallback was triggered",
-    )
-    success_count: int = Column(
-        Integer,
-        nullable=False,
-        server_default="0",
-        doc="Number of successful fallback resolutions",
-    )
-    failure_count: int = Column(
-        Integer,
-        nullable=False,
-        server_default="0",
-        doc="Number of failed fallback attempts",
-    )
-    last_triggered_at: Optional[datetime] = Column(
-        DateTime(timezone=True),
-        nullable=True,
-        doc="Timestamp of last trigger",
-    )
-    created_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        doc="Creation timestamp",
-    )
-    updated_at: datetime = Column(
-        DateTime(timezone=True),
-        nullable=False,
-        server_default=func.now(),
-        onupdate=func.now(),
-        doc="Last modification timestamp",
+        doc="Record creation timestamp"
     )
 
     # Relationships
-    model = relationship(
-        "LLMModel",
-        foreign_keys=[model_id],
-        primaryjoin="FallbackMetric.model_id == LLMModel.id",
+    mcp_server = relationship(
+        "MCPServer",
+        back_populates="metrics",
     )
-    fallback_model = relationship(
-        "LLMModel",
-        foreign_keys=[fallback_model_id],
-        primaryjoin="FallbackMetric.fallback_model_id == LLMModel.id",
+    tenant = relationship(
+        "TenantConfig",
+        back_populates="mcp_metrics",
     )
 
-    __table_args__ = (
-        Index("idx_fallback_metrics_model_id", "model_id"),
-        Index("idx_fallback_metrics_fallback_model_id", "fallback_model_id"),
-        Index("idx_fallback_metrics_trigger_type", "trigger_type"),
-        Index("idx_fallback_metrics_created_at", "created_at"),
-    )
+    # Indexes defined in Alembic migration 012:
+    # - idx_mcp_metrics_server_time (mcp_server_id, check_timestamp DESC)
+    # - idx_mcp_metrics_tenant (tenant_id)
+    # - idx_mcp_metrics_status_time (status, check_timestamp DESC)
 
     def __repr__(self) -> str:
         """String representation for debugging."""
-        return f"<FallbackMetric(id={self.id}, model_id={self.model_id}, trigger_type={self.trigger_type}, fallback_model_id={self.fallback_model_id}, success_count={self.success_count})>"
+        return (
+            f"<MCPServerMetric("
+            f"id={self.id}, "
+            f"server_id={self.mcp_server_id}, "
+            f"response_time={self.response_time_ms}ms, "
+            f"status={self.status}, "
+            f"timestamp={self.check_timestamp}"
+            f")>"
+        )

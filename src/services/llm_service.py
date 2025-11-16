@@ -255,12 +255,16 @@ class LLMService:
         )
 
         try:
+            # Generate unique key alias to avoid conflicts (e.g., when re-creating keys)
+            import uuid
+            unique_suffix = str(uuid.uuid4())[:8]
+
             response_data = await self._call_litellm_api(
                 method="POST",
                 endpoint="/key/generate",
                 json_data={
                     "user_id": tenant_id,
-                    "key_alias": f"{tenant_id}-key",
+                    "key_alias": f"{tenant_id}-key-{unique_suffix}",
                     "max_budget": max_budget,
                     "metadata": {
                         "tenant_id": tenant_id,
@@ -662,12 +666,16 @@ class LLMService:
             metadata["anthropic_api_key"] = f"os.environ/ANTHROPIC_KEY_{tenant_id}"
 
         try:
+            # Generate unique key alias to avoid conflicts (e.g., when rotating keys)
+            import uuid
+            unique_suffix = str(uuid.uuid4())[:8]
+
             response_data = await self._call_litellm_api(
                 method="POST",
                 endpoint="/key/generate",
                 json_data={
                     "user_id": tenant_id,
-                    "key_alias": f"{tenant_id}-byok-key",
+                    "key_alias": f"{tenant_id}-byok-key-{unique_suffix}",
                     "max_budget": None,  # No platform spend tracking for BYOK
                     "metadata": metadata,
                 },
@@ -845,7 +853,7 @@ class LLMService:
 
             # Log audit entry
             await self.log_audit_entry(
-                action="BYOK_DISABLED",
+                operation="BYOK_DISABLED",
                 tenant_id=tenant_id,
                 details={"reverted_to_platform": True},
             )

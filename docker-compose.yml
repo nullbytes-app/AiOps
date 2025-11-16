@@ -42,6 +42,7 @@ services:
       context: .
       dockerfile: docker/backend.dockerfile
     container_name: ai-agents-api
+    user: root  # Run as root for Docker socket access (development only)
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +55,8 @@ services:
       - ./tests:/app/tests
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+      - ./scripts:/app/scripts
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8000:8000"
     healthcheck:
@@ -70,6 +73,7 @@ services:
       context: .
       dockerfile: docker/backend.dockerfile
     container_name: ai-agents-worker
+    user: root  # Run as root for Docker socket access (development only)
     entrypoint: []
     command: celery -A src.workers.celery_app worker --loglevel=info --concurrency=4
     depends_on:
@@ -81,6 +85,7 @@ services:
       - .env
     volumes:
       - ./src:/app/src
+      - /var/run/docker.sock:/var/run/docker.sock
     healthcheck:
       test: ["CMD-SHELL", "celery -A src.workers.celery_app inspect ping -d celery@$$HOSTNAME"]
       interval: 30s
@@ -88,6 +93,52 @@ services:
       retries: 3
       start_period: 30s
     restart: unless-stopped
+
+  # HMAC Webhook Proxy for Jira Integration
+  hmac-proxy:
+    build:
+      context: ./hmac-proxy
+      dockerfile: Dockerfile
+    container_name: ai-agents-hmac-proxy
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      - HMAC_SECRET=${TICKET_ENHANCER_HMAC_SECRET}
+      - API_BASE_URL=http://api:8000
+      - DEFAULT_AGENT_ID=00bab7b6-6335-4359-96b4-f48f3460b610
+      - TIMEOUT_SECONDS=30
+      - AGENT_CACHE_TTL=300
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:3000/health', timeout=2)"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  # Jira MCP Server (Python-based mcp-atlassian via stdio protocol)
+  # Provides 40+ Jira/Confluence tools: create_issue, update_issue, add_comment,
+  # search_issues, transition_issue, add_worklog, and more
+  # This service doesn't run continuously - it's invoked on-demand via stdio by workers
+  # Documentation: https://github.com/sooperset/mcp-atlassian
+  jira-mcp:
+    image: ghcr.io/sooperset/mcp-atlassian:latest
+    container_name: jira-mcp-server
+    environment:
+      # Jira Cloud credentials (configure in .env)
+      JIRA_URL: ${JIRA_BASE_URL:-}
+      JIRA_USERNAME: ${JIRA_EMAIL:-}
+      JIRA_API_TOKEN: ${JIRA_API_TOKEN:-}
+      # Only enable Jira tools (disable Confluence to reduce noise)
+      ENABLED_TOOLS: "jira_*"
+      # Logging
+      LOG_LEVEL: ${JIRA_MCP_LOG_LEVEL:-INFO}
+    # Note: No ports or healthcheck needed - stdio communication only
+    # Workers spawn this as subprocess when needed
+    restart: "no"  # Don't auto-restart, let workers manage lifecycle
 
   # Prometheus Metrics Server
   prometheus:
@@ -256,6 +307,7 @@ services:
       DATABASE_URL: postgresql://aiagents:password@postgres:5432/ai_agents
       LITELLM_MASTER_KEY: ${LITELLM_MASTER_KEY}
       LITELLM_SALT_KEY: ${LITELLM_SALT_KEY}
+      STORE_MODEL_IN_DB: ${STORE_MODEL_IN_DB}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       AZURE_API_KEY: ${AZURE_API_KEY:-}
@@ -269,7 +321,7 @@ services:
       - "4000:4000"
     command: ["--config", "/app/config.yaml", "--detailed_debug"]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/').read()"]
       interval: 30s
       timeout: 10s
       retries: 3

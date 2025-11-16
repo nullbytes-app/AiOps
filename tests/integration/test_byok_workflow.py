@@ -15,6 +15,7 @@ Coverage: ≥8 integration tests for end-to-end workflows
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis import asyncio as aioredis
 
 from src.services.llm_service import LLMService
 from src.services.tenant_service import TenantService
@@ -29,8 +30,9 @@ class TestCompleteByokEnableWorkflow:
     async def test_byok_enable_workflow_end_to_end(self):
         """Test complete workflow: validate → encrypt → create virtual key → update DB."""
         db = AsyncMock(spec=AsyncSession)
+        redis = AsyncMock(spec=aioredis.Redis)
         llm_service = LLMService(db)
-        tenant_service = TenantService(db)
+        tenant_service = TenantService(db, redis)
 
         tenant_id = "acme-corp"
         openai_key = "sk-openai-test-key"

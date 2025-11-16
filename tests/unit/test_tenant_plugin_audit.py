@@ -53,8 +53,8 @@ def test_create_tenant_logs_plugin_assignment(tenant_data, mock_db_session):
 
     AC #8: All plugin management operations logged to audit_log table.
     """
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
-        with patch("src.admin.utils.tenant_helper.encrypt_field", return_value="encrypted"):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
+        with patch("admin.utils.tenant_crud_helpers.encrypt_field", return_value="encrypted"):
             with patch("admin.utils.operations_audit.log_operation") as mock_log:
                 result = create_tenant(tenant_data)
 
@@ -83,8 +83,8 @@ def test_create_tenant_logs_failure_on_duplicate(tenant_data, mock_db_session):
     """
     from sqlalchemy.exc import IntegrityError
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
-        with patch("src.admin.utils.tenant_helper.encrypt_field", return_value="encrypted"):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
+        with patch("admin.utils.tenant_crud_helpers.encrypt_field", return_value="encrypted"):
             # Simulate IntegrityError (duplicate key)
             mock_db_session.flush.side_effect = IntegrityError("duplicate", None, None)
 
@@ -117,8 +117,8 @@ def test_create_tenant_defaults_to_servicedesk_plus_if_no_tool_type(mock_db_sess
         "api_key": "legacy-key",
     }
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
-        with patch("src.admin.utils.tenant_helper.encrypt_field", return_value="encrypted"):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
+        with patch("admin.utils.tenant_crud_helpers.encrypt_field", return_value="encrypted"):
             with patch("admin.utils.operations_audit.log_operation") as mock_log:
                 result = create_tenant(tenant_data)
 
@@ -157,7 +157,7 @@ def test_update_tenant_logs_plugin_reassignment(mock_db_session):
         "name": "Updated Tenant",
     }
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
         with patch("admin.utils.operations_audit.log_operation") as mock_log:
             result = update_tenant("test-tenant", updates)
 
@@ -197,7 +197,7 @@ def test_update_tenant_does_not_log_if_plugin_unchanged(mock_db_session):
         "servicedesk_url": "https://new.url.com",
     }
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
         with patch("admin.utils.operations_audit.log_operation") as mock_log:
             result = update_tenant("test-tenant", updates)
 
@@ -228,7 +228,7 @@ def test_update_tenant_logs_plugin_same_value_change(mock_db_session):
         "name": "Updated Name",
     }
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
         with patch("admin.utils.operations_audit.log_operation") as mock_log:
             result = update_tenant("test-tenant", updates)
 
@@ -259,7 +259,7 @@ def test_update_tenant_logs_failure_on_error(mock_db_session):
 
     updates = {"tool_type": "jira"}
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
         with patch("admin.utils.operations_audit.log_operation") as mock_log:
             result = update_tenant("test-tenant", updates)
 
@@ -289,7 +289,7 @@ def test_update_tenant_returns_false_if_tenant_not_found(mock_db_session):
 
     updates = {"tool_type": "jira"}
 
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
         with patch("admin.utils.operations_audit.log_operation") as mock_log:
             result = update_tenant("non-existent-tenant", updates)
 
@@ -312,8 +312,8 @@ def test_audit_log_entry_has_required_fields(tenant_data, mock_db_session):
 
     Verifies: user, operation, details (JSON), status, timestamp.
     """
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
-        with patch("src.admin.utils.tenant_helper.encrypt_field", return_value="encrypted"):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
+        with patch("admin.utils.tenant_crud_helpers.encrypt_field", return_value="encrypted"):
             with patch("admin.utils.operations_audit.log_operation") as mock_log:
                 create_tenant(tenant_data)
 
@@ -337,8 +337,8 @@ def test_audit_log_details_contain_plugin_info(tenant_data, mock_db_session):
 
     Ensures audit trail can track which plugins are assigned to tenants.
     """
-    with patch("src.admin.utils.tenant_helper.get_db_session", return_value=mock_db_session):
-        with patch("src.admin.utils.tenant_helper.encrypt_field", return_value="encrypted"):
+    with patch("admin.utils.tenant_crud_helpers.get_db_session", return_value=mock_db_session):
+        with patch("admin.utils.tenant_crud_helpers.encrypt_field", return_value="encrypted"):
             with patch("admin.utils.operations_audit.log_operation") as mock_log:
                 create_tenant(tenant_data)
 

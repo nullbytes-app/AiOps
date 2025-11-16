@@ -1,0 +1,447 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Integration Architecture" id="integration-architecture">
+    <mxGraphModel dx="1434" dy="796" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2200" pageHeight="1400" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title Section -->
+        <mxCell id="title-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1A237E;strokeColor=#0D47A1;strokeWidth=3;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="40" width="2080" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="title-icon" value="🔗" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=48;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="80" y="55" width="70" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="title-text" value="&lt;b&gt;Integration Architecture&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;fontColor=#FFFFFF;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="160" y="60" width="600" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle-text" value="Plugin Framework &amp; MCP Protocol Integration • Extensible Tool Ecosystem" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#B3E5FC;" vertex="1" parent="1">
+          <mxGeometry x="160" y="105" width="850" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="audience-badge" value="👥 AUDIENCE: Technical Architects, Integration Partners, Customers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17;strokeWidth=2;fontSize=13;fontStyle=1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1650" y="65" width="460" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Plugin Architecture Section -->
+        <mxCell id="plugin-section-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=3;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="180" width="1050" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin-section-title" value="🔌 PLUGIN ARCHITECTURE" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#E65100;" vertex="1" parent="1">
+          <mxGeometry x="80" y="195" width="400" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Abstract Plugin Base -->
+        <mxCell id="base-plugin-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#E65100;strokeWidth=3;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="260" width="300" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="base-plugin-icon" value="⚙️" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="145" y="270" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="base-plugin-title" value="&lt;b&gt;AbstractTicketingPlugin&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="200" y="275" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="base-plugin-desc" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;• validate_config()&lt;br&gt;• test_connection()&lt;br&gt;• create_ticket()&lt;br&gt;• update_ticket()&lt;br&gt;• get_ticket()&lt;br&gt;• search_tickets()&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="145" y="310" width="270" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- ServiceDesk Plus Plugin -->
+        <mxCell id="sdp-plugin-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FB8C00;strokeColor=#E65100;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="460" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="sdp-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/2920/2920277.png;" vertex="1" parent="1">
+          <mxGeometry x="145" y="475" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="sdp-title" value="&lt;b&gt;ServiceDesk Plus&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="200" y="480" width="195" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="sdp-desc" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;✅ Status: &lt;b&gt;PRODUCTION&lt;/b&gt;&lt;br&gt;🔐 REST API v3&lt;br&gt;🎫 Full CRUD Operations&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="145" y="515" width="250" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow from base to ServiceDesk -->
+        <mxCell id="arrow-base-sdp" value="" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=3;strokeColor=#E65100;endSize=12;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="base-plugin-box" target="sdp-plugin-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-base-sdp-label" value="implements" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=2;fontColor=#E65100;" vertex="1" parent="1">
+          <mxGeometry x="210" y="425" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Jira Service Management Plugin -->
+        <mxCell id="jira-plugin-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FB8C00;strokeColor=#E65100;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="460" y="460" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="jira-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jira/jira-original.svg;" vertex="1" parent="1">
+          <mxGeometry x="475" y="475" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="jira-title" value="&lt;b&gt;Jira Service Management&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="530" y="480" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="jira-desc" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;⏳ Status: &lt;b&gt;PLANNED&lt;/b&gt;&lt;br&gt;🔐 REST API v3&lt;br&gt;🎫 Issue Management&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="475" y="515" width="250" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow from base to Jira -->
+        <mxCell id="arrow-base-jira" value="" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=3;strokeColor=#E65100;endSize=12;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="base-plugin-box" target="jira-plugin-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Zendesk Plugin -->
+        <mxCell id="zendesk-plugin-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFCC80;strokeColor=#E65100;strokeWidth=2;shadow=1;dashed=1;dashPattern=8 8;" vertex="1" parent="1">
+          <mxGeometry x="790" y="460" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="zendesk-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/5968/5968879.png;" vertex="1" parent="1">
+          <mxGeometry x="805" y="475" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="zendesk-title" value="&lt;b&gt;Zendesk&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#BF360C;" vertex="1" parent="1">
+          <mxGeometry x="860" y="480" width="195" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="zendesk-desc" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;💡 Status: &lt;b&gt;FUTURE&lt;/b&gt;&lt;br&gt;🔐 REST API v2&lt;br&gt;🎫 Ticket Support&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#BF360C;" vertex="1" parent="1">
+          <mxGeometry x="805" y="515" width="250" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow from base to Zendesk -->
+        <mxCell id="arrow-base-zendesk" value="" style="endArrow=block;endFill=1;html=1;rounded=0;strokeWidth=3;strokeColor=#E65100;endSize=12;dashed=1;dashPattern=8 8;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="base-plugin-box" target="zendesk-plugin-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Plugin Registry -->
+        <mxCell id="registry-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE0B2;strokeColor=#E65100;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="620" width="940" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="registry-icon" value="📋" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="145" y="640" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="registry-title" value="&lt;b&gt;Plugin Registry Service&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#E65100;" vertex="1" parent="1">
+          <mxGeometry x="200" y="645" width="270" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="registry-desc" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;• Plugin Discovery &amp; Loading • Configuration Validation • Health Monitoring • Version Management&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#5D4037;" vertex="1" parent="1">
+          <mxGeometry x="200" y="675" width="850" height="45" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows from plugins to registry -->
+        <mxCell id="arrow-sdp-registry" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#E65100;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.2;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="sdp-plugin-box" target="registry-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-jira-registry" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#E65100;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="jira-plugin-box" target="registry-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-zendesk-registry" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#E65100;dashed=1;dashPattern=8 8;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.8;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="zendesk-plugin-box" target="registry-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Integration Section -->
+        <mxCell id="mcp-section-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#2E7D32;strokeWidth=3;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="1150" y="180" width="990" height="580" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-section-title" value="🌐 MCP PROTOCOL INTEGRATION" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="1170" y="195" width="500" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Server Manager -->
+        <mxCell id="mcp-manager-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#66BB6A;strokeColor=#2E7D32;strokeWidth=3;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="260" width="360" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-manager-icon" value="🎯" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="270" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-manager-title" value="&lt;b&gt;MCP Server Manager&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="275" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-manager-desc" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;• Connection Management&lt;br&gt;• Transport Abstraction (stdio/HTTP)&lt;br&gt;• Health Check &amp; Monitoring&lt;br&gt;• Dynamic Tool Discovery&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="310" width="330" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- stdio Transport -->
+        <mxCell id="stdio-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#81C784;strokeColor=#2E7D32;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="440" width="250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="stdio-icon" value="💻" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="450" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="stdio-title" value="&lt;b&gt;stdio Transport&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1285" y="455" width="175" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="stdio-desc" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;✅ Local Process&lt;br&gt;📡 stdin/stdout/stderr&lt;br&gt;🔧 npx, python, node&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="485" width="225" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- HTTP/SSE Transport -->
+        <mxCell id="http-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#81C784;strokeColor=#2E7D32;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1510" y="440" width="250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="http-icon" value="🌍" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1525" y="450" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="http-title" value="&lt;b&gt;HTTP/SSE Transport&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=15;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1575" y="455" width="175" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="http-desc" value="&lt;font style=&quot;font-size: 12px;&quot;&gt;🌐 Remote Servers&lt;br&gt;📡 HTTP + SSE Streaming&lt;br&gt;🔒 TLS/mTLS Support&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1525" y="485" width="225" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows from manager to transports -->
+        <mxCell id="arrow-manager-stdio" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#2E7D32;exitX=0.25;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp-manager-box" target="stdio-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-manager-http" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#2E7D32;exitX=0.75;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp-manager-box" target="http-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Servers Examples -->
+        <mxCell id="mcp-examples-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1220" y="590" width="540" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-examples-icon" value="🔧" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="600" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-examples-title" value="&lt;b&gt;Example MCP Servers&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="1285" y="605" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-examples-list" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;🗄️  &lt;b&gt;@modelcontextprotocol/server-postgres&lt;/b&gt; - Database queries&lt;br&gt;🐙  &lt;b&gt;@modelcontextprotocol/server-github&lt;/b&gt; - GitHub API integration&lt;br&gt;🌐  &lt;b&gt;@modelcontextprotocol/server-fetch&lt;/b&gt; - HTTP requests&lt;br&gt;📂  &lt;b&gt;@modelcontextprotocol/server-filesystem&lt;/b&gt; - File operations&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="1235" y="640" width="510" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Connection Pool -->
+        <mxCell id="pool-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#A5D6A7;strokeColor=#2E7D32;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="260" width="300" height="290" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-icon" value="🔄" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="1815" y="270" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-title" value="&lt;b&gt;Connection Pool&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="275" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="pool-desc" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;&lt;b&gt;Features:&lt;/b&gt;&lt;br&gt;• Connection Reuse&lt;br&gt;• Auto-Reconnect&lt;br&gt;• Health Monitoring&lt;br&gt;• Graceful Shutdown&lt;br&gt;&lt;br&gt;&lt;b&gt;Performance:&lt;/b&gt;&lt;br&gt;• 95% cache hit rate&lt;br&gt;• &amp;lt;50ms latency&lt;br&gt;• 100+ concurrent&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="1815" y="310" width="270" height="230" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow from manager to pool -->
+        <mxCell id="arrow-manager-pool" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=3;strokeColor=#2E7D32;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp-manager-box" target="pool-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-manager-pool-label" value="manages" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=2;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="1630" y="305" width="80" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Health Monitoring Box -->
+        <mxCell id="health-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#C8E6C9;strokeColor=#2E7D32;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1800" y="590" width="300" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="health-icon" value="💚" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="1815" y="600" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="health-title" value="&lt;b&gt;Health Monitoring&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="1870" y="605" width="220" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="health-desc" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;✅ Server Status Tracking&lt;br&gt;⚡ Performance Metrics&lt;br&gt;🔔 Prometheus Integration&lt;br&gt;📊 Real-time Dashboards&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="1815" y="640" width="270" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow from pool to health -->
+        <mxCell id="arrow-pool-health" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#2E7D32;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="pool-box" target="health-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-pool-health-label" value="reports" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontStyle=2;fontColor=#2E7D32;" vertex="1" parent="1">
+          <mxGeometry x="1920" y="560" width="60" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Tool Sources Section -->
+        <mxCell id="tools-section-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#6A1B9A;strokeWidth=3;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="800" width="2080" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="tools-section-title" value="🛠️ UNIFIED TOOL ECOSYSTEM" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=22;fontStyle=1;fontColor=#6A1B9A;" vertex="1" parent="1">
+          <mxGeometry x="80" y="815" width="500" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Built-in Tools -->
+        <mxCell id="builtin-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BA68C8;strokeColor=#6A1B9A;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="880" width="380" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="builtin-icon" value="⚙️" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="145" y="890" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="builtin-title" value="&lt;b&gt;Built-in Tools&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=17;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="200" y="895" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="builtin-list" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;📁 &lt;b&gt;File Manager&lt;/b&gt; - Read/write files&lt;br&gt;🌐 &lt;b&gt;Web Scraper&lt;/b&gt; - Extract web data&lt;br&gt;🔍 &lt;b&gt;Search Engine&lt;/b&gt; - Web searches&lt;br&gt;📊 &lt;b&gt;Data Parser&lt;/b&gt; - JSON/CSV/XML&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="145" y="930" width="350" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- OpenAPI Tools -->
+        <mxCell id="openapi-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BA68C8;strokeColor=#6A1B9A;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="560" y="880" width="380" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="openapi-icon" value="📡" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="575" y="890" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="openapi-title" value="&lt;b&gt;OpenAPI Tools&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=17;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="630" y="895" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="openapi-list" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;🔗 &lt;b&gt;Auto-generate from specs&lt;/b&gt;&lt;br&gt;✅ Schema validation&lt;br&gt;🔐 OAuth 2.0 / API keys&lt;br&gt;📝 Dynamic registration&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="575" y="930" width="350" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Tools -->
+        <mxCell id="mcp-tools-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BA68C8;strokeColor=#6A1B9A;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="990" y="880" width="380" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-tools-icon" value="🌐" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="890" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-tools-title" value="&lt;b&gt;MCP Tools&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=17;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1060" y="895" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-tools-list" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;🔌 &lt;b&gt;Standard MCP protocol&lt;/b&gt;&lt;br&gt;💻 stdio &amp; HTTP/SSE transport&lt;br&gt;📦 npm, Python packages&lt;br&gt;🚀 Community ecosystem&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1005" y="930" width="350" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Plugin Tools -->
+        <mxCell id="plugin-tools-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BA68C8;strokeColor=#6A1B9A;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1420" y="880" width="380" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin-tools-icon" value="🔌" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="890" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin-tools-title" value="&lt;b&gt;Plugin Tools&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=17;fontStyle=1;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1490" y="895" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin-tools-list" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;🎫 &lt;b&gt;Ticketing operations&lt;/b&gt;&lt;br&gt;✅ Custom validation&lt;br&gt;🔐 Secure credentials&lt;br&gt;🏗️ Extensible framework&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1435" y="930" width="350" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Unified Tool Service -->
+        <mxCell id="unified-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#6A1B9A;strokeWidth=3;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1850" y="880" width="260" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="unified-icon" value="🎯" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=32;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="890" width="45" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="unified-title" value="&lt;b&gt;Unified Tool Service&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#4A148C;" vertex="1" parent="1">
+          <mxGeometry x="1920" y="895" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="unified-desc" value="&lt;font style=&quot;font-size: 13px;&quot;&gt;🔄 &lt;b&gt;Single Interface&lt;/b&gt;&lt;br&gt;📊 Tool Discovery&lt;br&gt;⚡ Dynamic Loading&lt;br&gt;🎨 Schema Unification&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#4A148C;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="930" width="230" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows from tool sources to unified service -->
+        <mxCell id="arrow-builtin-unified" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#6A1B9A;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.25;entryDx=0;entryDy=0;" edge="1" parent="1" source="builtin-box" target="unified-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-openapi-unified" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#6A1B9A;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="openapi-box" target="unified-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-mcp-unified" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#6A1B9A;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.75;entryDx=0;entryDy=0;" edge="1" parent="1" source="mcp-tools-box" target="unified-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow-plugin-unified" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=2;strokeColor=#6A1B9A;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="plugin-tools-box" target="unified-box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Benefits Section -->
+        <mxCell id="benefits-section-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;strokeWidth=3;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1120" width="1020" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="benefits-section-title" value="✨ KEY BENEFITS" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#1976D2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1135" width="300" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit1-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#64B5F6;strokeColor=#1976D2;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="1185" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit1-icon" value="🔌" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="145" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit1-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Extensibility&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Easy to add new plugins and MCP servers without core changes&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="145" y="1235" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit2-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#64B5F6;strokeColor=#1976D2;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="380" y="1185" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit2-icon" value="🌐" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="395" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit2-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Standard Protocol&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;MCP enables using any community-built tool server&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="395" y="1235" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit3-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#64B5F6;strokeColor=#1976D2;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="630" y="1185" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit3-icon" value="⚡" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="645" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit3-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Performance&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Connection pooling and caching for fast tool execution&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="645" y="1235" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="benefit4-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#64B5F6;strokeColor=#1976D2;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="880" y="1185" width="170" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit4-icon" value="🔒" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="895" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="benefit4-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Security&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Isolation and credential management&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="895" y="1235" width="145" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Use Cases Section -->
+        <mxCell id="usecases-section-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00;strokeWidth=3;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="1120" y="1120" width="1020" height="220" as="geometry" />
+        </mxCell>
+        <mxCell id="usecases-section-title" value="💡 USE CASES" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=20;fontStyle=1;fontColor=#F57C00;" vertex="1" parent="1">
+          <mxGeometry x="1140" y="1135" width="300" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="usecase1-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFB74D;strokeColor=#F57C00;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1190" y="1185" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase1-icon" value="🎫" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1205" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase1-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Ticketing Integration&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Auto-create tickets in ServiceDesk Plus, Jira, etc.&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1205" y="1235" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="usecase2-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFB74D;strokeColor=#F57C00;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1440" y="1185" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase2-icon" value="🗄️" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1455" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase2-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Database Access&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Query databases via MCP PostgreSQL server&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1455" y="1235" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="usecase3-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFB74D;strokeColor=#F57C00;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1690" y="1185" width="220" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase3-icon" value="🐙" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1705" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase3-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;GitHub Ops&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;Create issues, PRs via MCP GitHub server&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1705" y="1235" width="190" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="usecase4-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFB74D;strokeColor=#F57C00;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1940" y="1185" width="170" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase4-icon" value="🌐" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=28;" vertex="1" parent="1">
+          <mxGeometry x="1955" y="1195" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="usecase4-text" value="&lt;b style=&quot;font-size: 14px;&quot;&gt;Web APIs&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size: 12px;&quot;&gt;HTTP requests via MCP fetch server&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="1955" y="1235" width="145" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#424242;strokeWidth=2;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1360" width="2080" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-text" value="🔌 Plugin Architecture • 🌐 MCP Protocol • 🛠️ Unified Tool Ecosystem • Production Ready ✅ • Coming Soon ⏳ • Future Plans 💡" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=13;fontStyle=1;fontColor=#424242;" vertex="1" parent="1">
+          <mxGeometry x="70" y="1360" width="2060" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

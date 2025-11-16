@@ -20,7 +20,7 @@ References:
 
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Dict, Any, Tuple
+from typing import Optional, Dict, Any, Tuple, List
 from dataclasses import dataclass
 
 import httpx
@@ -31,6 +31,50 @@ from sqlalchemy import select
 from src.config import settings
 from src.database.models import TenantConfig as TenantConfigModel
 from src.exceptions import BudgetExceededError
+
+
+@dataclass
+class ModelSpend:
+    """
+    Per-model spend breakdown.
+
+    Attributes:
+        model: Model name (e.g., 'gpt-4', 'claude-3-opus')
+        spend: Spend in USD for this model
+        percentage: Percentage of total spend
+        requests: Number of requests to this model
+    """
+
+    model: str
+    spend: float
+    percentage: float
+    requests: int
+
+
+@dataclass
+class TenantSpend:
+    """
+    Real-time spend data from LiteLLM for a tenant.
+
+    Attributes:
+        tenant_id: Tenant identifier
+        current_spend: Current spend in USD
+        max_budget: Maximum budget in USD
+        utilization_pct: Budget utilization percentage (0-100+)
+        models_breakdown: List of per-model spend details
+        last_updated: Timestamp of last LiteLLM API query
+        budget_duration: Budget period (e.g., '30d')
+        budget_reset_at: When budget resets (ISO 8601)
+    """
+
+    tenant_id: str
+    current_spend: float
+    max_budget: float
+    utilization_pct: float
+    models_breakdown: List[ModelSpend]
+    last_updated: datetime
+    budget_duration: Optional[str] = None
+    budget_reset_at: Optional[str] = None
 
 
 @dataclass
@@ -337,3 +381,149 @@ class BudgetService:
             max_budget=max_budget,
             grace_threshold=grace_threshold,
         )
+
+    async def get_tenant_spend_from_litellm(self, tenant_id: str) -> TenantSpend:
+        """
+        Query LiteLLM /key/info API for real-time tenant spend and model breakdown.
+
+        Retrieves current spend, max budget, and per-model spend from LiteLLM
+        virtual key. Used by dashboard to display real-time cost visibility.
+
+        Args:
+            tenant_id: Tenant identifier
+
+        Returns:
+            TenantSpend: Real-time spend data with model breakdown
+
+        Raises:
+            ValueError: If tenant not found or has no virtual key
+            Exception: If LiteLLM API call fails (logged and re-raised)
+
+        Example:
+            >>> budget_service = BudgetService(db)
+            >>> spend = await budget_service.get_tenant_spend_from_litellm("acme-corp")
+            >>> print(f"Spend: ${spend.current_spend}, Budget: ${spend.max_budget}")
+            >>> for model in spend.models_breakdown:
+            >>>     print(f"{model.model}: ${model.spend} ({model.percentage}%)")
+        """
+        # Fetch tenant config from database
+        stmt = select(TenantConfigModel).where(
+            TenantConfigModel.tenant_id == tenant_id,
+            TenantConfigModel.is_active == True,
+        )
+        result = await self.db.execute(stmt)
+        tenant_config = result.scalar_one_or_none()
+
+        if not tenant_config:
+            raise ValueError(f"Tenant not found or inactive: {tenant_id}")
+
+        # Determine virtual key to use (BYOK takes precedence)
+        virtual_key = None
+        if tenant_config.byok_enabled and tenant_config.byok_virtual_key:
+            virtual_key = tenant_config.byok_virtual_key
+            logger.debug(f"Using BYOK virtual key for tenant {tenant_id}")
+        elif tenant_config.litellm_virtual_key:
+            virtual_key = tenant_config.litellm_virtual_key
+            logger.debug(f"Using platform virtual key for tenant {tenant_id}")
+
+        if not virtual_key:
+            raise ValueError(
+                f"No LiteLLM virtual key configured for tenant {tenant_id}. "
+                "Configure BYOK or platform keys first."
+            )
+
+        # Get budget configuration
+        max_budget = tenant_config.max_budget or 500.00
+        budget_duration = tenant_config.budget_duration or "30d"
+        budget_reset_at = (
+            tenant_config.budget_reset_at.isoformat()
+            if tenant_config.budget_reset_at
+            else None
+        )
+
+        try:
+            # Query LiteLLM /key/info endpoint for spend data
+            headers = {
+                "Authorization": f"Bearer {self.master_key}",
+                "Content-Type": "application/json",
+            }
+
+            transport = httpx.AsyncHTTPTransport(retries=1)
+            async with httpx.AsyncClient(
+                transport=transport,
+                timeout=self.TIMEOUT_CONFIG,
+                follow_redirects=True,
+                limits=httpx.Limits(max_connections=100, max_keepalive_connections=20),
+            ) as client:
+                response = await client.get(
+                    f"{self.litellm_proxy_url}/key/info",
+                    headers=headers,
+                    params={"key": virtual_key},
+                )
+
+                if response.status_code != 200:
+                    logger.error(
+                        f"Failed to fetch spend data from LiteLLM for tenant {tenant_id}: "
+                        f"HTTP {response.status_code}"
+                    )
+                    raise Exception(
+                        f"LiteLLM API returned {response.status_code}: {response.text}"
+                    )
+
+                data = response.json()
+                info = data.get("info", {})
+                current_spend = float(info.get("spend", 0.0))
+
+                # Parse model breakdown from LiteLLM response
+                models_breakdown = []
+                litellm_models = info.get("models", [])
+
+                if litellm_models and current_spend > 0:
+                    # Calculate per-model percentages
+                    for model_data in litellm_models:
+                        if isinstance(model_data, dict):
+                            model_name = model_data.get("model", "unknown")
+                            spend = float(model_data.get("spend", 0.0))
+                            requests = int(model_data.get("requests", 0))
+                            percentage = (
+                                (spend / current_spend * 100) if current_spend > 0 else 0
+                            )
+
+                            models_breakdown.append(
+                                ModelSpend(
+                                    model=model_name,
+                                    spend=spend,
+                                    percentage=percentage,
+                                    requests=requests,
+                                )
+                            )
+
+                    # Sort by spend descending (most expensive first)
+                    models_breakdown.sort(key=lambda x: x.spend, reverse=True)
+
+                # Calculate utilization percentage
+                utilization_pct = (
+                    (current_spend / max_budget * 100) if max_budget > 0 else 0
+                )
+
+                logger.debug(
+                    f"Spend data retrieved for tenant {tenant_id}: "
+                    f"${current_spend:.2f}/${max_budget:.2f} ({utilization_pct:.1f}%)"
+                )
+
+                return TenantSpend(
+                    tenant_id=tenant_id,
+                    current_spend=current_spend,
+                    max_budget=max_budget,
+                    utilization_pct=utilization_pct,
+                    models_breakdown=models_breakdown,
+                    last_updated=datetime.now(timezone.utc),
+                    budget_duration=budget_duration,
+                    budget_reset_at=budget_reset_at,
+                )
+
+        except Exception as e:
+            logger.error(
+                f"Error fetching spend data from LiteLLM for tenant {tenant_id}: {str(e)}"
+            )
+            raise

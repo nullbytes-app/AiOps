@@ -6,14 +6,14 @@ from cryptography.fernet import Fernet
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from database.models import OpenAPITool
-from schemas.openapi_tool import OpenAPIToolCreate, OpenAPIToolUpdate
-from services.openapi_parser_service import (
+from src.database.models import OpenAPITool
+from src.schemas.openapi_tool import OpenAPIToolCreate, OpenAPIToolUpdate
+from src.services.openapi_parser_service import (
     detect_spec_version,
     extract_tool_metadata,
     parse_openapi_spec,
 )
-from services.mcp_tool_generator import generate_mcp_tools_from_openapi, count_generated_tools
+from src.services.mcp_tool_generator import generate_mcp_tools_from_openapi, count_generated_tools
 
 
 def get_encryption_cipher() -> Fernet:
@@ -45,6 +45,19 @@ class OpenAPIToolService:
 
     async def create_tool(self, tool_data: OpenAPIToolCreate) -> tuple[OpenAPITool, int]:
         """Create new OpenAPI tool with MCP generation."""
+        # Check if tool with same name already exists for this tenant
+        existing = await self.db.execute(
+            select(OpenAPITool).where(
+                OpenAPITool.tenant_id == tool_data.tenant_id,
+                OpenAPITool.tool_name == tool_data.tool_name
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise ValueError(
+                f"Tool '{tool_data.tool_name}' already exists for this tenant. "
+                "Please use a different name or delete the existing tool first."
+            )
+
         # Parse and validate spec
         spec_version = detect_spec_version(tool_data.openapi_spec)
         openapi = parse_openapi_spec(tool_data.openapi_spec)
@@ -79,7 +92,7 @@ class OpenAPIToolService:
 
         return db_tool, tools_count
 
-    async def get_tools(self, tenant_id: int, status: Optional[str] = None) -> list[OpenAPITool]:
+    async def get_tools(self, tenant_id: str, status: Optional[str] = None) -> list[OpenAPITool]:
         """Get all tools for tenant."""
         query = select(OpenAPITool).where(OpenAPITool.tenant_id == tenant_id)
         if status:

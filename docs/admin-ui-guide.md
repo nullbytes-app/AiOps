@@ -507,6 +507,207 @@ Displays all configured tenants with columns:
 
 ---
 
+### Agent Management and MCP Tool Assignment
+
+**Story:** 11.2.5 - MCP Tool Discovery in Agent Tools UI
+**Route:** `/Agent_Management`
+**Purpose:** Create and configure AI agents with comprehensive tool assignment (OpenAPI + MCP)
+
+#### What It Does
+
+The Agent Management page provides full lifecycle management for AI agents with a powerful tool assignment interface that unifies OpenAPI tools and Model Context Protocol (MCP) tools in a single, intuitive UI with visual badges, health monitoring, and advanced filtering.
+
+#### Key Features
+
+**1. Agent CRUD Operations**
+
+- **Create Agent:** Multi-tab form (Basic Info, LLM Config, System Prompt, Triggers, Tools, Memory)
+- **Edit Agent:** Update agent configuration including tool assignments
+- **Delete Agent:** Soft delete with confirmation
+- **Status Management:** Draft → Active → Suspended lifecycle
+
+**2. Unified Tool Assignment (Story 11.2.5)**
+
+The Tools tab provides a comprehensive interface for assigning both OpenAPI and MCP tools to agents with visual distinction and advanced filtering.
+
+**Tab-Based Organization:**
+- **All Tools:** View all available tools (OpenAPI + MCP combined)
+- **OpenAPI Tools:** Filter to show only OpenAPI-based tools
+- **MCP Tools:** Filter to show only MCP server tools with health indicators
+
+**Visual Tool Type Indicators:**
+
+Tools are displayed with distinct badges for easy identification:
+
+| Tool Type | Icon | Badge Color | Example |
+|-----------|------|-------------|---------|
+| **OpenAPI Tool** | 🔧 | Blue | `🔧 OpenAPI \| update_ticket` |
+| **MCP Tool** | 🔌 | Green | `🔌 MCP Tool \| list_files \| [filesystem-server] 🟢` |
+| **MCP Resource** | 📦 | Purple | `📦 MCP Resource \| project_docs \| [docs-server] 🔴` |
+| **MCP Prompt** | 💬 | Orange | `💬 MCP Prompt \| analyze_ticket \| [ai-assistant-server] ⚪` |
+
+**MCP Server Health Status:**
+
+MCP tools display real-time health indicators next to the server name:
+- **🟢 Active:** Server healthy, last check < 5 min ago
+- **🔴 Error:** Server down/failing, hover for error message
+- **⚪ Inactive:** Server disabled or never checked
+
+**Tooltip Information (Hover):**
+- Server name
+- Health status text
+- Last health check timestamp (e.g., "2 minutes ago")
+- Error message (if status = error)
+
+**3. Advanced Filtering and Search (MCP Tools Tab)**
+
+**MCP Server Filter:**
+- Multi-select dropdown showing all available MCP servers
+- Select one or more servers to filter tool list
+- "All Servers" option shows all MCP tools
+- Tool count badge next to each server name (e.g., "filesystem-server (12 tools)")
+
+**Search Functionality:**
+- Case-insensitive search across tool names and descriptions
+- Works on current tab (All Tools, OpenAPI Tools, or MCP Tools)
+- Real-time filtering as you type
+- "Clear" button to reset search
+
+**Example Search:**
+```
+Search: "file"
+Results: list_files, read_file, file_manager (from any source)
+```
+
+**4. Multi-Select Tool Assignment**
+
+- **Checkboxes:** Select multiple tools across different sources
+- **Selected Tool Count:** Badge showing "X tools selected"
+- **Select All / Deselect All:** Buttons for bulk actions
+- **Persistent Selections:** Choices maintained when switching tabs
+
+**5. Assigned Tools Display**
+
+After assigning tools to an agent, they appear in a summary section with:
+- Source type badges (🔧 OpenAPI, 🔌 MCP Tool, 📦 Resource, 💬 Prompt)
+- MCP server name for MCP tools
+- Remove button (✕) for each tool
+- Confirmation message: "Tool 'list_files' removed from agent"
+
+**Example Assigned Tools:**
+```
+Assigned Tools (5):
+🔧 OpenAPI: update_ticket, search_tickets, create_ticket
+🔌 MCP Tool: list_files [filesystem-server], read_file [filesystem-server]
+```
+
+#### Usage
+
+**Create Agent with Tools:**
+
+1. Click **"+ Create Agent"** button
+2. Fill in Basic Info (Name, Description, Tenant)
+3. Configure LLM settings (Provider, Model, Temperature, Max Tokens)
+4. Add System Prompt (or load template)
+5. Navigate to **Tools** tab:
+   - **For OpenAPI tools:** Click "OpenAPI Tools" tab
+   - **For MCP tools:** Click "MCP Tools" tab
+   - Use server filter to narrow MCP tools by server
+   - Use search to find specific tools by name/description
+   - Check boxes to select tools
+   - View selected count badge
+6. Click **"✅ Create Agent"**
+
+**Edit Agent Tools:**
+
+1. Select agent from list
+2. Click **"✏️ Edit"** button
+3. Navigate to Tools tab
+4. Modify tool selections (add/remove)
+5. Click **"✅ Save Changes"**
+
+**Remove Tool from Agent:**
+
+1. View agent configuration
+2. Locate assigned tools section
+3. Click **✕** icon next to tool name
+4. Tool removed immediately with confirmation
+
+#### Badge Meanings Reference
+
+Quick reference for visual indicators:
+
+- **🔧 OpenAPI (Blue):** Traditional REST API tools, stable and mature
+- **🔌 MCP Tool (Green):** Active function/action capability from MCP server
+- **📦 MCP Resource (Purple):** Data/content access from MCP server (passive)
+- **💬 MCP Prompt (Orange):** AI/LLM-related prompt generation from MCP server
+
+**Health Status:**
+- **🟢 Active:** Recent successful health check (< 5 minutes ago)
+- **🔴 Error:** Health check failed, server unavailable (hover for details)
+- **⚪ Inactive:** Server disabled or never checked
+
+#### Troubleshooting
+
+**Issue: MCP tools not appearing in tool list**
+
+**Cause:** MCP server may be down, inactive, or not registered
+
+**Solution:**
+1. Navigate to **MCP Servers** page (if available)
+2. Check server health status (should be 🟢 Active)
+3. If server shows 🔴 Error or ⚪ Inactive:
+   - Verify server configuration
+   - Check server logs
+   - Restart server if needed
+   - Wait for health check (runs every 30 seconds)
+4. Return to Agent Management and refresh page
+
+**Issue: Search/filter not working as expected**
+
+**Cause:** Browser cache or session state issue
+
+**Solution:**
+1. Click "Clear" button next to search box
+2. Deselect all servers in MCP server filter
+3. Switch between tabs to reset state
+4. Refresh page (F5) if issue persists
+
+**Issue: Tool assignment not saving**
+
+**Cause:** Validation error or network issue
+
+**Solution:**
+1. Check for error messages in UI (red alerts)
+2. Verify required fields are filled (agent name, system prompt)
+3. Ensure at least one tenant is selected
+4. Check browser console for network errors
+5. Try again after fixing validation errors
+
+#### Technical Details
+
+- **Implementation:**
+  - Main page: `src/admin/pages/5_Agent_Management.py`
+  - UI helpers: `src/admin/utils/tool_assignment_ui_helpers.py`
+  - Tab renderers: `src/admin/utils/tool_tab_renderers.py`
+- **Tool Discovery:** Unified Tool Service (Story 11.1.5) combines OpenAPI + MCP tools
+- **Health Monitoring:** MCP health checks run every 30 seconds (Story 11.1.8)
+- **Caching:** Tool data and health status cached for 60 seconds (@st.cache_data)
+- **Performance:** Page load < 2 seconds, tab switches instant (no API calls)
+- **Dependencies:** Streamlit 1.44+, httpx, unified-tool-service API
+
+**Performance Optimizations:**
+- API call results cached with 60-second TTL
+- Tab switches use cached data (instant navigation)
+- Health status batched with tool fetching
+- Search and filtering performed client-side (sub-500ms)
+
+**[Screenshot Placeholder: Agent Management - MCP Tool Assignment]**
+
+*Figure 4: Agent Management Tools tab showing tab-based organization (All Tools, OpenAPI Tools, MCP Tools selected), visual badges for each tool type (🔧 OpenAPI in blue, 🔌 MCP Tool in green, 📦 MCP Resource in purple), MCP server filter dropdown (filesystem-server, docs-server, ai-assistant-server), search box with "file" query, multi-select checkboxes, selected tool count badge "3 tools selected", and health status indicators (🟢 active, 🔴 error) next to MCP server names.*
+
+---
+
 ### Enhancement History
 
 **Story:** 6.4 - Implement Enhancement History Viewer

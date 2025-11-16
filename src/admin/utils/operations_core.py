@@ -286,8 +286,8 @@ def sync_tenant_configs() -> tuple[bool, dict, str]:
                     # Serialize config to dict (simplified - adjust based on your schema)
                     config_data = {
                         "tenant_id": config.tenant_id,
-                        "webhook_url": config.webhook_url,
-                        "api_key": config.api_key[:10] + "..." if config.api_key else None,
+                        "servicedesk_url": config.servicedesk_url,
+                        "api_key_preview": config.servicedesk_api_key_encrypted[:10] + "..." if config.servicedesk_api_key_encrypted else None,
                         "is_active": config.is_active,
                     }
 

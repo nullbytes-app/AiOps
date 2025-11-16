@@ -10,7 +10,7 @@ Mocks database session to test logic independently of actual database.
 
 import pytest
 from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 from uuid import UUID, uuid4
 
 from src.services.prompt_service import PromptService
@@ -78,14 +78,18 @@ class TestPromptVersionManagement:
         # Mock agent exists
         mock_agent = MagicMock()
         mock_agent_result = AsyncMock()
-        mock_agent_result.scalars.return_value.first.return_value = mock_agent
+        mock_agent_scalars = Mock()
+        mock_agent_scalars.first.return_value = mock_agent
+        mock_agent_result.scalars = Mock(return_value=mock_agent_scalars)
 
         # Mock versions query
         mock_versions_result = AsyncMock()
-        mock_versions_result.scalars.return_value.all.return_value = [
+        mock_versions_scalars = Mock()
+        mock_versions_scalars.all.return_value = [
             mock_version_2,
             mock_version_1,
         ]
+        mock_versions_result.scalars = Mock(return_value=mock_versions_scalars)
 
         mock_db.execute = AsyncMock(
             side_effect=[mock_agent_result, mock_versions_result]
@@ -119,7 +123,9 @@ class TestPromptVersionManagement:
         """Test error when agent doesn't belong to tenant."""
         # Arrange
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.first.return_value = None
+        mock_result_scalars = Mock()
+        mock_result_scalars.first.return_value = None
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
         mock_db.execute = AsyncMock(return_value=mock_result)
 
         # Act & Assert
@@ -141,7 +147,9 @@ class TestPromptVersionManagement:
         # Arrange
         mock_agent = MagicMock()
         mock_agent_result = AsyncMock()
-        mock_agent_result.scalars.return_value.first.return_value = mock_agent
+        mock_agent_result_scalars = Mock()
+        mock_agent_result_scalars.first.return_value = mock_agent
+        mock_agent_result.scalars = Mock(return_value=mock_agent_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_agent_result)
         mock_db.add = MagicMock()
@@ -209,12 +217,16 @@ class TestPromptVersionManagement:
 
         mock_agent = MagicMock()
         mock_agent_result = AsyncMock()
-        mock_agent_result.scalars.return_value.first.return_value = mock_agent
+        mock_agent_result_scalars = Mock()
+        mock_agent_result_scalars.first.return_value = mock_agent
+        mock_agent_result.scalars = Mock(return_value=mock_agent_result_scalars)
 
         mock_target_version = MagicMock()
         mock_target_version.prompt_text = target_prompt
         mock_version_result = AsyncMock()
-        mock_version_result.scalars.return_value.first.return_value = mock_target_version
+        mock_version_result_scalars = Mock()
+        mock_version_result_scalars.first.return_value = mock_target_version
+        mock_version_result.scalars = Mock(return_value=mock_version_result_scalars)
 
         mock_db.execute = AsyncMock(
             side_effect=[mock_agent_result, mock_version_result]
@@ -244,10 +256,14 @@ class TestPromptVersionManagement:
 
         mock_agent = MagicMock()
         mock_agent_result = AsyncMock()
-        mock_agent_result.scalars.return_value.first.return_value = mock_agent
+        mock_agent_result_scalars = Mock()
+        mock_agent_result_scalars.first.return_value = mock_agent
+        mock_agent_result.scalars = Mock(return_value=mock_agent_result_scalars)
 
         mock_version_result = AsyncMock()
-        mock_version_result.scalars.return_value.first.return_value = None
+        mock_version_result_scalars = Mock()
+        mock_version_result_scalars.first.return_value = None
+        mock_version_result.scalars = Mock(return_value=mock_version_result_scalars)
 
         mock_db.execute = AsyncMock(
             side_effect=[mock_agent_result, mock_version_result]
@@ -279,7 +295,9 @@ class TestTemplateManagement:
         mock_custom.name = "Custom Template"
 
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.all.return_value = [mock_builtin, mock_custom]
+        mock_result_scalars = Mock()
+        mock_result_scalars.all.return_value = [mock_builtin, mock_custom]
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_result)
 
@@ -311,7 +329,9 @@ class TestTemplateManagement:
         mock_custom.tenant_id = sample_tenant_id
 
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.all.return_value = [mock_custom]
+        mock_result_scalars = Mock()
+        mock_result_scalars.all.return_value = [mock_custom]
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_result)
 
@@ -383,7 +403,9 @@ class TestTemplateManagement:
         mock_template.tenant_id = sample_tenant_id
 
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.first.return_value = mock_template
+        mock_result_scalars = Mock()
+        mock_result_scalars.first.return_value = mock_template
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_result)
         mock_db.commit = AsyncMock()
@@ -404,7 +426,9 @@ class TestTemplateManagement:
         template_id = uuid4()
 
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.first.return_value = None  # Not found (built-in)
+        mock_result_scalars = Mock()
+        mock_result_scalars.first.return_value = None  # Not found (built-in)
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_result)
 
@@ -486,7 +510,9 @@ class TestMultiTenancyEnforcement:
         wrong_tenant_id = "different_tenant"
 
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.first.return_value = None  # Agent not found for tenant
+        mock_result_scalars = Mock()
+        mock_result_scalars.first.return_value = None  # Agent not found for tenant
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_result)
 
@@ -506,7 +532,9 @@ class TestMultiTenancyEnforcement:
 
         # Query returns None (template not found for tenant_a)
         mock_result = AsyncMock()
-        mock_result.scalars.return_value.first.return_value = None
+        mock_result_scalars = Mock()
+        mock_result_scalars.first.return_value = None
+        mock_result.scalars = Mock(return_value=mock_result_scalars)
 
         mock_db.execute = AsyncMock(return_value=mock_result)
 

@@ -70,6 +70,16 @@ def valid_env_vars() -> dict[str, str]:
         "AI_AGENTS_CELERY_BROKER_URL": "redis://localhost:6379/1",
         "AI_AGENTS_CELERY_RESULT_BACKEND": "redis://localhost:6379/1",
         "AI_AGENTS_WEBHOOK_SECRET": "test-webhook-secret-minimum-32-chars-required-here",
+        # Required fields added in Story 8-13 (BYOK) and other recent stories
+        "AI_AGENTS_ADMIN_API_KEY": "test-admin-api-key-for-testing-purposes",
+        "AI_AGENTS_ENCRYPTION_KEY": "test-encryption-key-32-chars-min",
+        "AI_AGENTS_POSTGRES_PASSWORD": "test-postgres-password",
+        "AI_AGENTS_REDIS_PASSWORD": "test-redis-password",
+        "AI_AGENTS_OPENAI_API_KEY": "sk-test-openai-key-for-testing",
+        "AI_AGENTS_OPENROUTER_API_KEY": "sk-test-openrouter-key",
+        "AI_AGENTS_OPENROUTER_SITE_URL": "https://test.example.com",
+        "AI_AGENTS_OPENROUTER_APP_NAME": "test-app",
+        "AI_AGENTS_LITELLM_MASTER_KEY": "sk-test-litellm-master-key",
     }
 
 
@@ -91,10 +101,7 @@ def test_settings_loads_from_environment_variables(
     settings = Settings()
 
     # Assert values match environment variables
-    assert (
-        settings.database_url
-        == "postgresql+asyncpg://test:test@localhost:5432/test_db"
-    )
+    assert settings.database_url == "postgresql+asyncpg://test:test@localhost:5432/test_db"
     assert settings.redis_url == "redis://localhost:6379/0"
     assert settings.celery_broker_url == "redis://localhost:6379/1"
     assert settings.celery_result_backend == "redis://localhost:6379/1"
@@ -164,11 +171,8 @@ def test_env_prefix_correctly_prepends_to_variable_names(
         valid_env_vars: Fixture with valid environment variables
     """
     # Set environment variable WITH prefix
-    os.environ["AI_AGENTS_DATABASE_URL"] = "postgresql+asyncpg://test:test@localhost:5432/test_db"
-    os.environ["AI_AGENTS_REDIS_URL"] = "redis://localhost:6379/0"
-    os.environ["AI_AGENTS_CELERY_BROKER_URL"] = "redis://localhost:6379/1"
-    os.environ["AI_AGENTS_CELERY_RESULT_BACKEND"] = "redis://localhost:6379/1"
-    os.environ["AI_AGENTS_WEBHOOK_SECRET"] = "test-webhook-secret-minimum-32-chars-required-here"
+    for key, value in valid_env_vars.items():
+        os.environ[key] = value
 
     # Create Settings instance
     settings = Settings()
@@ -179,10 +183,10 @@ def test_env_prefix_correctly_prepends_to_variable_names(
     # Try setting without prefix (should NOT work)
     os.environ.clear()
     os.environ["DATABASE_URL"] = "postgresql+asyncpg://wrong:wrong@localhost:5432/wrong"
-    os.environ["AI_AGENTS_REDIS_URL"] = "redis://localhost:6379/0"
-    os.environ["AI_AGENTS_CELERY_BROKER_URL"] = "redis://localhost:6379/1"
-    os.environ["AI_AGENTS_CELERY_RESULT_BACKEND"] = "redis://localhost:6379/1"
-    os.environ["AI_AGENTS_WEBHOOK_SECRET"] = "test-webhook-secret-minimum-32-chars-required-here"
+    # Set all other required fields with correct prefix
+    for key, value in valid_env_vars.items():
+        if key != "AI_AGENTS_DATABASE_URL":
+            os.environ[key] = value
 
     # Should raise validation error because DATABASE_URL (without prefix) is ignored
     with pytest.raises(ValidationError):

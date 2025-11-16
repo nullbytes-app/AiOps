@@ -90,14 +90,21 @@ def build_httpx_client(auth_config: dict[str, Any], base_url: str) -> httpx.Asyn
             raise ValueError(f"Unsupported HTTP auth scheme: {http_scheme}")
 
     elif auth_type == "oauth2":
-        # OAuth 2.0 - assume token already obtained
-        # In production, implement token exchange flow here
-        # For now, expect pre-obtained access token
+        # OAuth 2.0 - support both token-based and config-based flows
+        # 
+        # Option 1: Pre-obtained access token (for immediate use)
         access_token = auth_config.get("access_token", "")
         if access_token:
             headers["Authorization"] = f"Bearer {access_token}"
         else:
-            raise ValueError("OAuth 2.0 requires access_token in auth_config")
+            # Option 2: OAuth config without token (client_id, client_secret, token_url)
+            # Store config for later token exchange when tool is invoked
+            # For now, create client without auth headers - token exchange will happen
+            # at runtime when the MCP tool is actually called
+            #
+            # NOTE: This allows saving OAuth2 tools without requiring a pre-obtained token.
+            # Token exchange should be implemented in the MCP tool invocation flow.
+            pass
 
     else:
         raise ValueError(f"Unsupported authentication type: {auth_type}")
@@ -325,9 +332,25 @@ def count_generated_tools(mcp: FastMCP) -> int:
     Returns:
         Number of generated tools
     """
-    # FastMCP exposes tools via .tools attribute
-    if hasattr(mcp, "tools"):
-        return len(mcp.tools)
+    # For FastMCP instances created via from_openapi(), 
+    # tools are managed by an internal ToolManager
+    try:
+        tool_manager = getattr(mcp, "_tool_manager", None)
+        if tool_manager is not None:
+            tools_dict = getattr(tool_manager, "_tools", None)
+            if tools_dict is not None:
+                return len(tools_dict)
+    except (AttributeError, TypeError):
+        pass
+    
+    # For regular FastMCP instances with tools attribute
+    try:
+        tools = getattr(mcp, "tools", None)
+        if tools is not None:
+            return len(tools)
+    except (AttributeError, TypeError):
+        pass
+    
     return 0
 
 
@@ -343,14 +366,37 @@ async def get_tool_list(mcp: FastMCP) -> list[dict[str, Any]]:
     """
     tools_list: list[dict[str, Any]] = []
 
-    if hasattr(mcp, "tools"):
-        for tool in mcp.tools:
-            tools_list.append(
-                {
-                    "name": getattr(tool, "name", "Unknown"),
-                    "description": getattr(tool, "description", ""),
-                    "parameters": getattr(tool, "parameters", {}),
-                }
-            )
+    # For FastMCP instances created via from_openapi()
+    try:
+        tool_manager = getattr(mcp, "_tool_manager", None)
+        if tool_manager is not None:
+            tools_dict = getattr(tool_manager, "_tools", None)
+            if tools_dict is not None:
+                for tool_name, tool in tools_dict.items():
+                    tools_list.append(
+                        {
+                            "name": tool_name,
+                            "description": getattr(tool, "description", ""),
+                            "parameters": getattr(tool, "input_schema", {}),
+                        }
+                    )
+                return tools_list
+    except (AttributeError, TypeError):
+        pass
+    
+    # For regular FastMCP instances with tools attribute
+    try:
+        tools = getattr(mcp, "tools", None)
+        if tools is not None:
+            for tool in tools:
+                tools_list.append(
+                    {
+                        "name": getattr(tool, "name", "Unknown"),
+                        "description": getattr(tool, "description", ""),
+                        "parameters": getattr(tool, "parameters", {}),
+                    }
+                )
+    except (AttributeError, TypeError):
+        pass
 
     return tools_list

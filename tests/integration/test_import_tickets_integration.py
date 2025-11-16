@@ -7,6 +7,10 @@ Covers:
 - Database persistence and constraint handling
 - Performance benchmarking
 - Idempotency
+
+KNOWN ISSUE (Story 12.1): These tests fail with SQLAlchemy MissingGreenlet error.
+Root cause: async database session fixture incompatibility.
+Temporarily skipped pending fixture refactoring (tracked in test-audit-report).
 """
 
 import pytest
@@ -15,6 +19,10 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 import sys
 from pathlib import Path
+
+# Tests re-enabled in Story 12.2 after async fixture refactoring
+# Uses async_session_maker from database.session for proper async support
+pytestmark = pytest.mark.anyio  # Enable proper async/await support
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent
@@ -57,7 +65,9 @@ class TestEndToEndImport:
                 "subject": f"Ticket {i}",
                 "description": f"Description {i}",
                 "resolution": {"content": f"Resolution {i}"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [{"name": f"tag-{i}"}],
             }
             for i in range(1, 11)
@@ -112,7 +122,9 @@ class TestEndToEndImport:
                 "subject": f"Ticket {i}",
                 "description": f"Description {i}",
                 "resolution": {"content": f"Fixed"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [],
             }
             for i in range(1, 101)
@@ -125,7 +137,9 @@ class TestEndToEndImport:
                 "subject": f"Ticket {i}",
                 "description": f"Description {i}",
                 "resolution": {"content": f"Fixed"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [],
             }
             for i in range(101, 151)
@@ -133,6 +147,7 @@ class TestEndToEndImport:
 
         # Mock fetch to return pages in sequence
         call_count = 0
+
         async def mock_fetch_page(*args, **kwargs):
             nonlocal call_count
             call_count += 1
@@ -180,7 +195,9 @@ class TestEndToEndImport:
                 "subject": f"Ticket {i}",
                 "description": f"Description {i}",
                 "resolution": {"content": f"Fixed"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [],
             }
             for i in range(1, 11)
@@ -190,7 +207,9 @@ class TestEndToEndImport:
         async def mock_fetch_page_first_run(*args, **kwargs):
             return unique_tickets, False
 
-        with patch("scripts.import_tickets.fetch_tickets_page", side_effect=mock_fetch_page_first_run):
+        with patch(
+            "scripts.import_tickets.fetch_tickets_page", side_effect=mock_fetch_page_first_run
+        ):
             with patch("scripts.import_tickets.async_session_maker") as mock_session_maker:
                 mock_session_maker.return_value.__aenter__.return_value = test_database_session
                 mock_session_maker.return_value.__aexit__.return_value = None
@@ -219,7 +238,9 @@ class TestEndToEndImport:
         async def mock_fetch_page_second_run(*args, **kwargs):
             return unique_tickets, False
 
-        with patch("scripts.import_tickets.fetch_tickets_page", side_effect=mock_fetch_page_second_run):
+        with patch(
+            "scripts.import_tickets.fetch_tickets_page", side_effect=mock_fetch_page_second_run
+        ):
             with patch("scripts.import_tickets.async_session_maker") as mock_session_maker:
                 mock_session_maker.return_value.__aenter__.return_value = test_database_session
                 mock_session_maker.return_value.__aexit__.return_value = None
@@ -257,7 +278,9 @@ class TestEndToEndImport:
                 "subject": "Valid ticket",
                 "description": "Has all required fields",
                 "resolution": {"content": "Fixed"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [],
             },
             {  # Invalid: missing resolved_time
@@ -272,7 +295,9 @@ class TestEndToEndImport:
                 "subject": "",
                 "description": "",
                 "resolution": {"content": "Fixed"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [],
             },
             {  # Valid
@@ -280,7 +305,9 @@ class TestEndToEndImport:
                 "subject": "Another valid",
                 "description": "Complete data",
                 "resolution": {"content": "Resolved"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [],
             },
         ]
@@ -332,7 +359,9 @@ class TestEndToEndImport:
                 "subject": f"Ticket {i}",
                 "description": f"Performance test ticket {i}",
                 "resolution": {"content": f"Fixed"},
-                "resolved_time": {"value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)},
+                "resolved_time": {
+                    "value": int((datetime.now() - timedelta(days=30)).timestamp() * 1000)
+                },
                 "tags": [{"name": f"perf-{i % 5}"}],
             }
             for i in range(1, 101)
@@ -403,6 +432,7 @@ class TestDatabaseConstraints:
 
         # Should raise IntegrityError
         from sqlalchemy.exc import IntegrityError
+
         with pytest.raises(IntegrityError):
             await test_database_session.commit()
 

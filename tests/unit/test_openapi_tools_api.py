@@ -5,13 +5,18 @@ Story 8.8: OpenAPI Tool Upload and Auto-Generation (Task 10.4)
 Tests for FastAPI endpoints in src/api/openapi_tools.py.
 
 Test Coverage:
-- POST /api/openapi-tools (create tool) - 3 tests
+- POST /api/openapi-tools (create tool) - 5 tests
+  - Successful creation
+  - Invalid spec (400)
+  - Missing required fields (422)
+  - Duplicate tool name - ValueError (409)
+  - Duplicate tool name - IntegrityError (409)
 - POST /api/openapi-tools/parse (parse spec) - 3 tests
 - POST /api/openapi-tools/test-connection - 4 tests
 - GET /api/openapi-tools (list tools) - 2 tests
 - GET /api/openapi-tools/{id} (get tool) - 2 tests
 
-Total: 14 tests (exceeds requirement of 10+)
+Total: 16 tests (exceeds requirement of 10+)
 """
 
 import pytest
@@ -175,6 +180,88 @@ class TestCreateToolEndpoint:
         assert response.status_code == 422  # FastAPI Pydantic validation error
         errors = response.json()["detail"]
         assert len(errors) >= 3  # At least 3 missing fields
+
+    @patch("src.database.tenant_context.set_db_tenant_context", new_callable=AsyncMock)
+    @patch("src.database.session.get_async_session")
+    @patch("src.api.openapi_tools.OpenAPIToolService")
+    def test_create_tool_duplicate_name_returns_409(
+        self, mock_service_class, mock_get_session, mock_set_context,
+        client, sample_openapi_spec, auth_config_bearer
+    ):
+        """Test creating tool with duplicate name for same tenant returns 409."""
+        # Mock database session
+        mock_db = AsyncMock()
+
+        # Make get_async_session return async generator
+        async def mock_session_generator():
+            yield mock_db
+        mock_get_session.return_value = mock_session_generator()
+
+        # Mock service to raise ValueError for duplicate tool name
+        mock_service = AsyncMock()
+        mock_service.create_tool.side_effect = ValueError(
+            "Tool 'Test API' already exists for this tenant. "
+            "Please use a different name or delete the existing tool first."
+        )
+        mock_service_class.return_value = mock_service
+
+        payload = {
+            "tool_name": "Test API",
+            "openapi_spec": sample_openapi_spec,
+            "spec_version": "3.0",
+            "base_url": "https://api.example.com",
+            "auth_config": auth_config_bearer,
+            "tenant_id": "test-tenant-1",
+            "created_by": "test_user",
+        }
+
+        response = client.post("/api/openapi-tools", json=payload)
+
+        assert response.status_code == 409
+        assert "already exists" in response.json()["detail"]
+        assert "Test API" in response.json()["detail"]
+
+    @patch("src.database.tenant_context.set_db_tenant_context", new_callable=AsyncMock)
+    @patch("src.database.session.get_async_session")
+    @patch("src.api.openapi_tools.OpenAPIToolService")
+    def test_create_tool_db_unique_constraint_violation_returns_409(
+        self, mock_service_class, mock_get_session, mock_set_context,
+        client, sample_openapi_spec, auth_config_bearer
+    ):
+        """Test creating tool when database raises IntegrityError returns 409."""
+        from sqlalchemy.exc import IntegrityError
+
+        # Mock database session
+        mock_db = AsyncMock()
+
+        # Make get_async_session return async generator
+        async def mock_session_generator():
+            yield mock_db
+        mock_get_session.return_value = mock_session_generator()
+
+        # Mock service to raise IntegrityError (race condition scenario)
+        mock_service = AsyncMock()
+        mock_service.create_tool.side_effect = IntegrityError(
+            "duplicate key value violates unique constraint uq_tenant_tool_name",
+            params={},
+            orig=Exception("Key (tenant_id, tool_name)=(1, Test API) already exists.")
+        )
+        mock_service_class.return_value = mock_service
+
+        payload = {
+            "tool_name": "Test API",
+            "openapi_spec": sample_openapi_spec,
+            "spec_version": "3.0",
+            "base_url": "https://api.example.com",
+            "auth_config": auth_config_bearer,
+            "tenant_id": "test-tenant-1",
+            "created_by": "test_user",
+        }
+
+        response = client.post("/api/openapi-tools", json=payload)
+
+        assert response.status_code == 409
+        assert "already exists" in response.json()["detail"]
 
 
 # Test Suite: POST /api/openapi-tools/parse

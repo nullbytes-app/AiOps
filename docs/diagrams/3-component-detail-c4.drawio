@@ -1,0 +1,272 @@
+<mxfile host="app.diagrams.net" modified="2025-01-12T00:00:00.000Z" agent="AI Agents Team - Revised" version="24.0.0">
+  <diagram id="component-detail" name="3. Component Detail (C4 Level 3)">
+    <mxGraphModel dx="2200" dy="1600" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1900" pageHeight="1600" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Background -->
+        <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry width="1900" height="1600" as="geometry" />
+        </mxCell>
+
+        <!-- Title Section -->
+        <mxCell id="title" value="Component Detail - FastAPI Application" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=36;fontStyle=1;fontColor=#1168BD;" vertex="1" parent="1">
+          <mxGeometry x="80" y="50" width="800" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle1" value="C4 Model Level 3: Internal Code Structure and Dependencies" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=18;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="80" y="110" width="800" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle2" value="25 API routes • 43+ service modules • Plugin-based architecture" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#888888;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="145" width="800" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- API Layer -->
+        <mxCell id="api-layer-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2;strokeWidth=2;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="220" width="1780" height="340" as="geometry" />
+        </mxCell>
+        <mxCell id="api-layer-label" value="&lt;b&gt;🌐 API LAYER&lt;/b&gt; - FastAPI REST Endpoints (src/api/)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#1976D2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="235" width="700" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Webhooks API -->
+        <mxCell id="webhooks-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="280" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="webhooks-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/2618/2618203.png;" vertex="1" parent="1">
+          <mxGeometry x="115" y="290" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="webhooks-title" value="&lt;b&gt;webhooks.py&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="295" width="140" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="webhooks-desc" value="HMAC validation • Job enqueue" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#BBDEFB;" vertex="1" parent="1">
+          <mxGeometry x="115" y="345" width="185" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Agents API -->
+        <mxCell id="agents-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="280" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="agents-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/4727/4727266.png;" vertex="1" parent="1">
+          <mxGeometry x="365" y="290" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="agents-title" value="&lt;b&gt;agents.py&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="410" y="295" width="140" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="agents-desc" value="CRUD • Prompts • Tools" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#BBDEFB;" vertex="1" parent="1">
+          <mxGeometry x="365" y="345" width="185" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Agent Execution API -->
+        <mxCell id="exec-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="600" y="280" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="exec-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/3068/3068307.png;" vertex="1" parent="1">
+          <mxGeometry x="615" y="290" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="exec-title" value="&lt;b&gt;agent_execution.py&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="295" width="140" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="exec-desc" value="Execute • Stream • Async" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#BBDEFB;" vertex="1" parent="1">
+          <mxGeometry x="615" y="345" width="185" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- MCP API -->
+        <mxCell id="mcp-api-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="850" y="280" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-api-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/3004/3004458.png;" vertex="1" parent="1">
+          <mxGeometry x="865" y="290" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-api-title" value="&lt;b&gt;mcp_servers.py&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="910" y="295" width="140" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-api-desc" value="MCP CRUD • Health check" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#BBDEFB;" vertex="1" parent="1">
+          <mxGeometry x="865" y="345" width="185" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Tenants API -->
+        <mxCell id="tenants-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="420" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="tenants-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/1077/1077114.png;" vertex="1" parent="1">
+          <mxGeometry x="115" y="430" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tenants-title" value="&lt;b&gt;admin/tenants.py&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="160" y="435" width="140" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="tenants-desc" value="Tenant CRUD • Encryption" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#BBDEFB;" vertex="1" parent="1">
+          <mxGeometry x="115" y="485" width="185" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- OpenAPI Tools API -->
+        <mxCell id="tools-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="350" y="420" width="220" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="tools-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/2356/2356780.png;" vertex="1" parent="1">
+          <mxGeometry x="365" y="430" width="40" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="tools-title" value="&lt;b&gt;openapi_tools.py&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="410" y="435" width="140" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="tools-desc" value="Dynamic tools • OpenAPI" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontColor=#BBDEFB;" vertex="1" parent="1">
+          <mxGeometry x="365" y="485" width="185" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- More APIs... (simplified for brevity) -->
+        <mxCell id="other-apis-note" value="+ prompts.py • budget.py • llm_models.py • llm_providers.py" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontColor=#1976D2;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="600" y="470" width="450" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Service Layer -->
+        <mxCell id="service-layer-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="600" width="1780" height="420" as="geometry" />
+        </mxCell>
+        <mxCell id="service-layer-label" value="&lt;b&gt;⚙️ SERVICE LAYER&lt;/b&gt; - Business Logic (src/services/)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#7B1FA2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="615" width="700" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Core Services (simplified for space) -->
+        <mxCell id="agent-svc" value="&lt;b&gt;agent_service.py&lt;/b&gt;&lt;br&gt;Validation • State mgmt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="660" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="exec-svc" value="&lt;b&gt;agent_execution_service.py&lt;/b&gt;&lt;br&gt;LangGraph orchestration" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="290" y="660" width="180" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="llm-svc" value="&lt;b&gt;llm_service.py&lt;/b&gt;&lt;br&gt;LLM API • Retries" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="660" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tenant-svc" value="&lt;b&gt;tenant_service.py&lt;/b&gt;&lt;br&gt;RLS context • Encryption" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="690" y="660" width="170" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Services -->
+        <mxCell id="mcp-svc-label" value="&lt;b&gt;MCP Integration Services&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=13;fontColor=#7B1FA2;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="745" width="250" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mcp-server-svc" value="&lt;b&gt;mcp_server_service&lt;/b&gt;&lt;br&gt;Lifecycle mgmt" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="775" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mcp-stdio-svc" value="&lt;b&gt;mcp_stdio_client&lt;/b&gt;&lt;br&gt;stdio transport" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="775" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mcp-http-svc" value="&lt;b&gt;mcp_http_sse_client&lt;/b&gt;&lt;br&gt;HTTP/SSE transport" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="440" y="775" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="mcp-bridge-svc" value="&lt;b&gt;mcp_tool_bridge&lt;/b&gt;&lt;br&gt;Tool invocation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="620" y="775" width="150" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="unified-tool-svc" value="&lt;b&gt;unified_tool_service&lt;/b&gt;&lt;br&gt;Tool discovery" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=10;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="790" y="775" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Plugin Layer -->
+        <mxCell id="plugin-layer-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#388E3C;strokeWidth=2;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1060" width="1780" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="plugin-layer-label" value="&lt;b&gt;🔌 PLUGIN LAYER&lt;/b&gt; - Ticketing Tool Integration (src/plugins/)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#388E3C;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1075" width="700" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="plugin-base" value="&lt;b&gt;TicketingToolPlugin (ABC)&lt;/b&gt;&lt;br&gt;Abstract base class" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#2E7D32;fontColor=#FFFFFF;fontSize=11;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1120" width="220" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="plugin-sd" value="&lt;b&gt;ServiceDesk Plus&lt;/b&gt;&lt;br&gt;Active implementation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#66BB6A;strokeColor=#2E7D32;fontColor=#FFFFFF;fontSize=11;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="1120" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="plugin-jira" value="&lt;b&gt;Jira Service Mgmt&lt;/b&gt;&lt;br&gt;Active implementation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#66BB6A;strokeColor=#2E7D32;fontColor=#FFFFFF;fontSize=11;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="570" y="1120" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="plugin-extensible" value="&lt;b&gt;Extensible Architecture&lt;/b&gt;&lt;br&gt;Add new ticketing tools" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#81C784;strokeColor=#2E7D32;fontColor=#FFFFFF;fontSize=11;shadow=1;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="1120" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Data Layer -->
+        <mxCell id="data-layer-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=2;opacity=40;" vertex="1" parent="1">
+          <mxGeometry x="60" y="1280" width="1780" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="data-layer-label" value="&lt;b&gt;💾 DATA LAYER&lt;/b&gt; - Database Models &amp; Schemas (src/database/)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#E65100;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1295" width="700" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="models" value="&lt;b&gt;models.py&lt;/b&gt;&lt;br&gt;18 SQLAlchemy models&lt;br&gt;UUID PKs • RLS policies" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#E65100;fontColor=#FFFFFF;fontSize=11;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="1340" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="schemas" value="&lt;b&gt;Pydantic Schemas&lt;/b&gt;&lt;br&gt;Request/Response validation&lt;br&gt;OpenAPI doc generation" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#E65100;fontColor=#FFFFFF;fontSize=11;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1340" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db-utils" value="&lt;b&gt;Database Utils&lt;/b&gt;&lt;br&gt;Connection pooling&lt;br&gt;Migration scripts (Alembic)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#E65100;fontColor=#FFFFFF;fontSize=11;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="1340" width="240" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#757575;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="220" width="500" height="260" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="&lt;b&gt;Code Organization&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#333333;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="235" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-api" value="API Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1976D2;strokeColor=#0D47A1;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="275" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-api-text" value="FastAPI route handlers" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="280" width="320" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-service" value="Service Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#7B1FA2;strokeColor=#4A148C;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="320" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-service-text" value="Business logic • Orchestration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="325" width="320" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-plugin" value="Plugin Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#4CAF50;strokeColor=#2E7D32;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="365" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-plugin-text" value="Ticketing tool adapters" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="370" width="320" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-data" value="Data Layer" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FF9800;strokeColor=#E65100;fontColor=#FFFFFF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="410" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-data-text" value="ORM models • Schemas" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="415" width="320" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Architecture Patterns -->
+        <mxCell id="patterns-title" value="&lt;b&gt;Key Patterns&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#333333;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="450" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="pattern1" value="✓ Layered architecture" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="475" width="440" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="pattern2" value="✓ Dependency injection" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="492" width="440" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="pattern3" value="✓ Repository pattern (services)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="509" width="440" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="pattern4" value="✓ Plugin pattern (ticketing tools)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="526" width="440" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Audience -->
+        <mxCell id="audience" value="&lt;b&gt;Audience:&lt;/b&gt; Developers • Development Team Leads • Technical Contributors" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1500" width="800" height="25" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

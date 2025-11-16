@@ -1,1 +1,9 @@
 model_list: []
+
+# LiteLLM Settings - Preserve function calling parameters
+# Bug Fix (Story 11.2.7): Disabled drop_params to preserve 'tools' parameter
+# Reason: drop_params has known bugs with xAI Grok (GitHub #16204, #14056, #12635)
+# and incorrectly strips 'tools' even for models that support function calling
+# All tested models (OpenAI, Anthropic, xAI Grok) support function calling natively
+litellm_settings:
+  drop_params: false

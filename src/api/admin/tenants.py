@@ -102,15 +102,9 @@ async def create_tenant(
             extra={"tenant_id": created_config.tenant_id},
         )
 
-        # Return response with masked sensitive fields
-        return TenantConfigResponse(
-            tenant_id=created_config.tenant_id,
-            name=created_config.name,
-            servicedesk_url=created_config.servicedesk_url,
-            api_key="***encrypted***",
-            webhook_secret="***encrypted***",
-            enhancement_preferences=created_config.enhancement_preferences,
-        )
+        # Return response with masked sensitive fields using model_validate
+        # The TenantConfigResponse schema has from_attributes=True, so it can construct from the service response
+        return TenantConfigResponse.model_validate(created_config)
 
     except ValueError as e:
         # Duplicate tenant_id or validation error
@@ -119,13 +113,15 @@ async def create_tenant(
             detail=f"Tenant creation failed: {str(e)}",
         )
     except Exception as e:
+        error_msg = repr(str(e))
         logger.error(
-            f"Failed to create tenant: {str(e)}",
+            "Failed to create tenant: {error}",
+            error=error_msg,
             extra={"error": str(e)},
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create tenant configuration",
+            detail=f"Failed to create tenant configuration: {str(e)}",
         )
 
 

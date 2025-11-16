@@ -48,12 +48,6 @@ def show() -> None:
     - AC#7: Color-coded visual indicators
     - AC#8: Load time < 2 seconds (via caching)
     """
-    st.set_page_config(
-        page_title="Dashboard - AI Agents Admin",
-        page_icon="📊",
-        layout="wide",
-    )
-
     st.title("📊 System Status Dashboard")
 
     # Sidebar configuration for auto-refresh (AC#6)

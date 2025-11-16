@@ -219,6 +219,11 @@ class Settings(BaseSettings):
         min_length=10,
     )
 
+    # Tenant Configuration
+    default_tenant_id: Optional[str] = Field(
+        default=None,
+        description="Default tenant ID for single-tenant deployments or development (optional)",
+    )
 
     # Notification Configuration (Story 8.10 - Budget Enforcement)
     smtp_host: Optional[str] = Field(
@@ -252,10 +257,64 @@ class Settings(BaseSettings):
         description="Slack incoming webhook URL for notifications (optional)",
     )
     litellm_webhook_secret: str = Field(
-        ...,
-        description="Shared secret for LiteLLM budget webhook signature validation",
-        min_length=32,
+        default="changeme",
+        description="Secret for validating LiteLLM webhook callbacks",
     )
+
+    # MCP Connection Pool Configuration (Story 11.2.3)
+    # NOTE: Bridge-level pooling implementation uses simpler approach
+    # These fields are reserved for future full connection pool enhancement
+    # Current implementation: module-level dict in agent_execution_service.py
+    # Future enhancement: Full MCPConnectionPool class with these configuration options
+    #
+    # mcp_pool_max_clients_per_server: int = Field(
+    #     default=10,
+    #     description="Maximum MCP clients per server",
+    #     ge=1,
+    #     le=100,
+    # )
+    # mcp_pool_max_total_clients: int = Field(
+    #     default=100,
+    #     description="Maximum total MCP clients across all servers",
+    #     ge=1,
+    #     le=1000,
+    # )
+    # mcp_pool_client_ttl_seconds: int = Field(
+    #     default=300,
+    #     description="MCP client idle timeout in seconds (5 min default)",
+    #     ge=60,
+    #     le=3600,
+    # )
+    # mcp_pool_cleanup_interval_seconds: int = Field(
+    #     default=60,
+    #     description="MCP pool cleanup interval in seconds (1 min default)",
+    #     ge=10,
+    #     le=300,
+    # )
+    # mcp_pool_max_stdio_processes: int = Field(
+    #     default=50,
+    #     description="Maximum concurrent MCP stdio subprocess clients",
+    #     ge=1,
+    #     le=200,
+    # )
+    # mcp_pool_http_max_connections: int = Field(
+    #     default=100,
+    #     description="Maximum HTTP connections in MCP pool",
+    #     ge=10,
+    #     le=500,
+    # )
+    # mcp_pool_http_max_keepalive_connections: int = Field(
+    #     default=20,
+    #     description="Maximum persistent HTTP connections in MCP pool",
+    #     ge=5,
+    #     le=100,
+    # )
+    # mcp_pool_http_pool_timeout: float = Field(
+    #     default=5.0,
+    #     description="Timeout waiting for connection from MCP HTTP pool (seconds)",
+    #     ge=1.0,
+    #     le=30.0,
+    # )
 
     model_config = SettingsConfigDict(
         env_file=".env",

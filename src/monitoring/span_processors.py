@@ -189,12 +189,14 @@ class RedactionAndSlowTraceExporter(SpanExporter):
     Wraps the standard OTLP exporter to:
     1. Redact sensitive attributes (api_key, secret, password, token) before export
     2. Add slow_trace=true attribute to spans exceeding 60-second duration
-    3. Forward redacted/enhanced spans to Jaeger via OTLP
+    3. Redact MCP-specific sensitive data (env vars, tool args, responses)
+    4. Forward redacted/enhanced spans to Jaeger/Uptrace via OTLP
 
     This solves the immutability issue with ReadableSpan.attributes by
-    processing spans at export time, before transmission to Jaeger.
+    processing spans at export time, before transmission to tracing backend.
 
     Story 4.6: Implementation of AC14 (redaction) and AC12 (slow trace detection)
+    Story 12.8: Extended MCP redaction (AC7)
     """
 
     def __init__(self, otlp_exporter):
@@ -202,12 +204,12 @@ class RedactionAndSlowTraceExporter(SpanExporter):
         Initialize the redaction and slow trace exporter.
 
         Args:
-            otlp_exporter: Standard OTLP exporter to forward processed spans to Jaeger.
+            otlp_exporter: Standard OTLP exporter to forward processed spans to Jaeger/Uptrace.
         """
         self._otlp_exporter = otlp_exporter
         self._slow_trace_threshold_ms = 60 * 1000  # 60 seconds
 
-        # Sensitive attribute name patterns to redact
+        # Sensitive attribute name patterns to redact (Story 4.6)
         self.SENSITIVE_KEYS = {
             "api_key",
             "secret",
@@ -216,6 +218,16 @@ class RedactionAndSlowTraceExporter(SpanExporter):
             "webhook_secret",
             "authorization",
             "credential",
+        }
+
+        # Story 12.8 AC7: MCP-specific sensitive attributes to redact
+        self.MCP_SENSITIVE_KEYS = {
+            "mcp.server_env",           # Environment variables may contain secrets
+            "mcp.tool.input_args",      # Tool arguments may contain API keys
+            "mcp.tool.output",          # Tool output may contain PII/sensitive data
+            "mcp.health.response",      # Health check responses may contain internal info
+            "mcp.resource_uri",         # Resource URIs may contain credentials
+            "error.message",            # Error messages may contain stack traces with paths/creds
         }
 
     def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
@@ -244,8 +256,12 @@ class RedactionAndSlowTraceExporter(SpanExporter):
 
         Creates modified attributes by:
         1. Copying original attributes
-        2. Removing sensitive keys
-        3. Adding slow_trace=true if duration > 60s
+        2. Redacting general sensitive keys (api_key, secret, password, token)
+        3. Redacting MCP-specific sensitive data (env vars, tool args, responses)
+        4. Adding slow_trace=true if duration > 60s
+
+        Story 4.6: General redaction (AC14) and slow trace tagging (AC12)
+        Story 12.8: Extended MCP redaction (AC7)
 
         Args:
             span: The span to process.
@@ -256,15 +272,35 @@ class RedactionAndSlowTraceExporter(SpanExporter):
         # Start with original attributes
         modified_attrs = dict(span.attributes) if span.attributes else {}
 
-        # Redact sensitive data (AC14)
+        # Story 4.6 AC14: Redact general sensitive data
         redacted_keys = []
         if span.attributes is not None:
             for key in list(modified_attrs.keys()):
+                # Check for general sensitive patterns (case-insensitive substring match)
                 if any(sensitive in key.lower() for sensitive in self.SENSITIVE_KEYS):
                     modified_attrs[key] = "[REDACTED]"
                     redacted_keys.append(key)
 
-        # Tag slow traces (AC12)
+        # Story 12.8 AC7: Redact MCP-specific sensitive attributes
+        mcp_redacted_keys = []
+        if span.attributes is not None:
+            for key in list(modified_attrs.keys()):
+                # Check for exact match on MCP-specific keys
+                if key in self.MCP_SENSITIVE_KEYS:
+                    # Special handling for different MCP attribute types
+                    if key == "mcp.health.response":
+                        # Keep only status, redact full response body
+                        modified_attrs[key] = "[RESPONSE_REDACTED]"
+                    elif key == "error.message":
+                        # Redact error messages to prevent stack trace/path leakage
+                        modified_attrs[key] = "[ERROR_MESSAGE_REDACTED]"
+                    else:
+                        # Generic redaction for other MCP fields
+                        modified_attrs[key] = "[MCP_DATA_REDACTED]"
+
+                    mcp_redacted_keys.append(key)
+
+        # Story 4.6 AC12: Tag slow traces (>60s duration)
         is_slow = False
         if span.start_time is not None and span.end_time is not None:
             duration_ms = (span.end_time - span.start_time) / 1_000_000
@@ -273,10 +309,17 @@ class RedactionAndSlowTraceExporter(SpanExporter):
                 is_slow = True
 
         # Log if modifications were made
-        if redacted_keys or is_slow:
+        total_redacted = len(redacted_keys) + len(mcp_redacted_keys)
+        if total_redacted > 0 or is_slow:
             logger.debug(
-                f"Span {span.name}: redacted {len(redacted_keys)} keys, "
-                f"slow_trace={is_slow}"
+                f"Span {span.name}: redacted {len(redacted_keys)} general keys, "
+                f"{len(mcp_redacted_keys)} MCP keys, slow_trace={is_slow}",
+                extra={
+                    "span_name": span.name,
+                    "general_redacted_count": len(redacted_keys),
+                    "mcp_redacted_count": len(mcp_redacted_keys),
+                    "slow_trace": is_slow,
+                }
             )
 
         # Return wrapper with modified attributes

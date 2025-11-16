@@ -13,7 +13,7 @@ import logging
 from fastapi import FastAPI, HTTPException, status
 from prometheus_client import make_asgi_app
 
-from src.api import health, webhooks, feedback, plugins, agents, prompts, budget, llm_providers, llm_models, fallback_chains, byok
+from src.api import health, webhooks, feedback, plugins, agents, prompts, budget, llm_providers, llm_models, fallback_chains, byok, agent_testing, memory, llm_costs, agent_performance, tenant_spend, executions, openapi_tools, mcp_servers, agent_execution, unified_tools
 from src.api.admin import tenants as admin_tenants
 from src.config import is_kubernetes_env, settings
 from src.cache.redis_client import check_redis_connection
@@ -50,13 +50,23 @@ app.include_router(health.router)
 app.include_router(admin_tenants.router)  # Admin tenant management endpoints
 app.include_router(feedback.router)  # Story 5.5: Enhancement feedback endpoints
 app.include_router(plugins.router)  # Story 7.8: Plugin management endpoints
+app.include_router(prompts.router)  # Story 8.5: Prompt versioning (BEFORE agents due to shared prefix)
+app.include_router(openapi_tools.router)  # Story 8.8: OpenAPI tool upload and MCP auto-generation
 app.include_router(agents.router)  # Story 8.3: Agent CRUD API endpoints
-app.include_router(prompts.router)  # Story 8.5: Prompt versioning and template management
 app.include_router(budget.router)  # Story 8.10: Budget enforcement webhook endpoint
 app.include_router(llm_providers.router)  # Story 8.11: LLM provider configuration endpoints
 app.include_router(llm_models.router)  # Story 8.11: LLM model configuration endpoints
 app.include_router(fallback_chains.router)  # Story 8.12: Fallback chain configuration endpoints
 app.include_router(byok.router)  # Story 8.13: BYOK (Bring Your Own Key) endpoints
+app.include_router(agent_testing.router)  # Story 8.14: Agent testing sandbox endpoints
+app.include_router(memory.router)  # Story 8.15: Memory configuration endpoints
+app.include_router(llm_costs.router)  # Story 8.16: LLM cost dashboard API endpoints
+app.include_router(agent_performance.router)  # Story 8.17: Agent performance metrics dashboard API endpoints
+app.include_router(tenant_spend.router)  # Story 9.3: Tenant spend tracking and budget dashboard endpoints
+app.include_router(executions.router, prefix="/api/executions")  # Story 10.1: Execution details API endpoint
+app.include_router(mcp_servers.router)  # Story 11.1.4: MCP Server Management API endpoints
+app.include_router(agent_execution.router)  # Story 11.1.7: Agent execution with MCP tool invocation
+app.include_router(unified_tools.router)  # Story 11.1.5: Unified tool discovery for OpenAPI and MCP tools
 
 # Mount Prometheus metrics endpoint at /metrics
 # Returns metrics in Prometheus text format (text/plain; version=0.0.4)

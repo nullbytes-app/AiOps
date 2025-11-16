@@ -164,6 +164,7 @@ class TenantService:
         db_config = TenantConfigModel(**db_config_data)
         self.db.add(db_config)
         await self.db.flush()
+        await self.db.refresh(db_config)  # Ensure server-generated fields are populated
         logger.info(f"Created {config.tool_type} tenant: {config.tenant_id}")
 
         # Story 8.9: Create LiteLLM virtual key for tenant
@@ -175,6 +176,7 @@ class TenantService:
             db_config.litellm_virtual_key = encrypt(virtual_key)
             db_config.litellm_key_created_at = datetime.now(timezone.utc)
             await self.db.flush()
+            await self.db.refresh(db_config)
 
             # Log audit entry
             await llm_service.log_audit_entry(

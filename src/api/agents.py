@@ -102,7 +102,7 @@ async def create_agent(
 
     Args:
         agent_data: Agent creation request with name, system_prompt, llm_config
-        tenant_id: Current tenant ID (from dependency)
+        tenant_id: Current tenant ID (VARCHAR from dependency)
         db: Tenant-aware async database session
         agent_service: Agent service instance
 
@@ -120,7 +120,7 @@ async def create_agent(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error creating agent: {e}")
+        logger.error(f"Error creating agent: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create agent",
@@ -143,10 +143,10 @@ async def list_agents(
     ] = 0,
     limit: Annotated[int, Query(ge=1, le=100, description="Maximum agents to return (1-100)")] = 20,
     agent_status: Annotated[
-        Optional[AgentStatus],
+        Optional[str],
         Query(
             alias="status",
-            description="Filter by agent status (draft, active, suspended, inactive)",
+            description="Filter by agent status - supports comma-separated values (draft, active, suspended, inactive)",
         ),
     ] = None,
     q: Annotated[
@@ -160,7 +160,7 @@ async def list_agents(
     Args:
         skip: Pagination offset (default 0)
         limit: Page size, capped at 100 (default 20)
-        agent_status: Optional status filter (query param name: status)
+        agent_status: Optional status filter - supports multiple values (query param name: status)
         q: Optional name search (case-insensitive)
         tenant_id: Current tenant ID (from dependency)
         db: Tenant-aware database session
@@ -173,11 +173,22 @@ async def list_agents(
         HTTPException(500): If database query fails
     """
     try:
+        # Parse comma-separated status values
+        status_list: Optional[list[AgentStatus]] = None
+        if agent_status:
+            try:
+                status_list = [AgentStatus(s.strip()) for s in agent_status.split(",")]
+            except ValueError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid status value: {str(e)}",
+                )
+
         result = await agent_service.get_agents(
             tenant_id=tenant_id,
             skip=skip,
             limit=limit,
-            status_filter=agent_status,
+            status_filter=status_list,
             name_search=q,
             db=db,
         )
@@ -187,6 +198,44 @@ async def list_agents(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to list agents",
+        )
+
+
+@router.get(
+    "/tool-usage-stats",
+    summary="Get Tool Usage Statistics",
+    description="Get count of agents using each tool for UI display.",
+)
+async def get_tool_usage_stats(
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+    agent_service: Annotated[AgentService, Depends(get_agent_service)],
+) -> dict:
+    """
+    Get tool usage statistics across all agents.
+
+    Returns count of agents using each tool for UI display purposes.
+    Helps users understand which tools are most commonly assigned.
+
+    Args:
+        tenant_id: Current tenant ID (from dependency)
+        db: Tenant-aware database session
+        agent_service: Agent service instance
+
+    Returns:
+        dict: {"tool_usage": {"tool_id": count, ...}}
+
+    Example:
+        {"tool_usage": {"servicedesk_plus": 5, "jira": 3, "email": 2}}
+    """
+    try:
+        stats = await agent_service.get_tool_usage_stats(tenant_id, db)
+        return {"tool_usage": stats}
+    except Exception as e:
+        logger.error(f"Error getting tool usage stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve tool usage statistics",
         )
 
 

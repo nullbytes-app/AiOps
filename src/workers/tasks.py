@@ -726,11 +726,11 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
 )
 def execute_agent(self: Task, agent_id: str, payload: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Execute AI agent with given payload (Story 8.6).
+    Execute AI agent with given payload (Story 8.6 - Implementation).
 
     This task handles agent execution triggered via webhook endpoints.
-    Currently a placeholder that logs execution details - full agent
-    orchestration will be implemented in future stories.
+    Loads agent configuration, executes LLM with system prompt and payload,
+    saves execution trace, and returns results.
 
     Args:
         self: Celery task instance (injected by bind=True)
@@ -739,10 +739,11 @@ def execute_agent(self: Task, agent_id: str, payload: Dict[str, Any]) -> Dict[st
 
     Returns:
         Dict[str, Any]: Execution result containing:
-            - status: "queued" | "running" | "completed" | "failed"
+            - status: "completed" | "failed"
             - agent_id: Agent UUID
-            - execution_id: Unique execution identifier
+            - execution_id: Unique execution identifier (UUID)
             - result: Agent execution output (when completed)
+            - processing_time_ms: Execution time in milliseconds
 
     Raises:
         Exception: Any error during agent execution (triggers auto-retry)
@@ -756,13 +757,21 @@ def execute_agent(self: Task, agent_id: str, payload: Dict[str, Any]) -> Dict[st
     import uuid
     from time import time
     from datetime import datetime, UTC
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.orm import sessionmaker
+    import asyncio
+    import json
+
+    from src.database.models import Agent, AgentTestExecution
+    from src.config import settings
 
     start_time = time()
     execution_id = str(uuid.uuid4())
 
     try:
         logger.info(
-            "Task execute_agent started (Story 8.6)",
+            "Task execute_agent started",
             extra={
                 "task_id": self.request.id,
                 "agent_id": agent_id,
@@ -771,33 +780,13 @@ def execute_agent(self: Task, agent_id: str, payload: Dict[str, Any]) -> Dict[st
             },
         )
 
-        # TODO: Future implementation (separate story)
-        # 1. Load agent configuration from database
-        # 2. Initialize LiteLLM client with agent's LLM config
-        # 3. Execute agent with system prompt + payload context
-        # 4. Store execution result in agent_executions table
-        # 5. Return structured result
+        # Run async code synchronously in Celery worker
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(_execute_agent_async(agent_id, payload, execution_id, start_time, self.request.id))
+        loop.close()
 
-        # Placeholder: Log execution and return success
-        processing_time_ms = int((time() - start_time) * 1000)
-
-        logger.info(
-            "Task execute_agent completed (placeholder implementation)",
-            extra={
-                "task_id": self.request.id,
-                "agent_id": agent_id,
-                "execution_id": execution_id,
-                "processing_time_ms": processing_time_ms,
-            },
-        )
-
-        return {
-            "status": "completed",
-            "agent_id": agent_id,
-            "execution_id": execution_id,
-            "processing_time_ms": processing_time_ms,
-            "result": f"Agent {agent_id} executed successfully with payload: {payload}",
-        }
+        return result
 
     except Exception as exc:
         processing_time_ms = int((time() - start_time) * 1000)
@@ -816,8 +805,226 @@ def execute_agent(self: Task, agent_id: str, payload: Dict[str, Any]) -> Dict[st
             },
         )
 
+        # Save failed execution to database
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(_save_failed_execution(agent_id, payload, execution_id, exc, processing_time_ms, self.request.id))
+            loop.close()
+        except Exception as save_exc:
+            logger.error(f"Failed to save failed execution: {save_exc}")
+
         # Celery will auto-retry via autoretry_for decorator
         raise
+
+
+async def _execute_agent_async(agent_id: str, payload: Dict[str, Any], execution_id: str, start_time: float, task_id: str) -> Dict[str, Any]:
+    """
+    Execute agent using AgentExecutionService (with full MCP tool support).
+
+    REFACTORED: Replaced legacy HTTP call with AgentExecutionService.execute_agent()
+    This enables:
+    - LangGraph create_react_agent pattern (ReAct: Reasoning + Acting)
+    - MCP tool invocation via MCPToolBridge
+    - Iterative tool execution loop (handles tool_calls in LLM responses)
+    - Proper OpenAPI + MCP tool binding to LLM
+
+    Args:
+        agent_id: Agent UUID string
+        payload: Webhook payload
+        execution_id: Execution UUID string
+        start_time: Start time (from time.time())
+        task_id: Celery task ID for correlation
+
+    Returns:
+        Dict with execution results including tool_calls history
+    """
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.orm import sessionmaker
+    from time import time
+    import json
+    from uuid import UUID
+
+    from src.database.models import Agent, AgentTestExecution
+    from src.config import settings
+    from src.services.agent_execution_service import AgentExecutionService
+
+    # Create async engine and session
+    engine = create_async_engine(settings.database_url)
+    async_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with async_session_factory() as session:
+        # Load agent from database
+        stmt = select(Agent).where(Agent.id == agent_id)
+        result = await session.execute(stmt)
+        agent = result.scalar_one_or_none()
+
+        if not agent:
+            raise ValueError(f"Agent {agent_id} not found")
+
+        # Build user message from payload
+        user_message = f"Process the following request:\n\n{json.dumps(payload, indent=2)}"
+
+        # Execute agent using AgentExecutionService (MODERN PATH with MCP tool support)
+        logger.info(
+            "Executing agent with AgentExecutionService (LangGraph + MCP)",
+            extra={
+                "agent_id": agent_id,
+                "tenant_id": agent.tenant_id,
+                "execution_id": execution_id,
+            }
+        )
+
+        execution_service = AgentExecutionService(db=session)
+
+        try:
+            service_result = await execution_service.execute_agent(
+                agent_id=UUID(agent_id),
+                tenant_id=agent.tenant_id,
+                user_message=user_message,
+                context=payload,  # Pass payload as context for prompt variable substitution
+                timeout_seconds=240  # 4 minutes (matches soft_time_limit)
+            )
+        except Exception as exec_exc:
+            raise Exception(f"Agent execution failed: {str(exec_exc)}")
+
+        # Calculate duration
+        total_duration_ms = int((time() - start_time) * 1000)
+
+        # Build execution trace from service result
+        execution_trace = {
+            "steps": [],
+            "total_duration_ms": total_duration_ms,
+            "model_used": service_result.get("model_used", "unknown"),
+            "tool_calls_count": len(service_result.get("tool_calls", []))
+        }
+
+        # Add tool calls to trace (MCP tools invoked during ReAct loop)
+        for tool_call in service_result.get("tool_calls", []):
+            execution_trace["steps"].append({
+                "step_type": "tool_call",
+                "tool_name": tool_call.get("name", "unknown"),
+                "tool_args": tool_call.get("args", {}),
+                "tool_result": str(tool_call.get("result", ""))[:500],  # Truncate large results
+            })
+
+        # Add final LLM response to trace
+        execution_trace["steps"].append({
+            "step_type": "llm_response",
+            "response": service_result.get("response", ""),
+            "duration_ms": int(service_result.get("execution_time_seconds", 0) * 1000)
+        })
+
+        # Token usage (if available from service_result)
+        # Note: AgentExecutionService doesn't currently expose token usage
+        # TODO: Add token tracking to AgentExecutionService
+        token_usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "estimated_cost_usd": 0.0
+        }
+
+        # Determine execution status
+        status = "success" if service_result.get("success") else "failed"
+        errors = None
+        if not service_result.get("success"):
+            errors = {
+                "error_type": "AgentExecutionError",
+                "message": service_result.get("error", "Unknown error"),
+            }
+
+        # Save execution to database
+        test_execution = AgentTestExecution(
+            id=execution_id,
+            agent_id=agent.id,
+            tenant_id=agent.tenant_id,
+            payload=payload,
+            execution_trace=execution_trace,
+            token_usage=token_usage,
+            execution_time={"total_duration_ms": total_duration_ms},
+            errors=errors,
+            status=status,
+            task_id=task_id  # Celery task ID for correlation
+        )
+
+        session.add(test_execution)
+        await session.commit()
+
+        logger.info(
+            "Agent execution completed",
+            extra={
+                "agent_id": agent_id,
+                "execution_id": execution_id,
+                "duration_ms": total_duration_ms,
+                "status": status,
+                "tool_calls_count": len(service_result.get("tool_calls", [])),
+                "success": service_result.get("success"),
+            }
+        )
+
+        return {
+            "status": "completed" if service_result.get("success") else "failed",
+            "agent_id": agent_id,
+            "execution_id": execution_id,
+            "processing_time_ms": total_duration_ms,
+            "result": service_result.get("response", "")
+        }
+
+
+async def _save_failed_execution(agent_id: str, payload: Dict[str, Any], execution_id: str, error: Exception, duration_ms: int, task_id: str):
+    """
+    Save failed execution to database.
+
+    Args:
+        agent_id: Agent UUID string
+        payload: Webhook payload
+        execution_id: Execution UUID string
+        error: Exception that caused failure
+        duration_ms: Execution time in milliseconds
+        task_id: Celery task ID for correlation
+    """
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+    from sqlalchemy.orm import sessionmaker
+    import traceback
+
+    from src.database.models import Agent, AgentTestExecution
+    from src.config import settings
+
+    # Create async engine and session
+    engine = create_async_engine(settings.database_url)
+    async_session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    async with async_session_factory() as session:
+        # Load agent to get tenant_id
+        stmt = select(Agent).where(Agent.id == agent_id)
+        result = await session.execute(stmt)
+        agent = result.scalar_one_or_none()
+
+        tenant_id = agent.tenant_id if agent else "unknown"
+
+        # Save failed execution
+        test_execution = AgentTestExecution(
+            id=execution_id,
+            agent_id=agent_id,
+            tenant_id=tenant_id,
+            payload=payload,
+            execution_trace={"steps": [], "total_duration_ms": duration_ms, "error": "Execution failed before completion"},
+            token_usage={"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "estimated_cost_usd": 0.0},
+            execution_time={"total_duration_ms": duration_ms},
+            errors={
+                "error_type": type(error).__name__,
+                "message": str(error),
+                "stack_trace": traceback.format_exc()
+            },
+            status="failed",
+            task_id=task_id  # Celery task ID for correlation
+        )
+
+        session.add(test_execution)
+        await session.commit()
 
 
 def _format_context_fallback(context_gathered: Dict[str, Any]) -> str:
@@ -1217,3 +1424,373 @@ def expire_budget_overrides(self: Task) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Budget override expiry task failed: {e}", exc_info=True)
         raise self.retry(exc=e, countdown=180)  # Retry after 3 minutes
+
+
+# ============================================================================
+# MCP Server Health Monitoring Task (Story 11.1.8)
+# ============================================================================
+
+
+@celery_app.task(
+    bind=True,
+    name="tasks.mcp_health_check",
+    track_started=True,
+    max_retries=0,  # No retries - health checks run every 30s anyway
+    soft_time_limit=25,  # 25s soft limit (5s buffer before 30s interval)
+    time_limit=30,  # 30s hard limit (matches health check interval)
+)
+def mcp_health_check_task(self: Task) -> Dict[str, Any]:
+    """
+    Periodic health check for all active/error MCP servers.
+
+    This task runs every 30 seconds via Celery Beat to monitor MCP server health.
+    For each server with status IN ('active', 'error'), it:
+    1. Spawns a stdio client
+    2. Calls tools/list as health check probe
+    3. Updates database with results (status, last_health_check, consecutive_failures)
+    4. Triggers circuit breaker after 3 consecutive failures (status='inactive')
+
+    Inactive servers are excluded from health checks until manually reactivated.
+
+    Story: 11.1.8 - Basic MCP Server Health Monitoring
+    Story: 12.8 - OpenTelemetry Tracing (AC2)
+    Schedule: Every 30 seconds (configured in celery_app.conf.beat_schedule)
+    Timeout: 30s hard limit (no retry - next check runs in 30s anyway)
+
+    Returns:
+        dict with keys:
+            - checked: int (total servers checked)
+            - healthy: int (servers with status='active')
+            - unhealthy: int (servers with status='error')
+            - inactive: int (servers marked inactive by circuit breaker)
+            - duration_ms: int (total task execution time)
+            - timestamp: str (task completion timestamp ISO 8601)
+
+    Example:
+        Result: {
+            "checked": 5,
+            "healthy": 3,
+            "unhealthy": 1,
+            "inactive": 1,
+            "duration_ms": 4523,
+            "timestamp": "2025-11-10T14:32:15.123Z"
+        }
+
+    Raises:
+        SoftTimeLimitExceeded: If task exceeds 25s soft limit
+        Exception: Any unexpected error (logged but no retry)
+
+    Notes:
+        - No retries configured (task runs every 30s anyway)
+        - Errors are logged and counted, but task continues to next server
+        - Circuit breaker prevents resource waste on repeatedly failing servers
+        - Tenant isolation maintained (each server scoped to its tenant)
+    """
+    from src.services.mcp_health_monitor import check_server_health
+    from src.database.models import MCPServer
+    from sqlalchemy import select
+    from opentelemetry import trace
+    from random import random
+
+    tracer = trace.get_tracer(__name__)
+    start_time = time()
+
+    # Story 12.8 AC2: 10% sampling for health checks (avoid trace explosion)
+    should_trace = random() < 0.1
+
+    try:
+        checked_count = 0
+        healthy_count = 0
+        unhealthy_count = 0
+        inactive_count = 0
+
+        async def _run_health_checks() -> None:
+            """Run health checks for all eligible servers."""
+            nonlocal checked_count, healthy_count, unhealthy_count, inactive_count
+
+            # Story 12.8 AC2: Parent span for health check task (10% sampling)
+            if should_trace:
+                with tracer.start_as_current_span("mcp.health.check") as parent_span:
+                    parent_span.set_attribute("check.source", "celery_beat")
+                    parent_span.set_attribute("check.interval_seconds", 30)
+
+                    await _run_health_checks_with_trace(parent_span)
+            else:
+                # No tracing - run health checks directly
+                await _run_health_checks_without_trace()
+
+        async def _run_health_checks_without_trace() -> None:
+            """Run health checks without tracing (90% of calls)."""
+            nonlocal checked_count, healthy_count, unhealthy_count, inactive_count
+
+            async with async_session_maker() as db:
+                # Query servers with status IN ('active', 'error')
+                # Exclude 'inactive' servers (circuit breaker triggered)
+                stmt = select(MCPServer).where(
+                    MCPServer.status.in_(["active", "error"])
+                )
+                result = await db.execute(stmt)
+                servers = result.scalars().all()
+
+                logger.info(
+                    f"MCP health check task starting: {len(servers)} servers to check",
+                    extra={"server_count": len(servers)}
+                )
+
+                # Check each server health
+                for server in servers:
+                    try:
+                        # Perform health check (with 30s timeout per server)
+                        health_result = await check_server_health(server, db)
+
+                        checked_count += 1
+
+                        # Count results
+                        if health_result["status"] == "active":
+                            healthy_count += 1
+                        elif health_result["status"] == "error":
+                            unhealthy_count += 1
+
+                        # Check if circuit breaker triggered
+                        if server.status == "inactive":
+                            inactive_count += 1
+
+                    except Exception as e:
+                        # Log error but continue to next server
+                        # (graceful error handling per AC5)
+                        logger.error(
+                            f"Health check failed for server {server.name}: {e}",
+                            extra={
+                                "mcp_server_id": str(server.id),
+                                "mcp_server_name": server.name,
+                                "tenant_id": str(server.tenant_id),
+                                "error": str(e)
+                            }
+                        )
+                        unhealthy_count += 1
+
+        async def _run_health_checks_with_trace(parent_span: Any) -> None:
+            """Run health checks with OpenTelemetry tracing (10% of calls)."""
+            nonlocal checked_count, healthy_count, unhealthy_count, inactive_count
+
+            async with async_session_maker() as db:
+                # Query servers with status IN ('active', 'error')
+                # Exclude 'inactive' servers (circuit breaker triggered)
+                stmt = select(MCPServer).where(
+                    MCPServer.status.in_(["active", "error"])
+                )
+                result = await db.execute(stmt)
+                servers = result.scalars().all()
+
+                parent_span.set_attribute("mcp.server_count", len(servers))
+
+                logger.info(
+                    f"MCP health check task starting: {len(servers)} servers to check",
+                    extra={"server_count": len(servers)}
+                )
+
+                # Check each server health
+                for server in servers:
+                    try:
+                        # Perform health check (with 30s timeout per server)
+                        health_result = await check_server_health(server, db, tracer=tracer)
+
+                        checked_count += 1
+
+                        # Count results
+                        if health_result["status"] == "active":
+                            healthy_count += 1
+                        elif health_result["status"] == "error":
+                            unhealthy_count += 1
+
+                        # Check if circuit breaker triggered
+                        if server.status == "inactive":
+                            inactive_count += 1
+
+                    except Exception as e:
+                        # Log error but continue to next server
+                        # (graceful error handling per AC5)
+                        logger.error(
+                            f"Health check failed for server {server.name}: {e}",
+                            extra={
+                                "mcp_server_id": str(server.id),
+                                "mcp_server_name": server.name,
+                                "tenant_id": str(server.tenant_id),
+                                "error": str(e)
+                            }
+                        )
+                        unhealthy_count += 1
+
+                # Set final metrics on parent span
+                parent_span.set_attribute("mcp.servers_checked", checked_count)
+                parent_span.set_attribute("mcp.servers_healthy", healthy_count)
+                parent_span.set_attribute("mcp.servers_unhealthy", unhealthy_count)
+                parent_span.set_attribute("mcp.circuit_breakers_triggered", inactive_count)
+
+        # Execute async health checks
+        asyncio.run(_run_health_checks())
+
+        # Calculate total task duration
+        duration_ms = int((time() - start_time) * 1000)
+
+        result = {
+            "checked": checked_count,
+            "healthy": healthy_count,
+            "unhealthy": unhealthy_count,
+            "inactive": inactive_count,
+            "duration_ms": duration_ms,
+            "timestamp": datetime.now(UTC).isoformat()
+        }
+
+        logger.info(
+            f"MCP health check task completed: {checked_count} servers checked, "
+            f"{healthy_count} healthy, {unhealthy_count} unhealthy, {inactive_count} circuit breaker triggered",
+            extra=result
+        )
+
+        return result
+
+    except SoftTimeLimitExceeded:
+        logger.error("MCP health check task exceeded 25s soft limit")
+        raise
+    except Exception as e:
+        logger.error(f"MCP health check task failed: {e}", exc_info=True)
+        # Don't retry - next check runs in 30s anyway
+        raise
+
+
+
+# ============================================================================
+# MCP Server Metrics Cleanup Task (Story 11.2.4)
+# ============================================================================
+
+
+@celery_app.task(
+    name="tasks.cleanup_old_mcp_metrics",
+    track_started=True,
+    max_retries=3,  # Retry on failure (database connectivity issues)
+    default_retry_delay=300,  # 5 minutes between retries
+    soft_time_limit=55,  # 55s soft limit (5s buffer before 1min hard limit)
+    time_limit=60,  # 1 minute hard limit
+)
+def cleanup_old_mcp_metrics_task(self: Task) -> Dict[str, Any]:
+    """
+    Daily cleanup of MCP server metrics older than 7 days.
+
+    This task runs daily at 02:00 UTC (off-peak hours) to enforce 7-day retention
+    policy for mcp_server_metrics time-series data. Deletes rows where
+    check_timestamp < (now - 7 days).
+
+    Retention rationale:
+        - 7 days provides sufficient data for trend analysis
+        - Prevents unbounded table growth (2880 checks/day/server @ 30s interval)
+        - Balance between operational insights and storage costs
+
+    Story: 11.2.4 - Enhanced MCP Health Monitoring (AC6)
+    Schedule: Daily at 02:00 UTC (configured in celery_app.conf.beat_schedule)
+    Timeout: 1 minute hard limit (sufficient for DELETE with indexed timestamp)
+    Retries: 3 retries with 5min delay (handle transient database issues)
+
+    Returns:
+        dict with keys:
+            - deleted: int (total metrics deleted)
+            - retention_days: int (always 7)
+            - cutoff_timestamp: str (ISO 8601 timestamp for deletion cutoff)
+            - duration_ms: int (task execution time)
+            - timestamp: str (task completion timestamp ISO 8601)
+
+    Example:
+        Result: {
+            "deleted": 125000,
+            "retention_days": 7,
+            "cutoff_timestamp": "2025-11-03T02:00:00.000Z",
+            "duration_ms": 2341,
+            "timestamp": "2025-11-10T02:00:05.123Z"
+        }
+
+    Raises:
+        SoftTimeLimitExceeded: If task exceeds 55s soft limit
+        Exception: Database errors (logged, task retries up to 3 times)
+
+    Notes:
+        - Uses indexed mcp_server_metrics(check_timestamp) for fast DELETE
+        - Runs during off-peak hours (02:00 UTC) to minimize impact
+        - Automatically retries on database connectivity failures
+        - Logs deletion count for monitoring/alerting
+    """
+    from src.database.models import MCPServerMetric
+    from sqlalchemy import delete
+    from datetime import timedelta
+
+    start_time = time()
+    retention_days = 7
+
+    try:
+        logger.info(
+            f"MCP metrics cleanup task starting (retention: {retention_days} days)",
+            extra={"retention_days": retention_days}
+        )
+
+        async def _cleanup_old_metrics() -> int:
+            """Delete metrics older than retention_days."""
+            async with async_session_maker() as db:
+                # Calculate cutoff timestamp (7 days ago from now)
+                cutoff = datetime.now(UTC) - timedelta(days=retention_days)
+
+                # Delete metrics with check_timestamp < cutoff
+                # Uses index on check_timestamp for efficient DELETE
+                stmt = delete(MCPServerMetric).where(
+                    MCPServerMetric.check_timestamp < cutoff
+                )
+
+                result = await db.execute(stmt)
+                await db.commit()
+
+                deleted_count = result.rowcount
+
+                logger.info(
+                    f"Deleted {deleted_count} metrics older than {cutoff.isoformat()}",
+                    extra={
+                        "deleted_count": deleted_count,
+                        "cutoff_timestamp": cutoff.isoformat(),
+                        "retention_days": retention_days,
+                    }
+                )
+
+                return deleted_count
+
+        # Execute async cleanup
+        deleted_count = asyncio.run(_cleanup_old_metrics())
+
+        # Calculate total task duration
+        duration_ms = int((time() - start_time) * 1000)
+
+        # Calculate cutoff for response
+        cutoff_timestamp = (datetime.now(UTC) - timedelta(days=retention_days)).isoformat()
+
+        result = {
+            "deleted": deleted_count,
+            "retention_days": retention_days,
+            "cutoff_timestamp": cutoff_timestamp,
+            "duration_ms": duration_ms,
+            "timestamp": datetime.now(UTC).isoformat()
+        }
+
+        logger.info(
+            f"MCP metrics cleanup task completed: {deleted_count} metrics deleted",
+            extra=result
+        )
+
+        return result
+
+    except SoftTimeLimitExceeded:
+        logger.error("MCP metrics cleanup task exceeded 55s soft limit")
+        raise
+    except Exception as e:
+        logger.error(
+            f"MCP metrics cleanup task failed: {e}",
+            exc_info=True,
+            extra={"retention_days": retention_days, "error": str(e)}
+        )
+        # Retry on failure (up to 3 times with 5min delay)
+        raise self.retry(exc=e)

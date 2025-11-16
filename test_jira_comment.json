@@ -1,0 +1,5 @@
+{
+  "agent_id": "022e85cf-e7b6-45d5-81c2-b0b6823cd8f3",
+  "user_message": "Add a comment to Jira ticket TEST-123 saying: 'MCP tool integration test - verifying 31 tools are loaded and functional. This comment was added by the AI agent using the Jira MCP server.'",
+  "timeout_seconds": 120
+}

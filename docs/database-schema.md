@@ -558,6 +558,82 @@ ORDER BY t.created_at DESC;
 -- Uses idx_agent_triggers_type
 ```
 
+---
+
+## Table: mcp_servers
+
+Model Context Protocol (MCP) server configuration table for integrating external capabilities with AI agents.
+
+**Added in:** Migration 009 (Story 11.1.1 - Epic 11: MCP Server Integration)
+
+### Overview
+
+MCP servers extend agent capabilities by providing:
+- **Tools**: Functions agents can invoke (e.g., read_file, search_docs, query_database)
+- **Resources**: Data sources agents can access (e.g., config files, knowledge bases)
+- **Prompts**: Templated prompts for common tasks (e.g., analyze_code, debug_error)
+
+**MCP Specification:** [https://modelcontextprotocol.io/specification](https://modelcontextprotocol.io/specification) (2025-03-26)
+
+### Columns
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| **id** | UUID | NOT NULL | gen_random_uuid() | Primary key |
+| **tenant_id** | UUID | NOT NULL | - | Foreign key to tenant_configs (CASCADE DELETE) |
+| **name** | VARCHAR(255) | NOT NULL | - | Human-readable server name (unique per tenant) |
+| **description** | TEXT | NULL | - | Optional detailed description |
+| **transport_type** | VARCHAR(20) | NOT NULL | - | 'stdio' or 'http_sse' |
+| **command** | VARCHAR(500) | NULL | - | Executable for stdio (e.g., 'npx') |
+| **args** | JSONB | NULL | '[]'::jsonb | Arguments array for stdio |
+| **env** | JSONB | NULL | '{}'::jsonb | Environment variables for stdio |
+| **url** | VARCHAR(500) | NULL | - | Base URL for HTTP+SSE |
+| **headers** | JSONB | NULL | '{}'::jsonb | HTTP authentication headers |
+| **discovered_tools** | JSONB | NULL | '[]'::jsonb | Tools from tools/list |
+| **discovered_resources** | JSONB | NULL | '[]'::jsonb | Resources from resources/list |
+| **discovered_prompts** | JSONB | NULL | '[]'::jsonb | Prompts from prompts/list |
+| **status** | VARCHAR(20) | NOT NULL | 'inactive' | 'active', 'inactive', or 'error' |
+| **last_health_check** | TIMESTAMPTZ | NULL | - | Last health verification |
+| **error_message** | TEXT | NULL | - | Error details if status='error' |
+| **created_at** | TIMESTAMPTZ | NOT NULL | now() | Registration timestamp |
+| **updated_at** | TIMESTAMPTZ | NOT NULL | now() | Last update timestamp |
+
+### Indexes
+
+| Index Name | Columns | Type | Purpose |
+|------------|---------|------|---------|
+| **pk_mcp_servers** | id | PRIMARY KEY | Primary key |
+| **idx_mcp_servers_tenant_id** | tenant_id | BTREE | Tenant lookups |
+| **idx_mcp_servers_status** | status | BTREE | Filter by status |
+| **idx_mcp_servers_transport_type** | transport_type | BTREE | Filter by transport |
+| **idx_mcp_servers_tenant_status** | tenant_id, status | COMPOSITE | Tenant's active servers |
+| **uq_mcp_servers_tenant_name** | tenant_id, name | UNIQUE | Unique name per tenant |
+
+### Constraints
+
+- **CHECK** `transport_type IN ('stdio', 'http_sse')`
+- **CHECK** `status IN ('active', 'inactive', 'error')`
+- **FOREIGN KEY** `tenant_id → tenant_configs(id) ON DELETE CASCADE`
+
+### Transport Types
+
+**stdio** (Phase 1): Subprocess via stdin/stdout (JSON-RPC)
+**http_sse** (Phase 2): HTTP with Server-Sent Events
+
+### Query Examples
+
+**Get active servers:**
+```sql
+SELECT id, name, transport_type FROM mcp_servers
+WHERE tenant_id = '550e8400-e29b-41d4-a716-446655440000' AND status = 'active';
+```
+
+**Find servers with specific tool:**
+```sql
+SELECT name FROM mcp_servers
+WHERE discovered_tools @> '[{"name": "read_file"}]'::jsonb;
+```
+
 ### Migration History
 
 #### Migration facc8d95bcbd (2025-11-05)
@@ -572,6 +648,19 @@ ORDER BY t.created_at DESC;
 - Configured CASCADE DELETE for child tables
 
 **Purpose:** Enable AI agent orchestration with flexible trigger mechanisms and tool integrations
+
+#### Migration 009 (2025-11-09)
+**Story:** 11.1.1 - MCP Server Data Model & Database Schema (Epic 11)
+
+**Changes:**
+- Created `mcp_servers` table with multi-transport support (stdio, HTTP+SSE)
+- Added JSONB columns for discovered capabilities (tools, resources, prompts)
+- Created 5 indexes: tenant_id, status, transport_type, tenant_status (composite), unique (tenant_id, name)
+- Added CHECK constraints for transport_type and status enums
+- Configured CASCADE DELETE from tenant_configs
+- Added TenantConfig.mcp_servers relationship
+
+**Purpose:** Enable AI agents to integrate with Model Context Protocol (MCP) servers for extended capabilities (filesystem access, database queries, custom tools). Foundation for Story 11.1.2-11.1.9 MCP implementation.
 
 ### Data Validation
 

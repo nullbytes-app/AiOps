@@ -32,6 +32,10 @@ def db_session():
         "postgresql+psycopg2://aiagents:password@localhost:5433/ai_agents",
     )
 
+    # Convert async URL to sync URL for integration tests
+    if "+asyncpg://" in db_url:
+        db_url = db_url.replace("+asyncpg://", "+psycopg2://")
+
     engine = create_engine(db_url)
     SessionLocal = sessionmaker(bind=engine)
     session = SessionLocal()

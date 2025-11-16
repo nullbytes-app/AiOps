@@ -191,12 +191,6 @@ def show() -> None:
     - AC#5: Configuration form with dynamic field generation (via component)
     - Search/filter controls for plugin discovery
     """
-    st.set_page_config(
-        page_title="Plugin Management - AI Agents Admin",
-        page_icon="🔌",
-        layout="wide",
-    )
-
     st.title("🔌 Plugin Management")
     st.markdown(
         "Manage ticketing tool plugins, configure connections, and assign plugins to tenants."

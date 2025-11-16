@@ -151,8 +151,16 @@ def main() -> None:
         st.Page("pages/2_Tenants.py", title="Tenant Management", icon="🏢"),
         st.Page("pages/3_Plugin_Management.py", title="Plugin Management", icon="🔌"),
         st.Page("pages/4_History.py", title="Enhancement History", icon="📜"),
-        st.Page("pages/5_Operations.py", title="System Operations", icon="⚙️"),
-        st.Page("pages/6_Workers.py", title="Worker Health", icon="👷"),
+        st.Page("pages/5_Agent_Management.py", title="Agent Management", icon="🤖"),
+        st.Page("pages/6_LLM_Providers.py", title="LLM Providers", icon="🔑"),
+        st.Page("pages/7_Operations.py", title="System Operations", icon="⚙️"),
+        st.Page("pages/07_LLM_Costs.py", title="LLM Costs", icon="💰"),
+        st.Page("pages/8_Workers.py", title="Worker Health", icon="👷"),
+        st.Page("pages/08_Agent_Performance.py", title="Agent Performance", icon="📈"),
+        st.Page("pages/9_System_Prompt_Editor.py", title="System Prompt Editor", icon="✏️"),
+        st.Page("pages/10_Add_Tool.py", title="Add Tool", icon="🔧"),
+        st.Page("pages/11_Execution_History.py", title="Execution History", icon="🕒"),
+        st.Page("pages/12_MCP_Servers.py", title="MCP Servers", icon="🔌"),
     ]
 
     # Configure navigation

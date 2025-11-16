@@ -261,6 +261,54 @@ class MockTicketingToolPlugin(TicketingToolPlugin):
         # Return configured response
         return self._update_ticket_response
 
+    async def test_connection(self, config: Dict[str, Any]) -> tuple[bool, str]:
+        """
+        Test connection with configurable response.
+
+        Records method call in history, then returns configured response or raises
+        configured exception.
+
+        Args:
+            config (Dict[str, Any]): Plugin configuration to test.
+
+        Returns:
+            tuple[bool, str]: (success, message) - success status and human-readable message.
+
+        Raises:
+            asyncio.TimeoutError: If _raise_timeout is True (after 10s delay).
+
+        Notes:
+            - Call is recorded in _call_history before any exception
+            - Returns (True, "Connection successful") in success mode
+            - Returns (False, error_message) in error modes
+        """
+        # Record call history
+        self._call_history.append(
+            {
+                "method": "test_connection",
+                "args": [],
+                "kwargs": {"config": config},
+                "timestamp": datetime.now(timezone.utc),
+            }
+        )
+        logger.debug("MockPlugin: test_connection called")
+
+        # Handle timeout scenario
+        if self._raise_timeout:
+            await asyncio.sleep(10)
+            raise asyncio.TimeoutError("Mock timeout during test_connection")
+
+        # Handle API error scenario
+        if self._raise_api_error:
+            return (False, "Connection failed: API error (status=500)")
+
+        # Handle auth error scenario
+        if self._raise_auth_error:
+            return (False, "Authentication failed: Invalid credentials")
+
+        # Return success
+        return (True, "Connection successful")
+
     def extract_metadata(self, payload: Dict[str, Any]) -> TicketMetadata:
         """
         Extract standardized metadata from webhook payload.

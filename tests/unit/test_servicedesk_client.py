@@ -36,7 +36,7 @@ from src.services.servicedesk_client import (
 
 
 @pytest.fixture
-def base_url():
+def servicedesk_base_url():
     """Sample ServiceDesk Plus base URL."""
     return "https://api.servicedesk.company.com"
 
@@ -85,7 +85,7 @@ def sample_enhancement():
 
 
 @pytest.mark.asyncio
-async def test_update_ticket_success(base_url, api_key, ticket_id, sample_enhancement):
+async def test_update_ticket_success(servicedesk_base_url, api_key, ticket_id, sample_enhancement):
     """
     Test successful API call - 200 response returns True.
 
@@ -103,7 +103,7 @@ async def test_update_ticket_success(base_url, api_key, ticket_id, sample_enhanc
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is True
@@ -125,16 +125,17 @@ async def test_update_ticket_success(base_url, api_key, ticket_id, sample_enhanc
 
 @pytest.mark.asyncio
 async def test_update_ticket_timeout_retries(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test timeout error - retries 3 times with exponential backoff, then fails.
 
     Maps to: AC4 (retry logic), AC5 (error handling)
     """
-    with patch("httpx.AsyncClient") as mock_client_class, patch(
-        "asyncio.sleep", new_callable=AsyncMock
-    ) as mock_sleep:
+    with (
+        patch("httpx.AsyncClient") as mock_client_class,
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
@@ -144,7 +145,7 @@ async def test_update_ticket_timeout_retries(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is False
@@ -164,7 +165,7 @@ async def test_update_ticket_timeout_retries(
 
 @pytest.mark.asyncio
 async def test_update_ticket_auth_failure_no_retry(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test 401 Unauthorized - returns False immediately without retry.
@@ -185,7 +186,7 @@ async def test_update_ticket_auth_failure_no_retry(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is False
@@ -200,16 +201,17 @@ async def test_update_ticket_auth_failure_no_retry(
 
 @pytest.mark.asyncio
 async def test_update_ticket_server_error_retries(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test 500 Internal Server Error - retries 3 times with backoff, then fails.
 
     Maps to: AC4 (retry on 5xx)
     """
-    with patch("httpx.AsyncClient") as mock_client_class, patch(
-        "asyncio.sleep", new_callable=AsyncMock
-    ) as mock_sleep:
+    with (
+        patch("httpx.AsyncClient") as mock_client_class,
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
@@ -223,7 +225,7 @@ async def test_update_ticket_server_error_retries(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is False
@@ -240,7 +242,7 @@ async def test_update_ticket_server_error_retries(
 
 @pytest.mark.asyncio
 async def test_update_ticket_not_found_no_retry(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test 404 Not Found - returns False immediately without retry.
@@ -261,7 +263,7 @@ async def test_update_ticket_not_found_no_retry(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is False
@@ -276,16 +278,17 @@ async def test_update_ticket_not_found_no_retry(
 
 @pytest.mark.asyncio
 async def test_update_ticket_connection_error_retries(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test connection error - retries 3 times, then fails.
 
     Maps to: AC4 (retry on connection error)
     """
-    with patch("httpx.AsyncClient") as mock_client_class, patch(
-        "asyncio.sleep", new_callable=AsyncMock
-    ) as mock_sleep:
+    with (
+        patch("httpx.AsyncClient") as mock_client_class,
+        patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
+    ):
         mock_client = AsyncMock()
         mock_client.__aenter__.return_value = mock_client
         mock_client.__aexit__.return_value = None
@@ -295,7 +298,7 @@ async def test_update_ticket_connection_error_retries(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is False
@@ -550,9 +553,7 @@ async def test_invalid_ticket_id():
 @pytest.mark.asyncio
 async def test_invalid_enhancement():
     """Test handling of invalid enhancement."""
-    result = await update_ticket_with_enhancement(
-        "https://api.company.com", "key", "req-123", ""
-    )
+    result = await update_ticket_with_enhancement("https://api.company.com", "key", "req-123", "")
     assert result is False
 
 
@@ -563,7 +564,7 @@ async def test_invalid_enhancement():
 
 @pytest.mark.asyncio
 async def test_unexpected_exception_returns_false(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test that unexpected exceptions are caught and return False.
@@ -580,7 +581,7 @@ async def test_unexpected_exception_returns_false(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is False
@@ -593,7 +594,7 @@ async def test_unexpected_exception_returns_false(
 
 @pytest.mark.asyncio
 async def test_update_ticket_201_created(
-    base_url, api_key, ticket_id, sample_enhancement
+    servicedesk_base_url, api_key, ticket_id, sample_enhancement
 ):
     """
     Test successful API call with 201 Created response.
@@ -612,7 +613,7 @@ async def test_update_ticket_201_created(
         mock_client_class.return_value = mock_client
 
         result = await update_ticket_with_enhancement(
-            base_url, api_key, ticket_id, sample_enhancement
+            servicedesk_base_url, api_key, ticket_id, sample_enhancement
         )
 
         assert result is True

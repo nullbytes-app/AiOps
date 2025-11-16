@@ -1,0 +1,113 @@
+# CI/CD Baseline Configuration
+# Story 12.6: Configurable quality gate thresholds for baseline enforcement
+# Last updated: 2025-11-11
+
+# This configuration defines quality gate thresholds used by ci-baseline-check.py
+# CRITICAL thresholds: Block merge if breached (exit code 1)
+# WARNING thresholds: Merge allowed but investigation required (exit code 0 with annotation)
+
+baselines:
+  # Test pass rate thresholds
+  # Story 12.1 established integration baseline: 87.93% (2,106/2,395 passing)
+  # Story 12.6 sets targets for progressive improvement
+  test_pass_rates:
+    unit:
+      critical_min: 90      # Block merge if unit tests <90%
+      warning_min: 95       # Warning if unit tests 90-95%
+      description: "Unit tests with mocked dependencies"
+
+    integration:
+      critical_min: 85      # Block merge if integration tests <85% (below Story 12.1 baseline 87.93%)
+      warning_min: 90       # Warning if integration tests 85-90% (Story 12.1 target)
+      description: "Integration tests with real Docker services"
+
+    e2e:
+      critical_min: 100     # Block merge if E2E tests <100% (Story 12.5 - all workflows must pass)
+      warning_min: 100      # No warnings for E2E (strict enforcement)
+      description: "E2E UI workflow tests with Playwright"
+
+    smoke:
+      critical_min: 100     # Block merge if smoke tests <100% (critical workflows must work)
+      warning_min: 100      # No warnings for smoke tests (strict enforcement)
+      description: "Smoke tests for critical business workflows"
+
+    security:
+      critical_min: 100     # Block merge on any security test failure
+      warning_min: 100      # No warnings for security tests (strict enforcement)
+      description: "Security tests (OWASP Top 10, tenant isolation)"
+
+    overall:
+      critical_min: 85      # Block merge if overall pass rate <85%
+      warning_min: 92       # Warning if overall 85-92% (Epic 12 target: 8% improvement from 83.9%)
+      description: "Overall test suite pass rate"
+
+  # Code coverage thresholds
+  code_coverage:
+    critical_min: 70        # Block merge if coverage <70%
+    warning_min: 80         # Warning if coverage 70-80% (tech spec requirement: 80%)
+    description: "Code coverage for src/ directory"
+
+  # Code quality check thresholds
+  quality_checks:
+    black_violations: 0     # Block merge on any Black formatting violation
+    ruff_critical: 0        # Block merge on critical/high Ruff linting issues
+    mypy_errors: 0          # Block merge on any Mypy type error
+    bandit_high: 0          # Block merge on high severity Bandit security issues
+    bandit_medium: 0        # Block merge on medium severity Bandit security issues
+    description: "Code quality gates (formatting, linting, type checking, security)"
+
+  # Security vulnerability thresholds
+  security:
+    safety_critical: 0      # Block merge on critical CVEs (safety scan)
+    safety_high: 0          # Block merge on high CVEs (safety scan)
+    pipaudit_critical: 0    # Block merge on critical CVEs (pip-audit scan)
+    pipaudit_high: 0        # Block merge on high CVEs (pip-audit scan)
+    security_test_failures: 0  # Block merge on any security test failure
+    description: "Dependency vulnerability scanning and security tests"
+
+  # Test count regression detection
+  test_count:
+    max_decrease: 10        # Block merge if total test count decreases by >10 tests
+    description: "Detect accidental test deletion or misconfiguration"
+
+# Baseline enforcement behavior
+enforcement:
+  # Exit codes returned by ci-baseline-check.py
+  exit_codes:
+    pass: 0                 # All thresholds met
+    warning: 0              # WARNING thresholds breached (merge allowed with annotation)
+    critical: 1             # CRITICAL thresholds breached (block merge)
+
+  # Annotation behavior for GitHub Actions
+  annotations:
+    enable_warnings: true   # Create PR annotations for WARNING threshold breaches
+    enable_errors: true     # Create PR annotations for CRITICAL threshold breaches
+
+# Historical baseline references (for context)
+historical_baselines:
+  story_12_1:
+    date: "2025-11-02"
+    integration_pass_rate: 87.93  # 2,106/2,395 passing
+    overall_pass_rate: 83.9       # Baseline before Epic 12
+    description: "Story 12.1 established test health baseline"
+
+  story_12_5:
+    date: "2025-11-11"
+    e2e_workflows: 3        # 3 critical UI workflows (MCP server registration, agent tool assignment, agent execution)
+    e2e_pass_rate: 100      # All E2E tests must pass
+    description: "Story 12.5 added E2E UI workflow tests"
+
+  story_12_6:
+    date: "2025-11-11"
+    overall_target: 92      # Target: 8% improvement from 83.9% baseline
+    smoke_tests: 4          # 4 critical business workflows
+    description: "Story 12.6 added smoke tests and quality gate enforcement"
+
+# Progressive improvement philosophy
+# Based on "Clean as You Code" approach (SonarQube best practice)
+philosophy:
+  shift_left: "Move quality checks earlier in development cycle (pre-merge vs post-merge)"
+  fail_fast: "Block merge immediately on critical failures (security, test failures)"
+  progressive: "Baseline thresholds allow gradual improvement (don't fail on existing issues)"
+  prevention: "Critical thresholds prevent regressions (block merge on new issues)"
+  visibility: "Warning thresholds provide visibility without blocking progress"

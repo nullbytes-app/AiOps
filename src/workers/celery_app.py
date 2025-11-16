@@ -133,6 +133,13 @@ celery_app.conf.update(
     worker_send_task_events=True,  # Enable worker events for monitoring
     task_send_sent_event=True,  # Track task sent events
 
+    # BUGFIX (Story 11.1.7): Disable stdout/stderr redirection to fix LoggingProxy issue
+    # langchain_mcp_adapters spawns subprocesses that need real file descriptors (fileno())
+    # Celery's LoggingProxy wrapper doesn't provide fileno(), causing AttributeError
+    # This is the official Celery workaround: https://github.com/celery/celery/issues/928
+    worker_redirect_stdouts=False,  # Don't wrap stdout/stderr with LoggingProxy
+    worker_redirect_stdouts_level=None,  # No log level for stdout/stderr redirection
+
     # Result backend settings
     result_expires=3600,  # Results expire after 1 hour
     result_extended=True,  # Store additional result metadata
@@ -165,6 +172,22 @@ celery_app.conf.beat_schedule = {
         'schedule': crontab(minute=0),  # Every hour at :00
         'options': {
             'expires': 1800,  # Task expires after 30 minutes if not executed
+        },
+    },
+    # MCP server health check task - runs every 30 seconds (Story 11.1.8)
+    'mcp-health-check-30s': {
+        'task': 'tasks.mcp_health_check',
+        'schedule': 30.0,  # Every 30 seconds
+        'options': {
+            'expires': 25,  # Task expires after 25 seconds if not executed
+        },
+    },
+    # MCP metrics cleanup task - runs daily at 02:00 UTC (Story 11.2.4)
+    'cleanup-old-mcp-metrics-daily': {
+        'task': 'tasks.cleanup_old_mcp_metrics',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 02:00 UTC (off-peak)
+        'options': {
+            'expires': 3600,  # Task expires after 1 hour if not executed
         },
     },
 }

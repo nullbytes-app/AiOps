@@ -7,6 +7,7 @@ This guide explains how to run, write, and manage tests for the AI Agents enhanc
 The test suite uses **pytest** with **pytest-asyncio** for async support. Tests are organized into:
 - **Unit tests** (`tests/unit/`) - Fast, isolated component tests with mocked dependencies
 - **Integration tests** (`tests/integration/`) - End-to-end tests with real Docker dependencies
+- **E2E UI tests** (`tests/e2e/`) - Playwright browser automation for critical UI workflows
 - **Fixtures** (`tests/fixtures/`) - Reusable test data
 
 **Test Coverage Target:** >80% for all modules in `src/`
@@ -306,9 +307,482 @@ Check `.github/workflows/ci.yml` for pipeline configuration.
    # Mock response structure matches OpenRouter API format
    ```
 
+## MCP Integration Testing (Story 11.2.6)
+
+### MCP Test Server Setup
+
+Integration tests for MCP (Model Context Protocol) require a test server that implements all three MCP primitives: tools, resources, and prompts.
+
+#### Quick Start
+
+```bash
+# Install MCP test server (only needed once)
+npm install
+
+# Run MCP integration tests
+pytest tests/integration/test_mcp_*.py -v
+```
+
+#### Test Server Details
+
+We use the official `@modelcontextprotocol/server-everything` package which provides:
+
+**Tools:**
+- `echo` - Echo back input text
+- `add` - Add two numbers
+- `longRunningOperation` - Simulate long-running task
+- `sampleLLM` - Mock LLM call
+- `getTinyImage` - Return a small test image
+
+**Resources:**
+- `test://static/resource` - Static test resource
+- `test://dynamic/{id}` - Dynamic resource with parameter
+
+**Prompts:**
+- `simple_prompt` - Basic prompt template
+- `complex_prompt` - Multi-argument prompt
+
+#### Test Fixtures
+
+Integration tests use fixtures from `tests/integration/conftest.py`:
+
+```python
+@pytest.mark.usefixtures("skip_if_no_mcp_server")
+async def test_tool_invocation(mcp_stdio_client):
+    """Test calling MCP tools via stdio transport."""
+    tools = await mcp_stdio_client.list_tools()
+    assert len(tools) > 0
+
+    # Call echo tool
+    result = await mcp_stdio_client.call_tool("echo", {"message": "test"})
+    assert "test" in str(result)
+```
+
+**Available Fixtures:**
+- `mcp_stdio_test_server_config` - Config for stdio test server
+- `mcp_stdio_client` - Initialized stdio client
+- `skip_if_no_mcp_server` - Skip test if npx not available
+
+#### Running Tests Without npx
+
+If `npx` is not available, MCP integration tests will be automatically skipped:
+
+```bash
+$ pytest tests/integration/test_mcp_*.py
+================= 15 skipped (npx not available) =================
+```
+
+To install Node.js/npx:
+- **macOS**: `brew install node`
+- **Ubuntu**: `sudo apt install nodejs npm`
+- **Windows**: Download from [nodejs.org](https://nodejs.org/)
+
+#### Troubleshooting
+
+**Test Server Won't Start:**
+```
+Error: Command 'npx' not found
+Solution: Install Node.js (see above)
+```
+
+**Test Server Times Out:**
+```
+Error: TimeoutError during client.initialize()
+Solution: Increase timeout in test or check firewall settings
+```
+
+**Permission Denied:**
+```
+Error: EACCES: permission denied, mkdir '/Users/.../.npm/_npx'
+Solution: Fix npm permissions: npm config set cache ~/.npm --global
+```
+
+## Test Health Monitoring (Story 12.1)
+
+### Test Health Check Script
+
+The test health check script (`scripts/test-health-check.py`) calculates test metrics and enforces quality thresholds:
+
+```bash
+# Run tests and generate health report
+python scripts/test-health-check.py --run-tests --markdown-output docs/test-health-report.md
+
+# Check existing test results
+python scripts/test-health-check.py --json-report test-results.json
+
+# Track metrics over time
+python scripts/test-health-check.py --run-tests --save-history test-metrics-history.json
+```
+
+**Metrics Calculated:**
+- **Pass Rate**: (passing / non-skipped) × 100
+- **Skip Rate**: (skipped / total) × 100
+- **Failure Rate**: (failed + error) / total × 100
+- **Test Counts**: PASSED, FAILED, ERROR, SKIPPED
+
+**Threshold Enforcement:**
+- Exits with code 0 if pass rate ≥ 95%
+- Exits with code 1 if pass rate < 95% (fails CI/CD pipeline)
+
+### CI/CD Baseline Enforcement
+
+The baseline check script (`scripts/ci-baseline-check.py`) prevents test regressions:
+
+```bash
+# Create baseline from current test results (main branch only)
+python scripts/ci-baseline-check.py --update-baseline
+
+# Check PR against baseline (feature branches)
+python scripts/ci-baseline-check.py --baseline test-baseline.json
+```
+
+**Enforcement Rules:**
+1. ❌ FAIL if new test failures introduced (tests passing in baseline now fail)
+2. ❌ FAIL if pass rate drops below 95%
+3. ❌ FAIL if total test count decreases unexpectedly (>10 tests deleted)
+4. ✅ PASS if all baseline-passing tests still pass and pass rate ≥95%
+
+**Workflow:**
+- **Main branch**: Updates baseline after successful merge
+- **Feature branches**: Compared against baseline, blocks merge if violations detected
+
+### Test Plugins
+
+The test suite uses additional pytest plugins for reporting and coverage:
+
+```bash
+# HTML test report
+pytest --html=test-report.html --self-contained-html
+
+# JSON report for automation
+pytest --json-report --json-report-file=test-results.json
+
+# Coverage report
+pytest --cov=src --cov-report=html --cov-report=term-missing
+```
+
+**Plugin Dependencies** (in `pyproject.toml`):
+- `pytest-html>=4.1.1` - HTML test reports
+- `pytest-json-report>=1.5.0` - JSON reports for CI/CD automation
+- `pytest-cov>=7.0.0` - Code coverage analysis
+
+## E2E UI Testing with Playwright (Story 12.5)
+
+### Overview
+
+E2E (end-to-end) UI tests use Playwright for browser automation to validate complete user workflows in the Streamlit admin interface. These tests prevent UI integration bugs where functions exist but are never called (Story 11.2.5 regression).
+
+**What E2E Tests Validate:**
+- Actual UI rendering (not mocked)
+- Navigation between pages
+- Form interactions (fill, select, click)
+- Data persistence after submission
+- Full user workflows from start to finish
+
+**3 Critical Workflows Tested:**
+1. **MCP Server Registration & Discovery** - Create MCP server, trigger tool discovery
+2. **Agent Tool Assignment** - Assign MCP tools to agent via UI tabs
+3. **Agent Execution with MCP Tools** - Execute agent, verify MCP tool invoked, check history
+
+### Setup Instructions
+
+#### 1. Install Playwright and Dependencies
+
+```bash
+# Install Playwright Python package
+pip install playwright pytest-playwright
+
+# Install Playwright browser binaries (Chromium)
+playwright install chromium
+
+# Verify installation
+playwright --version
+```
+
+#### 2. Verify Node.js Installed (Required for MCP Test Server)
+
+```bash
+# Check Node.js version (18+ required)
+node --version
+
+# Install if needed:
+# macOS: brew install node
+# Ubuntu: sudo apt install nodejs npm
+# Windows: Download from nodejs.org
+```
+
+#### 3. Install MCP Test Dependencies
+
+```bash
+npm install
+```
+
+### Running E2E Tests Locally
+
+#### Basic Execution
+
+```bash
+# Step 1: Start Streamlit app on test port
+TESTING=true streamlit run src/admin/app.py --server.port=8502
+
+# Step 2: Run E2E tests (in separate terminal)
+pytest tests/e2e/ -v
+```
+
+#### Run Specific Workflow Test
+
+```bash
+pytest tests/e2e/test_mcp_server_registration_workflow.py -v
+pytest tests/e2e/test_agent_tool_assignment_workflow.py -v
+pytest tests/e2e/test_agent_execution_mcp_workflow.py -v
+```
+
+#### Run in Headed Mode (See Browser)
+
+```bash
+# Watch test execute in visible browser window
+pytest tests/e2e/ --headed
+```
+
+#### Run with Slow Motion (Debug Mode)
+
+```bash
+# Slow down test execution (1000ms = 1 second per action)
+pytest tests/e2e/ --headed --slowmo=1000
+```
+
+#### Run with Screenshots and Videos
+
+```bash
+# Capture screenshots on failure
+pytest tests/e2e/ --screenshot=only-on-failure
+
+# Record video of failed tests
+pytest tests/e2e/ --video=retain-on-failure
+
+# Enable tracing for debugging
+pytest tests/e2e/ --tracing=retain-on-failure
+```
+
+### Debugging Failed E2E Tests
+
+#### View Test Artifacts
+
+E2E test artifacts are saved automatically on test failure:
+
+```bash
+# Screenshots
+open tests/e2e/screenshots/
+
+# Videos
+open tests/e2e/videos/
+
+# Traces (detailed execution logs)
+playwright show-trace tests/e2e/traces/trace.zip
+```
+
+#### Run Single Test with Debugging
+
+```bash
+# Run specific test in headed mode with slow motion
+pytest tests/e2e/test_agent_tool_assignment_workflow.py::test_agent_tool_assignment_workflow --headed --slowmo=500
+```
+
+#### Enable Debug Logging
+
+```bash
+# Show Playwright debug logs
+DEBUG=pw:api pytest tests/e2e/ -v
+
+# Show Streamlit app logs
+streamlit run src/admin/app.py --server.port=8502 --logger.level=debug
+```
+
+### Writing New E2E Tests
+
+#### Test Structure
+
+```python
+import pytest
+from playwright.sync_api import Page, expect
+
+@pytest.mark.e2e
+@pytest.mark.slow
+def test_my_workflow(
+    admin_page: Page,
+    streamlit_app_url: str,
+    test_tenant: Tenant
+) -> None:
+    """Test description."""
+    page = admin_page
+
+    # Step 1: Navigate to page
+    page.goto(f"{streamlit_app_url}/My_Page")
+
+    # Step 2: Interact with UI
+    page.get_by_role("button", name="Submit").click()
+
+    # Step 3: Verify results
+    expect(page.locator("text=Success")).to_be_visible()
+```
+
+#### Playwright 2025 Best Practices
+
+**✅ DO: Use Accessibility-Based Selectors**
+
+```python
+# GOOD: Robust, accessible selectors
+page.get_by_role("button", name="Submit").click()
+page.get_by_label("Email").fill("user@example.com")
+page.get_by_text("Welcome back").click()
+```
+
+**❌ DON'T: Use Fragile CSS Selectors**
+
+```python
+# BAD: Streamlit auto-generates CSS classes (breaks easily)
+page.locator(".css-1234abcd").click()
+page.locator("#submit-button-id").click()
+```
+
+**✅ DO: Use Auto-Waiting Assertions**
+
+```python
+# GOOD: Automatically waits for condition or timeout
+expect(page.locator("text=Success")).to_be_visible()
+expect(page).to_have_url("**/dashboard")
+```
+
+**❌ DON'T: Use Manual Timeouts**
+
+```python
+# BAD: Flaky, slow, unreliable
+page.wait_for_timeout(5000)
+time.sleep(5)
+```
+
+**✅ DO: Take Screenshots on Specific Components**
+
+```python
+# GOOD: Screenshot specific section for debugging
+page.locator(".mcp-tools-section").screenshot(path="mcp-tools.png")
+```
+
+**❌ DON'T: Take Full Page Screenshots**
+
+```python
+# BAD: Slow, large file size
+page.screenshot(path="full-page.png", full_page=True)
+```
+
+#### Available Fixtures
+
+E2E tests have access to fixtures from `tests/e2e/conftest.py`:
+
+```python
+# Streamlit app fixtures
+streamlit_app_url: str             # Base URL (http://localhost:8502)
+admin_page: Page                   # Playwright page with auth bypassed
+
+# Database fixtures
+async_db_session: AsyncSession     # Async database session
+test_tenant: Tenant                # Test tenant (auto-cleanup)
+test_mcp_server: MCPServer         # Test MCP server (auto-cleanup)
+test_agent: Agent                  # Test agent (auto-cleanup)
+```
+
+#### Test Data Cleanup
+
+Test fixtures automatically clean up data after each test:
+
+```python
+@pytest.fixture
+async def test_mcp_server(async_db_session, test_tenant):
+    """Create test MCP server, auto-delete after test."""
+    server = MCPServer(...)
+    async_db_session.add(server)
+    await async_db_session.commit()
+
+    yield server
+
+    # Automatic cleanup via rollback (handled by async_db_session fixture)
+```
+
+### Troubleshooting
+
+#### Streamlit App Not Responding
+
+```
+Error: TimeoutError: page.goto: Timeout 30000ms exceeded
+Solution: Ensure Streamlit app is running on port 8502
+  TESTING=true streamlit run src/admin/app.py --server.port=8502
+```
+
+#### Browser Binaries Not Installed
+
+```
+Error: Executable doesn't exist at /path/to/chromium
+Solution: Install Playwright browsers
+  playwright install chromium
+```
+
+#### Port Already in Use
+
+```
+Error: OSError: [Errno 48] Address already in use
+Solution: Kill process on port 8502 or use different port
+  lsof -i :8502 | grep LISTEN | awk '{print $2}' | xargs kill
+```
+
+#### MCP Test Server Not Found
+
+```
+Error: Command 'npx' not found
+Solution: Install Node.js (see Node.js installation above)
+```
+
+#### Test Data Not Cleaned Up
+
+```
+Problem: Test creates data but doesn't delete it
+Solution: Fixtures handle cleanup automatically via rollback
+  Ensure test uses test_tenant, test_mcp_server, test_agent fixtures
+```
+
+### CI/CD Integration
+
+E2E tests run automatically in GitHub Actions (`.github/workflows/ci.yml`):
+
+**Job: e2e-tests** (runs after lint-and-test)
+1. Install Playwright and browsers
+2. Start Streamlit app in background
+3. Wait for app healthy (health check endpoint)
+4. Run E2E tests
+5. Upload artifacts (screenshots, videos, traces) on failure
+
+**E2E Test Failures Block PR Merge** - If any E2E test fails, PR cannot be merged until fixed.
+
+### Performance
+
+E2E tests are designed for fast execution:
+
+- **Target:** <5 minutes for all 3 workflow tests
+- **Individual test:** <90 seconds per workflow
+- **Headless mode:** ~30% faster than headed mode
+- **Parallel execution:** NOT recommended (Streamlit app state conflicts)
+
+### References
+
+- [Playwright Python Documentation](https://playwright.dev/python/)
+- [Playwright Locators Guide](https://playwright.dev/python/docs/locators)
+- [Playwright Assertions](https://playwright.dev/python/docs/test-assertions)
+- [pytest-playwright Plugin](https://pytest-playwright.readthedocs.io/)
+- [Streamlit Testing Best Practices](https://docs.streamlit.io/develop/concepts/app-testing)
+
 ## References
 
 - [Pytest Documentation](https://docs.pytest.org/)
 - [pytest-asyncio](https://pytest-asyncio.readthedocs.io/)
 - [unittest.mock](https://docs.python.org/3/library/unittest.mock.html)
 - [FastAPI Testing](https://fastapi.tiangolo.com/advanced/testing-dependencies/)
+- [Model Context Protocol (MCP)](https://spec.modelcontextprotocol.io/)

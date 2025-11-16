@@ -5,6 +5,7 @@ Async API functions for BYOK operations to keep byok_helpers.py under 500 lines.
 Follows the pattern from fallback_api_helpers.py.
 """
 
+import os
 import httpx
 from typing import Dict, Optional
 
@@ -15,14 +16,12 @@ async def get_api_base() -> str:
 
     if "api_base" in st.session_state:
         return st.session_state.api_base
-    return "http://localhost:8000"
+    return os.getenv("API_BASE_URL", "http://api:8000")
 
 
 async def get_admin_headers() -> Dict[str, str]:
     """Get admin headers for API requests."""
-    import streamlit as st
-
-    admin_key = st.session_state.get("admin_key", "")
+    admin_key = os.getenv("AI_AGENTS_ADMIN_API_KEY", "")
     return {"X-Admin-Key": admin_key}
 
 
@@ -181,3 +180,20 @@ async def disable_byok(tenant_id: str) -> Dict:
             return response.json()
         else:
             raise Exception(f"Failed to disable BYOK: {response.text}")
+
+
+async def enable_platform_keys(tenant_id: str) -> Dict:
+    """
+    Enable platform keys for tenant (create virtual key if missing).
+
+    This is useful for tenants that don't have a virtual key yet.
+    Internally calls the /byok/disable endpoint which creates a platform virtual key.
+
+    Args:
+        tenant_id: Tenant identifier
+
+    Returns:
+        dict: Success response with virtual_key_created flag
+    """
+    # Reuse disable_byok since it creates platform virtual keys
+    return await disable_byok(tenant_id)

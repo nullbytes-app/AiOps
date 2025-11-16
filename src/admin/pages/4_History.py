@@ -36,12 +36,6 @@ def show() -> None:
     Implements full history viewer with filters, pagination, search,
     expandable details, and CSV export (Story 6.4).
     """
-    st.set_page_config(
-        page_title="History - AI Agents Admin",
-        page_icon="📜",
-        layout="wide",
-    )
-
     st.title("📜 Enhancement History")
     st.markdown("---")
 

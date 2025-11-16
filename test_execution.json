@@ -1,0 +1,5 @@
+{
+  "agent_id": "022e85cf-e7b6-45d5-81c2-b0b6823cd8f3",
+  "user_message": "Test MCP tool loading - analyze this test ticket and verify 31 Jira tools are available",
+  "timeout_seconds": 120
+}

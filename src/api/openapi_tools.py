@@ -70,28 +70,49 @@ async def test_connection(request: TestConnectionRequest) -> TestConnectionRespo
 
 
 @router.post("", response_model=dict[str, Any])
-async def create_tool(tool_data: OpenAPIToolCreate, db: AsyncSession = Depends(get_tenant_db)) -> dict[str, Any]:
+async def create_tool(tool_data: OpenAPIToolCreate) -> dict[str, Any]:
     """Create new OpenAPI tool."""
+    from src.database.session import get_async_session
+    from src.database.tenant_context import set_db_tenant_context
+    from sqlalchemy.exc import IntegrityError
+
     try:
-        service = OpenAPIToolService(db)
-        tool, tools_count = await service.create_tool(tool_data)
+        # Get database session without tenant dependency
+        async for db in get_async_session():
+            # Set tenant context using tenant_id from request body
+            await set_db_tenant_context(db, tool_data.tenant_id)
 
-        return {
-            "id": tool.id,
-            "tool_name": tool.tool_name,
-            "spec_version": tool.spec_version,
-            "base_url": tool.base_url,
-            "status": tool.status,
-            "tools_count": tools_count,
-            "created_at": tool.created_at.isoformat(),
-        }
+            service = OpenAPIToolService(db)
+            tool, tools_count = await service.create_tool(tool_data)
 
+            return {
+                "id": tool.id,
+                "tool_name": tool.tool_name,
+                "spec_version": tool.spec_version,
+                "base_url": tool.base_url,
+                "status": tool.status,
+                "tools_count": tools_count,
+                "created_at": tool.created_at.isoformat(),
+            }
+
+    except ValueError as e:
+        # Handle duplicate tool name error from service layer
+        raise HTTPException(409, str(e))
+    except IntegrityError as e:
+        # Handle database constraint violations
+        if "uq_tenant_tool_name" in str(e):
+            raise HTTPException(
+                409,
+                f"A tool with this name already exists for this tenant. "
+                "Please use a different name or delete the existing tool first."
+            )
+        raise HTTPException(400, f"Database error: {str(e)}")
     except Exception as e:
         raise HTTPException(400, str(e))
 
 
 @router.get("", response_model=list[OpenAPITool])
-async def list_tools(tenant_id: int, status: str | None = None, db: AsyncSession = Depends(get_tenant_db)) -> list[OpenAPITool]:
+async def list_tools(tenant_id: str, status: str | None = None, db: AsyncSession = Depends(get_tenant_db)) -> list[OpenAPITool]:
     """List all tools for tenant."""
     service = OpenAPIToolService(db)
     tools = await service.get_tools(tenant_id, status)

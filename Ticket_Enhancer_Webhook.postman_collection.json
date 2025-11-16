@@ -1,0 +1,83 @@
+{
+  "info": {
+    "name": "Ticket Enhancer Webhook",
+    "description": "Webhook endpoint for Ticket Enhancer agent with proper HMAC-SHA256 authentication",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Trigger Ticket Enhancer (Compact JSON)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "X-Hub-Signature-256",
+            "value": "sha256=424d4d15574814a09a9415f16e18fe55f3bc6b8d48831d42fc98590f4bbee10d",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"ticket_id\":\"TKT-12345\",\"subject\":\"Server performance issue\",\"description\":\"The application server is running slow and users are experiencing timeouts\",\"priority\":\"high\",\"status\":\"open\",\"created_at\":\"2025-11-09T09:15:00Z\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/webhook/agents/907cb308-6629-4426-b7e6-dfe5bbf24bc6/webhook",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "webhook",
+            "agents",
+            "907cb308-6629-4426-b7e6-dfe5bbf24bc6",
+            "webhook"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Trigger Ticket Enhancer (Pretty JSON)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "X-Hub-Signature-256",
+            "value": "sha256=db2849a817082b15d74ccfdeb1db4a1dfc45aab59a88fb343779ffd3fcd73400",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"ticket_id\": \"TKT-12345\",\"subject\": \"Server performance issue\",\"description\": \"The application server is running slow and users are experiencing timeouts\",\"priority\": \"high\",\"status\": \"open\",\"created_at\": \"2025-11-09T09:15:00Z\"}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/webhook/agents/907cb308-6629-4426-b7e6-dfe5bbf24bc6/webhook",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8000",
+          "path": [
+            "webhook",
+            "agents",
+            "907cb308-6629-4426-b7e6-dfe5bbf24bc6",
+            "webhook"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

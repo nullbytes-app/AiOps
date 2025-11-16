@@ -1,0 +1,257 @@
+<mxfile host="app.diagrams.net" modified="2025-01-12T00:00:00.000Z" agent="AI Agents Team - Revised" version="24.0.0">
+  <diagram id="system-context" name="1. System Context (C4 Level 1)">
+    <mxGraphModel dx="2000" dy="1200" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1600" pageHeight="1200" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Background -->
+        <mxCell id="bg" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry width="1600" height="1200" as="geometry" />
+        </mxCell>
+
+        <!-- Title Section -->
+        <mxCell id="title" value="AI Agents Platform" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=36;fontStyle=1;fontColor=#1168BD;" vertex="1" parent="1">
+          <mxGeometry x="80" y="60" width="500" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle1" value="System Context Diagram (C4 Level 1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=18;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="80" y="120" width="600" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle2" value="Enterprise multi-tenant platform for AI-powered IT ticket enhancement" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#888888;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="155" width="700" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Legend -->
+        <mxCell id="legend-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#CCCCCC;" vertex="1" parent="1">
+          <mxGeometry x="1320" y="60" width="240" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-title" value="&lt;b&gt;Legend&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="75" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-person" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052955;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="110" width="40" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-person-text" value="Person/Actor" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1390" y="112" width="150" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-system" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0D47A1;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="150" width="40" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-system-text" value="Our System" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1390" y="152" width="150" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-external" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="190" width="40" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="legend-external-text" value="External System" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="1390" y="192" width="150" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Central System with Icon -->
+        <mxCell id="ai-platform-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#1168BD;strokeColor=#0D47A1;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="460" width="320" height="280" as="geometry" />
+        </mxCell>
+        <mxCell id="ai-platform-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/8943/8943377.png;" vertex="1" parent="1">
+          <mxGeometry x="730" y="490" width="140" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="ai-platform-title" value="&lt;b&gt;AI Agents Platform&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=18;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="645" width="280" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="ai-platform-type" value="[Software System]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#E3F2FD;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="660" y="675" width="280" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="ai-platform-desc" value="Multi-tenant SaaS platform for automated IT ticket enrichment using AI agents and contextual analysis" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=11;fontColor=#FFFFFF;" vertex="1" parent="1">
+          <mxGeometry x="670" y="700" width="260" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- MSP Technician -->
+        <mxCell id="tech-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052955;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="510" width="240" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="tech-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/3135/3135715.png;" vertex="1" parent="1">
+          <mxGeometry x="180" y="530" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="tech-title" value="&lt;b&gt;MSP Technician&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="635" width="220" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="tech-type" value="[Person - End User]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#B3E5FC;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="130" y="660" width="220" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Administrator -->
+        <mxCell id="admin-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#08427B;strokeColor=#052955;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1240" y="510" width="240" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/2206/2206368.png;" vertex="1" parent="1">
+          <mxGeometry x="1300" y="530" width="120" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-title" value="&lt;b&gt;Platform Admin&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=14;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="635" width="220" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="admin-type" value="[Person - Administrator]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#B3E5FC;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1250" y="660" width="220" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- ServiceDesk Plus -->
+        <mxCell id="sd-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#666666;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="900" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="sd-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://www.manageengine.com/products/service-desk/images/service-desk-plus-logo.svg;" vertex="1" parent="1">
+          <mxGeometry x="160" y="920" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="sd-title" value="&lt;b&gt;ServiceDesk Plus&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="130" y="990" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="sd-type" value="[Ticketing System]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#E0E0E0;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="130" y="1010" width="180" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Jira Service Management -->
+        <mxCell id="jira-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#666666;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="360" y="900" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="jira-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn.worldvectorlogo.com/logos/jira-1.svg;" vertex="1" parent="1">
+          <mxGeometry x="410" y="920" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="jira-title" value="&lt;b&gt;Jira Service Mgmt&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="370" y="990" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="jira-type" value="[Ticketing System]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#E0E0E0;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="370" y="1010" width="180" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- LLM Providers -->
+        <mxCell id="llm-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#666666;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="700" y="900" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="llm-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/8637/8637099.png;" vertex="1" parent="1">
+          <mxGeometry x="750" y="920" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="llm-title" value="&lt;b&gt;LLM Providers&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="710" y="990" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="llm-type" value="[OpenAI, Anthropic, Azure]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#E0E0E0;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="710" y="1010" width="180" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- MCP Servers -->
+        <mxCell id="mcp-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#666666;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1040" y="900" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/3004/3004458.png;" vertex="1" parent="1">
+          <mxGeometry x="1090" y="920" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-title" value="&lt;b&gt;MCP Tool Servers&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="990" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="mcp-type" value="[External Tool Providers]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#E0E0E0;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1050" y="1010" width="180" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Monitoring Stack -->
+        <mxCell id="mon-container" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#999999;strokeColor=#666666;shadow=1;" vertex="1" parent="1">
+          <mxGeometry x="1280" y="900" width="200" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="mon-icon" value="" style="shape=image;verticalLabelPosition=bottom;labelBackgroundColor=default;verticalAlign=top;aspect=fixed;imageAspect=0;image=https://cdn-icons-png.flaticon.com/512/2593/2593635.png;" vertex="1" parent="1">
+          <mxGeometry x="1330" y="920" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="mon-title" value="&lt;b&gt;Observability Stack&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#FFFFFF;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="990" width="180" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="mon-type" value="[Prometheus, Grafana, Jaeger]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontColor=#E0E0E0;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="1290" y="1010" width="180" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Connections -->
+        <mxCell id="edge-tech" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fontSize=11;strokeColor=#1976D2;endArrow=blockThin;endFill=1;startArrow=none;curved=1;" edge="1" parent="1" source="tech-container" target="ai-platform-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-tech-label" value="&lt;b&gt;Views enhanced tickets&lt;/b&gt;&lt;br&gt;via ticketing system UI" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#1976D2;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-tech">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint x="20" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge-admin" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fontSize=11;strokeColor=#1976D2;endArrow=blockThin;endFill=1;startArrow=none;curved=1;" edge="1" parent="1" source="admin-container" target="ai-platform-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-admin-label" value="&lt;b&gt;Configures &amp; monitors&lt;/b&gt;&lt;br&gt;Streamlit Admin UI" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#1976D2;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-admin">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint x="-20" y="-10" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge-sd" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fontSize=11;strokeColor=#43A047;endArrow=blockThin;endFill=1;startArrow=blockThin;startFill=1;curved=1;dashed=1;" edge="1" parent="1" source="sd-container" target="ai-platform-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-sd-label" value="&lt;b&gt;Webhooks + API&lt;/b&gt;&lt;br&gt;HTTPS + HMAC validation" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#43A047;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-sd">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint x="-5" y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge-jira" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fontSize=11;strokeColor=#43A047;endArrow=blockThin;endFill=1;startArrow=blockThin;startFill=1;curved=1;dashed=1;" edge="1" parent="1" source="jira-container" target="ai-platform-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-jira-label" value="&lt;b&gt;Plugin Integration&lt;/b&gt;&lt;br&gt;Webhooks via plugin" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#43A047;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-jira">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge-llm" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fontSize=11;strokeColor=#E65100;endArrow=blockThin;endFill=1;startArrow=none;curved=1;" edge="1" parent="1" source="ai-platform-container" target="llm-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-llm-label" value="&lt;b&gt;AI Inference&lt;/b&gt;&lt;br&gt;LiteLLM unified gateway" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#E65100;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-llm">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge-mcp" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fontSize=11;strokeColor=#7B1FA2;endArrow=blockThin;endFill=1;startArrow=none;curved=1;" edge="1" parent="1" source="ai-platform-container" target="mcp-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-mcp-label" value="&lt;b&gt;Tool Invocation&lt;/b&gt;&lt;br&gt;MCP stdio/HTTP-SSE" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#7B1FA2;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-mcp">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint x="5" y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="edge-mon" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;fontSize=11;strokeColor=#757575;endArrow=blockThin;endFill=1;startArrow=none;curved=1;dashed=1;" edge="1" parent="1" source="ai-platform-container" target="mon-container">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-mon-label" value="&lt;b&gt;Telemetry&lt;/b&gt;&lt;br&gt;Metrics &amp; traces" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;backgroundColor=#FFFFFF;borderColor=#757575;rounded=1;spacing=5;shadow=1;" vertex="1" connectable="0" parent="edge-mon">
+          <mxGeometry x="-0.1" y="2" relative="1" as="geometry">
+            <mxPoint x="5" y="-5" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Key Features Box -->
+        <mxCell id="features-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E9;strokeColor=#4CAF50;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="270" width="500" height="160" as="geometry" />
+        </mxCell>
+        <mxCell id="features-title" value="&lt;b&gt;Key Capabilities&lt;/b&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontColor=#2E7D32;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="100" y="285" width="200" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="feature1" value="✓ Multi-tenant SaaS with tenant isolation" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="100" y="320" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="feature2" value="✓ Automated ticket enrichment via AI agents" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="100" y="345" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="feature3" value="✓ Extensible plugin architecture for ticketing tools" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="100" y="370" width="450" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="feature4" value="✓ MCP integration for external tool capabilities" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#1B5E20;" vertex="1" parent="1">
+          <mxGeometry x="100" y="395" width="450" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Audience -->
+        <mxCell id="audience" value="&lt;b&gt;Audience:&lt;/b&gt; Executives • Investors • Business Stakeholders" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontColor=#666666;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="1100" width="600" height="25" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

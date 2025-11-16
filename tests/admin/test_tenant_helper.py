@@ -134,7 +134,7 @@ def test_generate_tenant_id_slug_hyphens():
 
 def test_create_tenant_auto_generates_tenant_id():
     """Test create_tenant generates tenant_id from name if not provided."""
-    with patch("admin.utils.tenant_helper.get_db_session") as mock_session:
+    with patch("admin.utils.tenant_crud_helpers.get_db_session") as mock_session:
         mock_db = MagicMock()
         mock_session.return_value.__enter__.return_value = mock_db
 
@@ -157,7 +157,7 @@ def test_create_tenant_auto_generates_tenant_id():
 # ============================================================================
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_validate_tenant_form_success(mock_get_session, mock_session):
     """Test form validation with valid data."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -175,7 +175,7 @@ def test_validate_tenant_form_success(mock_get_session, mock_session):
     assert errors == []
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_validate_tenant_form_missing_fields(mock_get_session):
     """Test validation fails for missing required fields."""
     form_data = {
@@ -188,7 +188,7 @@ def test_validate_tenant_form_missing_fields(mock_get_session):
     assert len(errors) == 3  # Three missing fields
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_validate_tenant_form_invalid_url(mock_get_session):
     """Test validation fails for invalid URL format."""
     form_data = {
@@ -203,7 +203,7 @@ def test_validate_tenant_form_invalid_url(mock_get_session):
     assert any("http" in err.lower() for err in errors)
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_validate_tenant_form_invalid_tenant_id(mock_get_session):
     """Test validation fails for tenant_id with special characters."""
     form_data = {
@@ -218,7 +218,7 @@ def test_validate_tenant_form_invalid_tenant_id(mock_get_session):
     assert any("alphanumeric" in err.lower() or "hyphens" in err.lower() for err in errors)
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_validation_helpers.get_db_session")
 def test_validate_tenant_form_duplicate_tenant_id(mock_get_session, mock_session):
     """Test validation fails for duplicate tenant_id."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -239,7 +239,7 @@ def test_validate_tenant_form_duplicate_tenant_id(mock_get_session, mock_session
     assert any("already exists" in err.lower() for err in errors)
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_validate_tenant_form_skip_duplicate_check(mock_get_session):
     """Test skip_duplicate_check parameter for edit operations."""
     form_data = {
@@ -260,7 +260,7 @@ def test_validate_tenant_form_skip_duplicate_check(mock_get_session):
 # ============================================================================
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_create_tenant_success(mock_get_session, mock_session):
     """Test successful tenant creation."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -283,7 +283,7 @@ def test_create_tenant_success(mock_get_session, mock_session):
     mock_session.add.assert_called_once()
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_create_tenant_auto_generates_webhook_secret(mock_get_session, mock_session):
     """Test webhook secret is auto-generated if not provided."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -303,7 +303,7 @@ def test_create_tenant_auto_generates_webhook_secret(mock_get_session, mock_sess
     assert tenant.webhook_signing_secret_encrypted
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_create_tenant_duplicate_fails(mock_get_session, mock_session):
     """Test tenant creation fails for duplicate tenant_id."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -320,7 +320,7 @@ def test_create_tenant_duplicate_fails(mock_get_session, mock_session):
         create_tenant(tenant_data)
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_get_all_tenants_active_only(mock_get_session, mock_session):
     """Test get_all_tenants returns only active tenants by default."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -339,7 +339,7 @@ def test_get_all_tenants_active_only(mock_get_session, mock_session):
     assert tenants[0].is_active is True
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_get_all_tenants_include_inactive(mock_get_session, mock_session):
     """Test get_all_tenants returns all tenants when include_inactive=True."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -356,7 +356,7 @@ def test_get_all_tenants_include_inactive(mock_get_session, mock_session):
     assert len(tenants) == 2
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_get_tenant_by_id_success(mock_get_session, mock_session):
     """Test get_tenant_by_id returns correct tenant."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -371,7 +371,7 @@ def test_get_tenant_by_id_success(mock_get_session, mock_session):
     assert tenant.tenant_id == "acme-corp"
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_get_tenant_by_id_not_found(mock_get_session, mock_session):
     """Test get_tenant_by_id returns None for non-existent tenant."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -382,7 +382,7 @@ def test_get_tenant_by_id_not_found(mock_get_session, mock_session):
     assert tenant is None
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_update_tenant_success(mock_get_session, mock_session):
     """Test successful tenant update."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -403,7 +403,7 @@ def test_update_tenant_success(mock_get_session, mock_session):
     assert mock_tenant.servicedesk_url == "https://new.servicedesk.com"
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_update_tenant_not_found(mock_get_session, mock_session):
     """Test update fails for non-existent tenant."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -414,7 +414,7 @@ def test_update_tenant_not_found(mock_get_session, mock_session):
     assert success is False
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_soft_delete_tenant_success(mock_get_session, mock_session):
     """Test successful soft delete."""
     mock_get_session.return_value.__enter__.return_value = mock_session
@@ -429,7 +429,7 @@ def test_soft_delete_tenant_success(mock_get_session, mock_session):
     assert mock_tenant.is_active is False
 
 
-@patch("admin.utils.tenant_helper.get_db_session")
+@patch("admin.utils.tenant_crud_helpers.get_db_session")
 def test_soft_delete_tenant_not_found(mock_get_session, mock_session):
     """Test soft delete fails for non-existent tenant."""
     mock_get_session.return_value.__enter__.return_value = mock_session

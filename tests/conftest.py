@@ -291,6 +291,100 @@ def plugin_failure_mode(request):
     return factory_map[request.param]()
 
 
+# ============================================================================
+# LLM Cost Dashboard Test Fixtures (Story 8.16)
+# ============================================================================
+
+
+@pytest.fixture
+async def async_db_session():
+    """
+    Provide an async SQLAlchemy database session for unit tests.
+
+    Creates an async database session for testing async services and database operations.
+    All changes are rolled back after each test to maintain test isolation.
+
+    Yields:
+        AsyncSession: Async database session for test operations
+
+    Note:
+        - Uses settings.database_url from config (set in pytest_configure)
+        - Automatically rolls back all changes after test completion
+        - Creates engine/session within test's event loop to avoid loop conflicts
+        - Suitable for unit tests with LiteLLM SpendLogs and other async queries
+    """
+    from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+    from sqlalchemy.orm import sessionmaker
+    from src.config import settings
+
+    # Create engine within the test's event loop
+    engine = create_async_engine(
+        settings.database_url,
+        echo=False,
+        pool_pre_ping=True
+    )
+
+    # Create session factory
+    async_session_maker = sessionmaker(
+        engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+
+    # Create session
+    async with async_session_maker() as session:
+        try:
+            yield session
+        finally:
+            # Rollback all changes to maintain test isolation
+            await session.rollback()
+            await session.close()
+
+    # Dispose engine after test
+    await engine.dispose()
+
+
+@pytest.fixture
+async def async_client(async_db_session):
+    """
+    Provide an async FastAPI test client for testing async endpoints.
+
+    Creates an httpx.AsyncClient for making async HTTP requests to the FastAPI app.
+    Uses dependency injection to provide the async_db_session to the app.
+
+    Yields:
+        httpx.AsyncClient: Async HTTP client for making requests to the app
+
+    Note:
+        - Uses the main FastAPI app from src.main
+        - Can be used with `await async_client.get()`, `await async_client.post()`, etc.
+        - Automatically cleans up after test completion
+        - Suitable for testing async API endpoints (Story 8.16 cost API, etc.)
+    """
+    from httpx import ASGITransport, AsyncClient
+    from src.main import app
+
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        yield client
+
+
+@pytest.fixture
+def mock_tenant_id():
+    """
+    Provide a mock tenant ID for testing tenant-scoped operations.
+
+    Returns:
+        UUID: A test tenant ID suitable for authorization headers and queries
+
+    Note:
+        - Returns a consistent UUID across test for reliable assertions
+        - Use in headers like: {"Authorization": f"Bearer {mock_tenant_id}"}
+    """
+    from uuid import UUID
+    return str(UUID("00000000-0000-0000-0000-000000000001"))
+
+
 # Import all test fixtures for pytest discovery
 pytest_plugins = [
     "tests.fixtures.rls_fixtures",

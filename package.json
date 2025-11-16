@@ -1,0 +1,15 @@
+{
+  "name": "ai-agents-mcp-tests",
+  "version": "1.0.0",
+  "description": "MCP test server dependencies for AI Agents integration tests",
+  "private": true,
+  "scripts": {
+    "test:mcp-server": "npx -y @modelcontextprotocol/server-everything"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/server-everything": "^0.6.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

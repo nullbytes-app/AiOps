@@ -18,7 +18,7 @@ class OpenAPIToolCreate(BaseModel):
     spec_version: str = Field(..., pattern="^(2\\.0|3\\.0|3\\.1)$", description="OpenAPI version")
     base_url: str = Field(..., min_length=1, description="API base URL")
     auth_config: dict[str, Any] = Field(default_factory=dict, description="Authentication configuration")
-    tenant_id: int = Field(..., gt=0, description="Tenant ID")
+    tenant_id: str = Field(..., min_length=1, max_length=100, description="Tenant ID")
     created_by: Optional[str] = Field(None, max_length=100, description="Creator username")
 
     model_config = ConfigDict(json_schema_extra={
@@ -28,7 +28,7 @@ class OpenAPIToolCreate(BaseModel):
             "spec_version": "3.0",
             "base_url": "https://api.github.com",
             "auth_config": {"type": "bearer", "token": "ghp_xxx"},
-            "tenant_id": 1,
+            "tenant_id": "test-tenant",
             "created_by": "admin"
         }
     })
@@ -47,7 +47,7 @@ class OpenAPITool(BaseModel):
     """Schema for OpenAPI tool response."""
 
     id: int
-    tenant_id: int
+    tenant_id: str
     tool_name: str
     spec_version: str
     base_url: str

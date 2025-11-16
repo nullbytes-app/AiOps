@@ -107,6 +107,35 @@ jobs:
           python -m bandit -r src/ -ll
         continue-on-error: false
 
+      # Step 9.4: File size enforcement (Story 12.7 AC3)
+      # Reason: Enforces 500-line maximum for better AI code editor compatibility
+      # Based on 2025 Python best practices research (150-500 line sweet spot)
+      # Configuration in scripts/file-size-config.yaml excludes migrations, generated code
+      # CI will fail if any non-excluded file exceeds threshold
+      # Refactoring guide: docs/refactoring-guide.md
+      - name: Check file sizes (Story 12.7)
+        run: |
+          pip install pyyaml
+          python scripts/check-file-size.py
+        continue-on-error: false
+
+      # Step 9.5: Set up Node.js for MCP test server (Story 12.2 AC3)
+      # Reason: MCP integration tests require @modelcontextprotocol/server-everything npm package
+      # Tests using mcp_stdio_client fixture need this dependency
+      # Version 18+ required per package.json engines specification
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Step 9.6: Install MCP test server dependencies (Story 12.2 AC3)
+      # Reason: Install @modelcontextprotocol/server-everything for MCP integration tests
+      # Tests will skip gracefully if npx not available (via skip_if_no_mcp_server fixture)
+      # But in CI we want all tests to run, including MCP integration tests
+      - name: Install MCP test dependencies
+        run: npm install
+
       # Step 10: Run unit tests with coverage
       # Reason: Validates code functionality and generates coverage report
       # Coverage must be >= 80% (per tech spec requirement)
@@ -192,7 +221,155 @@ jobs:
           pip-audit
         continue-on-error: false
 
-  # Job 2: Docker image build and push
+      # Step 15: Generate pytest JSON report for baseline enforcement (Story 12.6 - AC4)
+      # Reason: Baseline enforcement needs JSON output for threshold checks
+      # Saved as artifact for ci-baseline-check.py to consume
+      - name: Generate pytest JSON report
+        if: always()  # Run even if tests fail
+        run: |
+          pytest tests/ \
+            --json-report \
+            --json-report-file=pytest-results.json \
+            -q \
+            --tb=no
+        continue-on-error: true  # Don't fail on test failures (baseline check will handle)
+
+      # Step 16: Check baseline thresholds (Story 12.6 - AC4, AC7)
+      # Reason: Enforces configurable quality gates from ci-baseline-config.yaml
+      # Blocks merge if CRITICAL thresholds breached
+      # Warns if WARNING thresholds breached (merge allowed)
+      - name: Check baseline thresholds
+        run: |
+          python scripts/ci-baseline-check.py \
+            --config scripts/ci-baseline-config.yaml \
+            --results pytest-results.json
+        continue-on-error: false
+
+      # Step 17: Upload test results as artifact
+      - name: Upload test results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: pytest-results
+          path: pytest-results.json
+          retention-days: 30
+
+  # Job 2: E2E UI Workflow Tests with Playwright (Story 12.5)
+  # Runs after lint-and-test job passes
+  # Tests critical UI workflows to prevent integration bugs (Story 11.2.5 regression)
+  e2e-tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    timeout-minutes: 10
+
+    steps:
+      # Step 1: Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python 3.12
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # Step 3: Cache pip dependencies
+      - name: Cache pip dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # Step 4: Install dependencies (including Playwright)
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      # Step 5: Install Playwright browsers
+      # Reason: Playwright requires browser binaries for automation
+      # --with-deps installs system dependencies (fonts, libs) needed by Chromium
+      - name: Install Playwright browsers
+        run: playwright install --with-deps chromium
+
+      # Step 6: Set up Node.js for MCP test server
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      # Step 7: Install MCP test dependencies
+      - name: Install MCP test dependencies
+        run: npm install
+
+      # Step 8: Start Streamlit app in background
+      # Reason: E2E tests require running Streamlit app
+      # Run on port 8502 to avoid conflicts
+      # TESTING=true disables authentication for E2E tests
+      - name: Start Streamlit app
+        run: |
+          TESTING=true streamlit run src/admin/app.py --server.port=8502 &
+          echo $! > streamlit.pid
+        env:
+          TESTING: true
+
+      # Step 9: Wait for Streamlit app to be healthy
+      # Reason: Must ensure app is ready before tests run
+      # Retry up to 20 times (40 seconds) with 2-second delays
+      - name: Wait for Streamlit app
+        run: |
+          for i in {1..20}; do
+            if curl -f http://localhost:8502/_stcore/health; then
+              echo "Streamlit app is healthy"
+              break
+            fi
+            echo "Waiting for Streamlit app... (attempt $i/20)"
+            sleep 2
+          done
+
+      # Step 10: Run E2E tests with Playwright
+      # Reason: Validates 3 critical UI workflows
+      # Tests prevent Story 11.2.5 style bugs (UI integration failures)
+      # pytest-playwright configured in tests/e2e/pytest.ini
+      # --screenshot=on captures screenshots on failure
+      # --video=retain-on-failure records video of failed tests
+      - name: Run E2E tests
+        run: |
+          pytest tests/e2e/ \
+            -v \
+            --tb=short \
+            --screenshot=only-on-failure \
+            --video=retain-on-failure \
+            --tracing=retain-on-failure
+        continue-on-error: false
+
+      # Step 11: Upload test artifacts on failure
+      # Reason: Screenshots, videos, traces help debug E2E test failures
+      # Artifacts available in GitHub Actions UI
+      - name: Upload E2E test artifacts
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: e2e-test-artifacts
+          path: |
+            tests/e2e/screenshots/
+            tests/e2e/videos/
+            tests/e2e/traces/
+            test-results/
+          retention-days: 30
+
+      # Step 12: Stop Streamlit app
+      - name: Stop Streamlit app
+        if: always()
+        run: |
+          if [ -f streamlit.pid ]; then
+            kill $(cat streamlit.pid) || true
+          fi
+
+  # Job 3: Docker image build and push
   # Depends on lint-and-test job passing (sequential execution)
   # Only pushes images on main branch (not on PRs)
   docker-build:

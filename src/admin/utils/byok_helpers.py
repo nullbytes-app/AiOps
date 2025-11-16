@@ -17,6 +17,7 @@ from admin.utils.byok_api_helpers import (
     get_byok_status,
     rotate_byok_keys,
     disable_byok,
+    enable_platform_keys,
 )
 
 
@@ -25,7 +26,7 @@ from admin.utils.byok_api_helpers import (
 # ============================================================================
 
 
-def show_byok_configuration_section(tenant_id: str):
+def show_byok_configuration_section(tenant_id: str, tenant: Optional[Dict] = None):
     """
     Display BYOK configuration interface with mode selection and key inputs.
 
@@ -35,8 +36,14 @@ def show_byok_configuration_section(tenant_id: str):
 
     Args:
         tenant_id: Unique tenant identifier
+        tenant: Optional tenant dict with litellm_virtual_key field
     """
     st.markdown("### LLM Configuration")
+
+    # Check if tenant has virtual key
+    has_virtual_key = False
+    if tenant:
+        has_virtual_key = tenant.get("litellm_virtual_key") is not None
 
     # AC #1: Mode selection with radio buttons
     col1, col2 = st.columns(2)
@@ -51,9 +58,33 @@ def show_byok_configuration_section(tenant_id: str):
 
     with col2:
         if mode == "Use platform keys":
-            st.info("✅ Using platform-managed API keys for all LLM calls")
+            if has_virtual_key:
+                st.info("✅ Using platform-managed API keys for all LLM calls")
+            else:
+                st.warning("⚠️ Platform virtual key not configured")
         else:
             st.warning("🔑 You will provide your own OpenAI/Anthropic API keys")
+
+    # Show "Initialize Platform Keys" button if using platform mode but no virtual key
+    if mode == "Use platform keys" and not has_virtual_key:
+        st.markdown("#### Initialize Platform Keys")
+        st.markdown(
+            "Create a platform virtual key to enable LLM functionality for this tenant."
+        )
+
+        if st.button(
+            "🔑 Initialize Platform Keys",
+            key=f"init_platform_{tenant_id}",
+            type="primary",
+        ):
+            with st.spinner("Initializing platform keys..."):
+                try:
+                    result = asyncio.run(enable_platform_keys(tenant_id))
+                    st.success("✅ Platform keys initialized successfully!")
+                    st.balloons()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Failed to initialize platform keys: {str(e)}")
 
     # AC #2: Show input fields only in BYOK mode
     if mode == "Use own keys (BYOK)":

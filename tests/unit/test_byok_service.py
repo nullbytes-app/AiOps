@@ -16,7 +16,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
 from httpx import Response
 
-from src.services.llm_service import LLMService, VirtualKeyCreationError, VirtualKeyRotationError
+from src.services.llm_service import (
+    LLMService,
+    VirtualKeyCreationError,
+    VirtualKeyRotationError,
+    LLMServiceError,
+)
 from src.database.models import TenantConfig
 from src.schemas.byok import ProviderValidationResult
 
@@ -200,7 +205,7 @@ class TestCreateBYOKVirtualKey:
         service = LLMService(db)
 
         with patch.object(service, "_call_litellm_api") as mock_litellm:
-            mock_litellm.side_effect = Exception("LiteLLM API error")
+            mock_litellm.side_effect = LLMServiceError("LiteLLM API error")
 
             with pytest.raises(VirtualKeyCreationError):
                 await service.create_byok_virtual_key(
@@ -233,10 +238,8 @@ class TestRotateBYOKKeys:
                 "openai": {"valid": True, "models": ["gpt-4"], "error": None},
                 "anthropic": {"valid": True, "models": ["claude-3"], "error": None},
             }
-            mock_litellm.side_effect = [
-                {"success": True},  # Delete old key
-                {"key": "new-virtual-key-123", "key_id": "new-id"},  # Create new key
-            ]
+            # Only one _call_litellm_api call is made in create_byok_virtual_key
+            mock_litellm.return_value = {"key": "new-virtual-key-123", "key_id": "new-id"}
 
             new_key = await service.rotate_byok_keys(
                 tenant_id, new_openai_key="sk-new-openai", new_anthropic_key="sk-ant-new-anthropic"
@@ -257,7 +260,7 @@ class TestRotateBYOKKeys:
                 "anthropic": {"valid": False, "models": [], "error": "Invalid key"},
             }
 
-            with pytest.raises(ValueError):
+            with pytest.raises(VirtualKeyRotationError):
                 await service.rotate_byok_keys(
                     "tenant-456", new_openai_key="sk-invalid", new_anthropic_key="sk-ant-invalid"
                 )
@@ -273,19 +276,18 @@ class TestRevertToPlatformKeys:
         service = LLMService(db)
         tenant_id = "tenant-revert-123"
 
-        mock_tenant = MagicMock(spec=TenantConfig)
-        mock_tenant.byok_virtual_key = "old-byok-key"
-        db.execute.return_value.scalar.return_value = mock_tenant
+        # Mock the database query result for fetching max_budget
+        mock_result = MagicMock()
+        mock_result.fetchone.return_value = (500.0,)  # max_budget = 500.0
+        db.execute = AsyncMock(return_value=mock_result)
 
         with (
             patch.object(service, "_call_litellm_api") as mock_litellm,
             patch.object(service, "log_audit_entry") as mock_audit,
+            patch.object(service, "create_virtual_key_for_tenant") as mock_create_key,
         ):
 
-            mock_litellm.side_effect = [
-                {"success": True},  # Delete BYOK key
-                {"key": "platform-virtual-key", "key_id": "platform-id"},  # Create platform key
-            ]
+            mock_create_key.return_value = "platform-virtual-key"
 
             platform_key = await service.revert_to_platform_keys(tenant_id)
 
@@ -299,19 +301,17 @@ class TestRevertToPlatformKeys:
         service = LLMService(db)
         tenant_id = "tenant-clear-123"
 
-        mock_tenant = MagicMock(spec=TenantConfig)
-        mock_tenant.byok_virtual_key = "byok-key"
-        db.execute.return_value.scalar.return_value = mock_tenant
+        # Mock the database query result for fetching max_budget
+        mock_result = MagicMock()
+        mock_result.fetchone.return_value = (500.0,)  # max_budget = 500.0
+        db.execute = AsyncMock(return_value=mock_result)
 
         with (
-            patch.object(service, "_call_litellm_api") as mock_litellm,
             patch.object(service, "log_audit_entry"),
+            patch.object(service, "create_virtual_key_for_tenant") as mock_create_key,
         ):
 
-            mock_litellm.side_effect = [
-                {"success": True},
-                {"key": "new-platform-key", "key_id": "new-id"},
-            ]
+            mock_create_key.return_value = "new-platform-key"
 
             await service.revert_to_platform_keys(tenant_id)
 
@@ -461,7 +461,7 @@ class TestBYOKErrorHandling:
         service = LLMService(db)
 
         with patch.object(service, "_call_litellm_api") as mock_litellm:
-            mock_litellm.side_effect = Exception("API error")
+            mock_litellm.side_effect = LLMServiceError("API error")
 
             with pytest.raises(VirtualKeyCreationError):
                 await service.create_byok_virtual_key(
@@ -475,13 +475,8 @@ class TestBYOKErrorHandling:
         service = LLMService(db)
         tenant_id = "tenant-789"
 
-        mock_tenant = MagicMock(spec=TenantConfig)
-        mock_tenant.byok_virtual_key = "old-key"
-        db.execute.return_value.scalar.return_value = mock_tenant
-
         with (
             patch.object(service, "validate_provider_keys") as mock_validate,
-            patch.object(service, "_call_litellm_api") as mock_litellm,
         ):
 
             mock_validate.return_value = {
@@ -489,7 +484,7 @@ class TestBYOKErrorHandling:
                 "anthropic": {"valid": False, "models": [], "error": "Invalid"},
             }
 
-            with pytest.raises(ValueError):
+            with pytest.raises(VirtualKeyRotationError):
                 await service.rotate_byok_keys(
                     tenant_id, new_openai_key="sk-new", new_anthropic_key="sk-ant-invalid"
                 )

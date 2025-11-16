@@ -47,7 +47,7 @@ def clear_streamlit_cache():
 
 def test_get_worker_stats_success():
     """Test get_worker_stats returns worker info (expected case)."""
-    with patch("src.admin.utils.operations_utils.celery_app") as mock_celery:
+    with patch("admin.utils.operations_utils.celery_app") as mock_celery:
         mock_inspect = MagicMock()
         mock_celery.control.inspect.return_value = mock_inspect
 
@@ -76,7 +76,7 @@ def test_get_worker_stats_success():
 
 def test_get_worker_stats_no_workers():
     """Test get_worker_stats returns empty list when no workers (edge case)."""
-    with patch("src.admin.utils.operations_utils.celery_app") as mock_celery:
+    with patch("admin.utils.operations_utils.celery_app") as mock_celery:
         mock_inspect = MagicMock()
         mock_celery.control.inspect.return_value = mock_inspect
         mock_inspect.stats.return_value = None
@@ -88,7 +88,7 @@ def test_get_worker_stats_no_workers():
 
 def test_get_worker_stats_error():
     """Test get_worker_stats handles inspect error (failure case)."""
-    with patch("src.admin.utils.operations_utils.celery_app") as mock_celery:
+    with patch("admin.utils.operations_utils.celery_app") as mock_celery:
         mock_inspect = MagicMock()
         mock_celery.control.inspect.return_value = mock_inspect
         mock_inspect.stats.side_effect = Exception("Broker unavailable")
@@ -100,7 +100,7 @@ def test_get_worker_stats_error():
 
 def test_get_active_workers_success():
     """Test get_active_workers returns worker hostnames (expected case)."""
-    with patch("src.admin.utils.operations_utils.celery_app") as mock_celery:
+    with patch("admin.utils.operations_utils.celery_app") as mock_celery:
         mock_inspect = MagicMock()
         mock_celery.control.inspect.return_value = mock_inspect
         mock_inspect.stats.return_value = {
@@ -117,7 +117,7 @@ def test_get_active_workers_success():
 
 def test_get_active_workers_no_workers():
     """Test get_active_workers returns empty list (edge case)."""
-    with patch("src.admin.utils.operations_utils.celery_app") as mock_celery:
+    with patch("admin.utils.operations_utils.celery_app") as mock_celery:
         mock_inspect = MagicMock()
         mock_celery.control.inspect.return_value = mock_inspect
         mock_inspect.stats.return_value = None
@@ -134,7 +134,7 @@ def test_get_active_workers_no_workers():
 
 def test_log_operation_success():
     """Test log_operation creates audit log entry (expected case)."""
-    with patch("src.admin.utils.operations_audit.get_db_session") as mock_db_session:
+    with patch("admin.utils.operations_audit.get_db_session") as mock_db_session:
         mock_session = MagicMock()
         mock_db_session.return_value.__enter__.return_value = mock_session
 
@@ -152,7 +152,7 @@ def test_log_operation_success():
 
 def test_log_operation_database_error():
     """Test log_operation handles database error gracefully (failure case)."""
-    with patch("src.admin.utils.operations_audit.get_db_session") as mock_db_session:
+    with patch("admin.utils.operations_audit.get_db_session") as mock_db_session:
         mock_session = MagicMock()
         mock_session.add.side_effect = Exception("Database unavailable")
         mock_db_session.return_value.__enter__.return_value = mock_session
@@ -170,7 +170,7 @@ def test_log_operation_database_error():
 
 def test_get_recent_operations_success():
     """Test get_recent_operations returns operation list (expected case)."""
-    with patch("src.admin.utils.operations_audit.get_db_session") as mock_db_session:
+    with patch("admin.utils.operations_audit.get_db_session") as mock_db_session:
         mock_session = MagicMock()
         mock_db_session.return_value.__enter__.return_value = mock_session
 
@@ -205,7 +205,7 @@ def test_get_recent_operations_success():
 
 def test_get_recent_operations_no_operations():
     """Test get_recent_operations returns empty list (edge case)."""
-    with patch("src.admin.utils.operations_audit.get_db_session") as mock_db_session:
+    with patch("admin.utils.operations_audit.get_db_session") as mock_db_session:
         mock_session = MagicMock()
         mock_db_session.return_value.__enter__.return_value = mock_session
 
@@ -219,7 +219,7 @@ def test_get_recent_operations_no_operations():
 
 def test_get_recent_operations_database_error():
     """Test get_recent_operations handles database error (failure case)."""
-    with patch("src.admin.utils.operations_audit.get_db_session") as mock_db_session:
+    with patch("admin.utils.operations_audit.get_db_session") as mock_db_session:
         mock_session = MagicMock()
         mock_session.query.side_effect = Exception("Database unavailable")
         mock_db_session.return_value.__enter__.return_value = mock_session

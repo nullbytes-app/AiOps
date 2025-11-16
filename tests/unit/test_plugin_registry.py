@@ -53,6 +53,10 @@ class MockServiceDeskPlugin(TicketingToolPlugin):
             created_at=datetime.now(timezone.utc),
         )
 
+    async def test_connection(self, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Mock connection test."""
+        return (True, "Mock connection successful")
+
 
 class MockJiraPlugin(TicketingToolPlugin):
     """Mock Jira Service Management plugin for testing."""
@@ -78,6 +82,10 @@ class MockJiraPlugin(TicketingToolPlugin):
             priority="medium",
             created_at=datetime.now(timezone.utc),
         )
+
+    async def test_connection(self, config: Dict[str, Any]) -> tuple[bool, str]:
+        """Mock connection test."""
+        return (True, "Mock Jira connection successful")
 
 
 class InvalidPlugin:

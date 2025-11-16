@@ -6,12 +6,15 @@ This module provides:
 - Automatic instrumentation of FastAPI and Celery
 - Custom span processors for data redaction and slow trace detection
 - Configuration via environment variables
+- Multi-backend support (Jaeger for dev, Uptrace for production)
 
 Story 4.6: Implement Distributed Tracing with OpenTelemetry
+Story 12.8: Uptrace Backend Integration (AC4)
 """
 
+import logging
 import os
-from typing import Optional
+from typing import Dict, Optional
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -25,30 +28,34 @@ from src.monitoring.span_processors import (
     RedactionAndSlowTraceExporter,
 )
 
+logger = logging.getLogger(__name__)
+
 
 def init_tracer_provider() -> TracerProvider:
     """
     Initialize and configure the OpenTelemetry tracer provider.
 
     Creates a TracerProvider with:
-    - OTLP gRPC exporter for trace export to Jaeger
+    - OTLP gRPC exporter for trace export to Jaeger (dev) or Uptrace (production)
     - BatchSpanProcessor for efficient batch export
     - Custom RedactionSpanProcessor to remove sensitive data
     - Custom SlowTraceProcessor to tag slow traces (>60s)
 
     Environment variables:
-    - OTEL_EXPORTER_OTLP_ENDPOINT: Jaeger collector endpoint (default: http://jaeger:4317)
+    - OTEL_BACKEND: Backend type, "jaeger" or "uptrace" (default: jaeger)
+    - OTEL_EXPORTER_OTLP_ENDPOINT: Collector endpoint (default: http://jaeger:4317)
     - OTEL_SERVICE_NAME: Service name in traces (default: ai-agents-enhancement)
     - OTEL_TRACES_SAMPLER: Sampling strategy (default: traceidratio)
     - OTEL_TRACES_SAMPLER_ARG: Sampling rate 0.0-1.0 (default: 0.1 = 10%)
+    - UPTRACE_DSN: Uptrace Data Source Name (required if OTEL_BACKEND=uptrace)
+
+    Story 12.8 AC4: Multi-backend support with seamless switching via OTEL_BACKEND env var.
 
     Returns:
         TracerProvider: Configured tracer provider instance.
     """
     # Load configuration from environment
-    otlp_endpoint = os.getenv(
-        "OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317"
-    )
+    backend = os.getenv("OTEL_BACKEND", "jaeger").lower()
     service_name = os.getenv("OTEL_SERVICE_NAME", "ai-agents-enhancement")
 
     # Create resource with service metadata
@@ -63,14 +70,51 @@ def init_tracer_provider() -> TracerProvider:
     # Create tracer provider
     tracer_provider = TracerProvider(resource=resource)
 
-    # Configure OTLP exporter for Jaeger
-    otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+    # Story 12.8 AC4: Configure OTLP exporter based on backend
+    if backend == "uptrace":
+        # Uptrace production backend configuration
+        otlp_endpoint = os.getenv("UPTRACE_OTLP_ENDPOINT", "https://uptrace.example.com:4317")
+        uptrace_dsn = os.getenv("UPTRACE_DSN")
+
+        if not uptrace_dsn:
+            logger.warning(
+                "UPTRACE_DSN not set - traces will be exported without authentication. "
+                "Set UPTRACE_DSN environment variable for production deployments."
+            )
+            headers: Dict[str, str] = {}
+        else:
+            headers = {"uptrace-dsn": uptrace_dsn}
+
+        otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint, headers=headers)
+
+        logger.info(
+            f"OpenTelemetry initialized with Uptrace backend",
+            extra={
+                "backend": "uptrace",
+                "endpoint": otlp_endpoint,
+                "service_name": service_name,
+                "has_dsn": bool(uptrace_dsn),
+            }
+        )
+    else:
+        # Jaeger development backend configuration (Story 4.6 existing)
+        otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://jaeger:4317")
+        otlp_exporter = OTLPSpanExporter(endpoint=otlp_endpoint)
+
+        logger.info(
+            f"OpenTelemetry initialized with Jaeger backend",
+            extra={
+                "backend": "jaeger",
+                "endpoint": otlp_endpoint,
+                "service_name": service_name,
+            }
+        )
 
     # Wrap OTLP exporter with redaction and slow trace detection
-    # This wrapper (AC12 & AC14):
-    # - Redacts sensitive attributes (api_key, secret, password, token)
+    # This wrapper (Story 4.6 AC12 & AC14 + Story 12.8 AC7):
+    # - Redacts sensitive attributes (api_key, secret, password, token, mcp_server_env)
     # - Tags spans exceeding 60 seconds with slow_trace=true
-    # - Forwards modified spans to Jaeger via OTLP
+    # - Forwards modified spans to configured backend (Jaeger or Uptrace) via OTLP
     wrapped_exporter = RedactionAndSlowTraceExporter(otlp_exporter)
 
     # Configure batch span processor for performance optimization

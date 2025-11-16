@@ -15,6 +15,7 @@ from typing import AsyncGenerator
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.config import settings
 from src.database.session import get_async_session
 from src.database.tenant_context import set_db_tenant_context
 
@@ -64,6 +65,11 @@ async def get_tenant_id(request: Request) -> str:
     # TODO: Implement auth token parsing when authentication is added
     # if not tenant_id and hasattr(request.state, "user"):
     #     tenant_id = request.state.user.tenant_id
+
+    # Strategy 4: Fallback to DEFAULT_TENANT_ID from environment
+    # Used for single-tenant deployments or development environments
+    if not tenant_id:
+        tenant_id = settings.default_tenant_id
 
     if not tenant_id:
         raise HTTPException(
@@ -120,25 +126,73 @@ async def get_tenant_db(
         - All queries through this session are subject to RLS filtering
         - Superuser roles with BYPASSRLS will see all data regardless
     """
+    # Set tenant context before yielding session
+    await set_db_tenant_context(session, tenant_id)
+
+    # Yield session for request handler use
+    # Note: We don't catch exceptions here to allow FastAPI's built-in
+    # validation errors (RequestValidationError) to propagate correctly.
+    # Tenant context setting errors will raise before the yield.
+    yield session
+
+    # Session cleanup handled by get_async_session dependency
+    # Tenant context automatically cleared on session close
+
+
+async def get_tenant_uuid(
+    tenant_id: str = Depends(get_tenant_id),
+    session: AsyncSession = Depends(get_async_session),
+) -> "UUID":
+    """
+    Resolve tenant_id (VARCHAR) to TenantConfig.id (UUID).
+
+    Many models use TenantConfig.id (UUID) as foreign key, but the
+    dependency get_tenant_id returns TenantConfig.tenant_id (VARCHAR).
+    This dependency resolves the VARCHAR identifier to the UUID primary key.
+
+    Args:
+        tenant_id: Tenant identifier (VARCHAR from get_tenant_id)
+        session: Database session
+
+    Returns:
+        UUID: TenantConfig.id (primary key)
+
+    Raises:
+        HTTPException: 404 if tenant not found
+
+    Example:
+        @app.get("/api/v1/mcp-servers")
+        async def list_servers(
+            tenant_uuid: UUID = Depends(get_tenant_uuid),
+            db: AsyncSession = Depends(get_tenant_db)
+        ):
+            servers = await service.list_servers(tenant_uuid)
+    """
+    from uuid import UUID
+    from sqlalchemy import select
+    from src.database.models import TenantConfig
+
     try:
-        # Set tenant context before yielding session
-        await set_db_tenant_context(session, tenant_id)
+        # Query TenantConfig to get UUID id from VARCHAR tenant_id
+        stmt = select(TenantConfig.id).where(TenantConfig.tenant_id == tenant_id)
+        result = await session.execute(stmt)
+        tenant_uuid = result.scalar_one_or_none()
 
-        # Yield session for request handler use
-        yield session
+        if not tenant_uuid:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Tenant '{tenant_id}' not found"
+            )
 
+        return tenant_uuid
+
+    except HTTPException:
+        raise
     except Exception as e:
-        # If tenant context setting fails, return 500
-        # This typically means tenant_id doesn't exist in tenant_configs
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to set tenant context: {str(e)}"
+            detail=f"Failed to resolve tenant UUID: {str(e)}"
         )
-
-    finally:
-        # Session cleanup handled by get_async_session dependency
-        # Tenant context automatically cleared on session close
-        pass
 
 
 async def get_tenant_config_dep(

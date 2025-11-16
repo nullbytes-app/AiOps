@@ -36,140 +36,9 @@ from src.utils.logger import logger
 router = APIRouter(prefix="/api/agents", tags=["prompts"])
 
 
-@router.get(
-    "/{agent_id}/prompt-versions",
-    response_model=list[PromptVersionResponse],
-    summary="Get Prompt Version History",
-    description="Retrieves version history for an agent's system prompt. "
-    "Includes metadata for each version but not the full prompt text.",
-)
-async def get_prompt_versions(
-    agent_id: UUID,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[AsyncSession, Depends(get_tenant_db)],
-    limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
-) -> list[PromptVersionResponse]:
-    """
-    Get prompt version history for an agent.
-
-    Args:
-        agent_id: The agent UUID
-        limit: Maximum number of versions to return (default: 20, max: 100)
-        offset: Number of versions to skip for pagination
-        tenant_id: Tenant ID (auto-injected from session)
-        db: Database session (auto-injected)
-
-    Returns:
-        List of PromptVersionResponse objects ordered by created_at DESC
-
-    Raises:
-        404: If agent not found or doesn't belong to tenant
-        403: If accessing another tenant's agent
-    """
-    prompt_service = PromptService(db)
-    versions = await prompt_service.get_prompt_versions(
-        agent_id, tenant_id, limit=limit, offset=offset
-    )
-    if not versions:
-        logger.warning(f"No prompt versions found for agent {agent_id}")
-    return versions
-
-
-@router.get(
-    "/{agent_id}/prompt-versions/{version_id}",
-    response_model=PromptVersionDetail,
-    summary="Get Prompt Version Detail",
-    description="Retrieves full prompt text for a specific version.",
-)
-async def get_prompt_version_detail(
-    agent_id: UUID,
-    version_id: UUID,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[AsyncSession, Depends(get_tenant_db)],
-) -> PromptVersionDetail:
-    """
-    Get detailed prompt version with full text.
-
-    Args:
-        agent_id: The agent UUID
-        version_id: The version UUID
-        tenant_id: Tenant ID (auto-injected)
-        db: Database session (auto-injected)
-
-    Returns:
-        PromptVersionDetail with full prompt_text
-
-    Raises:
-        404: If version not found
-        403: If accessing another tenant's agent
-    """
-    prompt_service = PromptService(db)
-    version = await prompt_service.get_prompt_version_detail(version_id, agent_id, tenant_id)
-    if not version:
-        raise HTTPException(status_code=404, detail="Prompt version not found")
-    return version
-
-
-@router.post(
-    "/{agent_id}/prompt-versions/revert",
-    response_model=dict,
-    summary="Revert to Previous Prompt Version",
-    description="Reverts agent's system prompt to a previous version.",
-)
-async def revert_prompt_version(
-    agent_id: UUID,
-    tenant_id: Annotated[str, Depends(get_tenant_id)],
-    db: Annotated[AsyncSession, Depends(get_tenant_db)],
-    request_body: Annotated[
-        dict[str, str],
-        Body(
-            openapi_examples={
-                "revert_example": {
-                    "summary": "Revert to previous version",
-                    "description": "Revert to version created 1 day ago",
-                    "value": {"version_id": "550e8400-e29b-41d4-a716-446655440000"},
-                }
-            }
-        ),
-    ] = {},
-) -> dict[str, str]:
-    """
-    Revert to a previous prompt version.
-
-    Args:
-        agent_id: The agent UUID
-        request_body: {"version_id": "UUID of version to revert to"}
-        tenant_id: Tenant ID (auto-injected)
-        db: Database session (auto-injected)
-
-    Returns:
-        {"success": true, "message": "Reverted to version from..."}
-
-    Raises:
-        400: If version_id not provided or invalid
-        404: If version not found
-        403: If accessing another tenant's agent
-    """
-    version_id_str = request_body.get("version_id")
-    if not version_id_str:
-        raise HTTPException(status_code=400, detail="version_id required")
-
-    try:
-        version_id = UUID(version_id_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid version_id format")
-
-    prompt_service = PromptService(db)
-    success = await prompt_service.revert_to_version(version_id, agent_id, tenant_id)
-    if not success:
-        raise HTTPException(status_code=400, detail="Failed to revert prompt version")
-
-    logger.info(f"Reverted prompt for agent {agent_id} to version {version_id}")
-    return {
-        "success": "true",
-        "message": "Successfully reverted to previous version",
-    }
+# ============================================================================
+# Static Routes - MUST come before parameterized routes for proper matching
+# ============================================================================
 
 
 @router.get(
@@ -425,3 +294,144 @@ async def test_prompt(
     except Exception as e:
         logger.error(f"Prompt test failed: {str(e)}")
         raise HTTPException(status_code=503, detail="LLM service unavailable")
+
+
+# ============================================================================
+# Parameterized Routes - Come after static routes
+# ============================================================================
+
+
+@router.get(
+    "/{agent_id}/prompt-versions",
+    response_model=list[PromptVersionResponse],
+    summary="Get Prompt Version History",
+    description="Retrieves version history for an agent's system prompt. "
+    "Includes metadata for each version but not the full prompt text.",
+)
+async def get_prompt_versions(
+    agent_id: UUID,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[PromptVersionResponse]:
+    """
+    Get prompt version history for an agent.
+
+    Args:
+        agent_id: The agent UUID
+        limit: Maximum number of versions to return (default: 20, max: 100)
+        offset: Number of versions to skip for pagination
+        tenant_id: Tenant ID (auto-injected from session)
+        db: Database session (auto-injected)
+
+    Returns:
+        List of PromptVersionResponse objects ordered by created_at DESC
+
+    Raises:
+        404: If agent not found or doesn't belong to tenant
+        403: If accessing another tenant's agent
+    """
+    prompt_service = PromptService(db)
+    versions = await prompt_service.get_prompt_versions(
+        agent_id, tenant_id, limit=limit, offset=offset
+    )
+    if not versions:
+        logger.warning(f"No prompt versions found for agent {agent_id}")
+    return versions
+
+
+@router.get(
+    "/{agent_id}/prompt-versions/{version_id}",
+    response_model=PromptVersionDetail,
+    summary="Get Prompt Version Detail",
+    description="Retrieves full prompt text for a specific version.",
+)
+async def get_prompt_version_detail(
+    agent_id: UUID,
+    version_id: UUID,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+) -> PromptVersionDetail:
+    """
+    Get detailed prompt version with full text.
+
+    Args:
+        agent_id: The agent UUID
+        version_id: The version UUID
+        tenant_id: Tenant ID (auto-injected)
+        db: Database session (auto-injected)
+
+    Returns:
+        PromptVersionDetail with full prompt_text
+
+    Raises:
+        404: If version not found
+        403: If accessing another tenant's agent
+    """
+    prompt_service = PromptService(db)
+    version = await prompt_service.get_prompt_version_detail(version_id, agent_id, tenant_id)
+    if not version:
+        raise HTTPException(status_code=404, detail="Prompt version not found")
+    return version
+
+
+@router.post(
+    "/{agent_id}/prompt-versions/revert",
+    response_model=dict,
+    summary="Revert to Previous Prompt Version",
+    description="Reverts agent's system prompt to a previous version.",
+)
+async def revert_prompt_version(
+    agent_id: UUID,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+    request_body: Annotated[
+        dict[str, str],
+        Body(
+            openapi_examples={
+                "revert_example": {
+                    "summary": "Revert to previous version",
+                    "description": "Revert to version created 1 day ago",
+                    "value": {"version_id": "550e8400-e29b-41d4-a716-446655440000"},
+                }
+            }
+        ),
+    ] = {},
+) -> dict[str, str]:
+    """
+    Revert to a previous prompt version.
+
+    Args:
+        agent_id: The agent UUID
+        request_body: {"version_id": "UUID of version to revert to"}
+        tenant_id: Tenant ID (auto-injected)
+        db: Database session (auto-injected)
+
+    Returns:
+        {"success": true, "message": "Reverted to version from..."}
+
+    Raises:
+        400: If version_id not provided or invalid
+        404: If version not found
+        403: If accessing another tenant's agent
+    """
+    version_id_str = request_body.get("version_id")
+    if not version_id_str:
+        raise HTTPException(status_code=400, detail="version_id required")
+
+    try:
+        version_id = UUID(version_id_str)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid version_id format")
+
+    prompt_service = PromptService(db)
+    success = await prompt_service.revert_to_version(version_id, agent_id, tenant_id)
+    if not success:
+        raise HTTPException(status_code=400, detail="Failed to revert prompt version")
+
+    logger.info(f"Reverted prompt for agent {agent_id} to version {version_id}")
+    return {
+        "success": "true",
+        "message": "Successfully reverted to previous version",
+    }

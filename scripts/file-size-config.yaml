@@ -1,0 +1,46 @@
+# File Size Enforcement Configuration
+#
+# Defines threshold and exclusions for check-file-size.py script.
+# See Story 12.7: File Size Refactoring and Code Quality.
+#
+# References:
+# - 2025 Python Best Practices: 150-500 line sweet spot for AI code editors
+# - WebSearch research: Medium article Sep 2025, khaled-jallouli.medium.com
+
+# Maximum lines per file (default: 500)
+max_lines: 500
+
+# File patterns to exclude (substring matching)
+# Use for generated code, migrations, legacy files
+exclude_patterns:
+  - "alembic/versions/"  # Database migrations (auto-generated)
+  - "tests/fixtures/"    # Test data files
+  - "__pycache__"        # Python cache
+  - ".pyc"               # Compiled Python
+  - "venv/"              # Virtual environment
+  - ".venv/"             # Virtual environment
+  - "node_modules/"      # Node.js modules
+  - "data/"              # Data directory (Postgres, Redis, Prometheus)
+  - ".bmad"              # BMAD ephemeral files
+  - ".github/"           # GitHub workflows (may contain long YAML)
+
+# Directory names to exclude (exact match)
+# Use for entire directories that should be skipped
+exclude_dirs:
+  - "__pycache__"
+  - ".pytest_cache"
+  - "htmlcov"
+  - "dist"
+  - "build"
+  - ".git"
+  - "data"
+  - ".bmad-ephemeral"
+  - ".bmad"
+
+# Known oversize files that are being refactored (Story 12.7)
+# Remove entries as files are refactored
+# Format: "path/to/file.py  # N lines - Target: Story X.Y"
+
+# ✅ REFACTORED (Story 12.7):
+# - src/services/agent_execution_service.py  # 564 → 379 lines
+# - src/admin/pages/12_MCP_Servers.py        # 558 → 59 lines

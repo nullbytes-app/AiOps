@@ -107,3 +107,125 @@ worker_active_count: Gauge = Gauge(
     documentation="Number of currently active Celery workers processing enhancements",
     labelnames=["worker_type"],
 )
+
+# ============================================================================
+# MCP BRIDGE POOLING METRICS (Story 11.2.3)
+# ============================================================================
+# NOTE: These metrics are defined but NOT yet instrumented in the bridge pooling code.
+# Story 11.2.3 implements simplified bridge pooling (per-execution context lifecycle)
+# without the full MCPConnectionPool class that would use these metrics.
+# These are marked as FUTURE ENHANCEMENT for potential instrumentation if monitoring
+# requirements emerge or if full connection pool manager is implemented later.
+# ============================================================================
+
+# GAUGE: mcp_pool_total_clients
+mcp_pool_total_clients: Gauge = Gauge(
+    name="mcp_pool_total_clients",
+    documentation="Total number of MCP clients in pool",
+    labelnames=["transport_type"],
+)
+
+# GAUGE: mcp_pool_active_clients
+mcp_pool_active_clients: Gauge = Gauge(
+    name="mcp_pool_active_clients",
+    documentation="Number of MCP clients currently in use",
+    labelnames=["transport_type"],
+)
+
+# GAUGE: mcp_pool_idle_clients
+mcp_pool_idle_clients: Gauge = Gauge(
+    name="mcp_pool_idle_clients",
+    documentation="Number of MCP clients available for reuse",
+    labelnames=["transport_type"],
+)
+
+# COUNTER: mcp_pool_client_acquisitions_total
+mcp_pool_client_acquisitions_total: Counter = Counter(
+    name="mcp_pool_client_acquisitions_total",
+    documentation="Total number of MCP client acquisitions from pool",
+    labelnames=["server_id", "transport_type", "tenant_id"],
+)
+
+# COUNTER: mcp_pool_client_reuses_total
+mcp_pool_client_reuses_total: Counter = Counter(
+    name="mcp_pool_client_reuses_total",
+    documentation="Total number of MCP client reuses (cache hits)",
+    labelnames=["server_id", "transport_type", "tenant_id"],
+)
+
+# COUNTER: mcp_pool_client_creations_total
+mcp_pool_client_creations_total: Counter = Counter(
+    name="mcp_pool_client_creations_total",
+    documentation="Total number of new MCP client creations (cache misses)",
+    labelnames=["server_id", "transport_type", "tenant_id"],
+)
+
+# COUNTER: mcp_pool_client_evictions_total
+mcp_pool_client_evictions_total: Counter = Counter(
+    name="mcp_pool_client_evictions_total",
+    documentation="Total number of MCP client evictions from pool",
+    labelnames=["transport_type"],
+)
+
+# COUNTER: mcp_pool_client_health_check_failures_total
+mcp_pool_client_health_check_failures_total: Counter = Counter(
+    name="mcp_pool_client_health_check_failures_total",
+    documentation="Total number of failed MCP client health checks",
+    labelnames=["server_id", "transport_type"],
+)
+
+# HISTOGRAM: mcp_pool_acquisition_duration_seconds
+mcp_pool_acquisition_duration_seconds: Histogram = Histogram(
+    name="mcp_pool_acquisition_duration_seconds",
+    documentation="Time to acquire MCP client from pool (seconds)",
+    labelnames=["server_id", "transport_type", "tenant_id"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0),
+)
+
+# HISTOGRAM: mcp_pool_wait_time_seconds
+mcp_pool_wait_time_seconds: Histogram = Histogram(
+    name="mcp_pool_wait_time_seconds",
+    documentation="Time waiting for available MCP client (seconds)",
+    labelnames=["server_id", "transport_type"],
+    buckets=(0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0),
+)
+
+# ===== MCP Server Health Monitoring Metrics (Story 11.2.4) =====
+# These metrics track detailed health check results for MCP servers,
+# enabling performance analysis, failure detection, and trend monitoring.
+
+# GAUGE: mcp_server_health_status
+mcp_server_health_status: Gauge = Gauge(
+    name="mcp_server_health_status",
+    documentation="MCP server health status (1=active, 0=inactive)",
+    labelnames=["server_id", "server_name", "transport_type", "tenant_id"],
+)
+
+# GAUGE: mcp_server_last_check_timestamp
+mcp_server_last_check_timestamp: Gauge = Gauge(
+    name="mcp_server_last_check_timestamp",
+    documentation="Timestamp of last health check (Unix seconds)",
+    labelnames=["server_id", "server_name"],
+)
+
+# COUNTER: mcp_health_checks_total
+mcp_health_checks_total: Counter = Counter(
+    name="mcp_health_checks_total",
+    documentation="Total health checks performed",
+    labelnames=["server_id", "server_name", "transport_type", "status"],
+)
+
+# COUNTER: mcp_health_check_errors_total
+mcp_health_check_errors_total: Counter = Counter(
+    name="mcp_health_check_errors_total",
+    documentation="Total health check errors",
+    labelnames=["server_id", "server_name", "error_type"],
+)
+
+# HISTOGRAM: mcp_health_check_duration_seconds
+mcp_health_check_duration_seconds: Histogram = Histogram(
+    name="mcp_health_check_duration_seconds",
+    documentation="Health check response time distribution",
+    labelnames=["server_id", "server_name", "transport_type"],
+    buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0, float("inf")),
+)

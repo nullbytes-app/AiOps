@@ -21,10 +21,11 @@ secondaryBackgroundColor = "#F0F2F6"
 textColor = "#262730"
 font = "sans-serif"
 
-# Sidebar-specific theme properties (fixes console warnings)
+# Streamlit 1.51.0 expects these sidebar theme properties
+# Using valid color values to prevent JavaScript warnings
 [theme.sidebar]
 widgetBackgroundColor = "#FFFFFF"
-widgetBorderColor = "#E0E0E0"
+widgetBorderColor = "#E6E9EF"
 skeletonBackgroundColor = "#F0F2F6"
 
 [client]

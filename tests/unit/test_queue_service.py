@@ -45,6 +45,7 @@ class TestQueueService:
             "description": "Server is slow and unresponsive",
             "priority": "high",
             "timestamp": datetime.now(UTC),
+            "correlation_id": str(uuid.uuid4()),  # Required for distributed tracing
         }
 
     @pytest.mark.asyncio
@@ -91,9 +92,7 @@ class TestQueueService:
         - created_at field is auto-generated
         """
         # When
-        await queue_service.push_job(
-            valid_job_data, tenant_id="tenant-abc", ticket_id="TKT-001"
-        )
+        await queue_service.push_job(valid_job_data, tenant_id="tenant-abc", ticket_id="TKT-001")
 
         # Then
         call_args = mock_redis_client.lpush.call_args
@@ -182,9 +181,7 @@ class TestQueueService:
 
         # When/Then
         with pytest.raises(QueueServiceError):
-            await queue_service.push_job(
-                invalid_data, tenant_id="tenant-abc", ticket_id="TKT-001"
-            )
+            await queue_service.push_job(invalid_data, tenant_id="tenant-abc", ticket_id="TKT-001")
 
     @pytest.mark.asyncio
     async def test_push_job_description_max_length(
@@ -203,9 +200,7 @@ class TestQueueService:
 
         # When/Then
         with pytest.raises(QueueServiceError):
-            await queue_service.push_job(
-                invalid_data, tenant_id="tenant-abc", ticket_id="TKT-001"
-            )
+            await queue_service.push_job(invalid_data, tenant_id="tenant-abc", ticket_id="TKT-001")
 
     @pytest.mark.asyncio
     async def test_push_job_queue_depth(self, queue_service, mock_redis_client, valid_job_data):
@@ -220,9 +215,7 @@ class TestQueueService:
         mock_redis_client.lpush.return_value = 3  # Simulate queue depth of 3
 
         # When
-        await queue_service.push_job(
-            valid_job_data, tenant_id="tenant-abc", ticket_id="TKT-001"
-        )
+        await queue_service.push_job(valid_job_data, tenant_id="tenant-abc", ticket_id="TKT-001")
 
         # Then
         assert mock_redis_client.lpush.called
@@ -247,6 +240,7 @@ class TestQueueService:
                 "description": f"Issue {i}",
                 "priority": "high",
                 "timestamp": datetime.now(UTC),
+                "correlation_id": str(uuid.uuid4()),  # Required for distributed tracing
             }
             for i in range(1, 4)
         ]
@@ -284,9 +278,7 @@ class TestQueueService:
 
         # When/Then
         with pytest.raises(QueueServiceError):
-            await queue_service.push_job(
-                invalid_data, tenant_id="tenant-abc", ticket_id="unknown"
-            )
+            await queue_service.push_job(invalid_data, tenant_id="tenant-abc", ticket_id="unknown")
 
     @pytest.mark.asyncio
     async def test_push_job_valid_job_id_format(
