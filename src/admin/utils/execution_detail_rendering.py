@@ -334,7 +334,7 @@ def render_llm_conversation(execution: dict) -> None:
     - System prompt (note: stored with agent, not execution)
     - User message (extracted from input_data/payload)
     - LLM response text (from execution_trace)
-    - Tool calls (if applicable)
+    - Tool calls (if applicable) - each shown as individual expandable card
 
     Each section uses st.text_area() for full content display with scrolling.
 
@@ -404,17 +404,80 @@ def render_llm_conversation(execution: dict) -> None:
     else:
         st.warning("No LLM response found in execution trace")
 
-    # Tool Calls section (if present)
-    tool_calls = conversation.get("tool_calls", [])
+    # Tool Calls section (if present) - Extract from steps array
+    # FIX: Tool calls are stored as separate steps with step_type="tool_call"
+    # not as a tool_calls array inside the llm_response step
     tool_calls_count = output_data.get("tool_calls_count", 0)
 
+    # Extract all tool_call steps from output_data.steps
+    tool_calls = []
+    if "steps" in output_data and isinstance(output_data["steps"], list):
+        tool_calls = [
+            step for step in output_data["steps"]
+            if step.get("step_type") == "tool_call"
+        ]
+
     st.markdown("---")
-    st.markdown(f"**Tool Calls:** {tool_calls_count} total")
+    st.markdown(f"**🔧 Tool Calls:** {tool_calls_count} total")
 
     if tool_calls and len(tool_calls) > 0:
-        st.json(tool_calls)
+        # Render each tool call as a separate expandable card
+        for idx, tool in enumerate(tool_calls, 1):
+            # Extract tool information from the tool_call step format
+            # Format: {step_type, tool_name, tool_args, tool_result}
+            tool_name = tool.get("tool_name", "Unknown Tool")
+            tool_args = tool.get("tool_args", {})
+            tool_result = tool.get("tool_result", "")
+
+            # Create expander for each tool
+            with st.expander(f"🔧 Tool {idx}: **{tool_name}**", expanded=False):
+                # Two-column layout for input/output
+                col1, col2 = st.columns(2)
+
+                with col1:
+                    st.markdown("**📥 Input:**")
+                    if tool_args:
+                        st.json(tool_args)
+                    else:
+                        st.info("No input parameters")
+
+                with col2:
+                    st.markdown("**📤 Output:**")
+                    if tool_result:
+                        # Handle string vs object output
+                        if isinstance(tool_result, str):
+                            # Try to parse as JSON first
+                            try:
+                                parsed_output = json.loads(tool_result)
+                                st.json(parsed_output)
+                            except json.JSONDecodeError:
+                                # Display as text if not JSON
+                                st.code(tool_result, language="text")
+                        else:
+                            st.json(tool_result)
+                    else:
+                        st.info("No output available")
+
+                # Show error if tool call failed
+                if "error" in tool:
+                    st.error(f"❌ **Error:** {tool['error']}")
+
+                # Show additional metadata if available
+                metadata_items = []
+                if "timestamp" in tool:
+                    metadata_items.append(f"⏱️ Timestamp: `{tool['timestamp']}`")
+                if "duration_ms" in tool:
+                    metadata_items.append(f"⚡ Duration: `{tool['duration_ms']}ms`")
+                if "status" in tool:
+                    status_icon = "✅" if tool["status"] == "success" else "❌"
+                    metadata_items.append(f"{status_icon} Status: `{tool['status']}`")
+
+                if metadata_items:
+                    st.markdown("---")
+                    st.caption(" | ".join(metadata_items))
+
     elif tool_calls_count == 0:
-        st.info("No MCP tools were called during this execution")
+        st.info("ℹ️ No MCP tools were called during this execution")
 
 
 def render_error_section(execution: dict) -> None:

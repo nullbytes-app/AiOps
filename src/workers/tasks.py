@@ -904,9 +904,9 @@ async def _execute_agent_async(agent_id: str, payload: Dict[str, Any], execution
         for tool_call in service_result.get("tool_calls", []):
             execution_trace["steps"].append({
                 "step_type": "tool_call",
-                "tool_name": tool_call.get("name", "unknown"),
-                "tool_args": tool_call.get("args", {}),
-                "tool_result": str(tool_call.get("result", ""))[:500],  # Truncate large results
+                "tool_name": tool_call.get("tool_name", "unknown"),
+                "tool_args": tool_call.get("tool_input", {}),
+                "tool_result": str(tool_call.get("tool_output", ""))[:500],  # Truncate large results
             })
 
         # Add final LLM response to trace
