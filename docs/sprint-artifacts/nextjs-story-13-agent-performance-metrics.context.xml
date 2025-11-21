@@ -1,0 +1,285 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>Epic 1 - Analytics & Monitoring Dashboards</epicId>
+    <storyId>nextjs-story-13-agent-performance-metrics</storyId>
+    <title>Agent Performance Dashboard - Metrics Overview</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-21</generatedAt>
+    <generator>BMAD Story Context Workflow (SM Agent - Bob)</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-13-agent-performance-metrics.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer or admin</asA>
+    <iWant>to see performance metrics for a selected agent</iWant>
+    <soThat>I can identify slow or failing agents and optimize their performance</soThat>
+    <tasks>
+      <phase n="1" name="Foundation" hours="2">
+        <task n="1">Create page structure at app/dashboard/agent-performance/page.tsx with RBAC check</task>
+        <task n="2">Create utility functions (formatExecutionTime, formatCount, getSuccessRateColor, getDateRangePreset)</task>
+        <task n="3">Create React Query hooks (useAgents, useAgentMetrics with auto-refresh 60s)</task>
+        <task n="4">Create AgentSelector component with shadcn/ui Select</task>
+      </phase>
+      <phase n="2" name="Core Features" hours="2.5">
+        <task n="5">Create DateRangeSelector component (Last 7/30 days, Custom)</task>
+        <task n="6">Create MetricCard component (title, value, subtitle, icon, color, trend)</task>
+        <task n="7">Create AgentMetricsCards component with 6 metric cards (total executions, success rate, avg time, P95 time, total errors, error rate)</task>
+        <task n="8">Create EmptyState component for no data scenarios</task>
+      </phase>
+      <phase n="3" name="Integration" hours="1.5">
+        <task n="9">Wire up page state management (selected agent, date range)</task>
+        <task n="10">Add navigation link to dashboard sidebar (RBAC: developer/admin only)</task>
+        <task n="11">Final polish (responsive layout, keyboard nav, accessibility, auto-refresh)</task>
+      </phase>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1" priority="must">
+      <description>Agent selector dropdown shows all active agents with date range selector (Last 7/30/Custom)</description>
+      <testable>Select agent from dropdown, verify metrics load; change date range, verify refetch</testable>
+    </criterion>
+    <criterion id="AC-2" priority="must">
+      <description>Metrics cards display: Total executions, Success rate (%), Avg execution time, P95 time, Total errors, Error rate (%)</description>
+      <testable>Verify all 6 cards render with formatted values (K/M notation, ms/s formatting, 1 decimal %)</testable>
+    </criterion>
+    <criterion id="AC-3" priority="must">
+      <description>Metrics update when agent selected, date range changed, or auto-refresh (60s)</description>
+      <testable>Change agent → metrics refetch; wait 60s → auto-refresh; verify loading states</testable>
+    </criterion>
+    <criterion id="AC-4" priority="must">
+      <description>Success rate color-coded: Green (≥95%), Yellow (85-94.9%), Red (&lt;85%)</description>
+      <testable>Mock API with various success rates, verify color classes applied correctly</testable>
+    </criterion>
+    <criterion id="AC-5" priority="must">
+      <description>Time formatting: &lt;1s shows ms (450ms), ≥1s shows seconds with 2 decimals (2.34s)</description>
+      <testable>Test formatExecutionTime(450) → '450ms', formatExecutionTime(2345) → '2.35s'</testable>
+    </criterion>
+    <criterion id="AC-6" priority="should">
+      <description>Edge case: Agent with 0 executions shows empty state with suggestion</description>
+      <testable>Mock API with 0 executions, verify empty state renders with message</testable>
+    </criterion>
+    <criterion id="AC-7" priority="should">
+      <description>Edge case: Agent with 100% success shows green, 0 errors</description>
+      <testable>Mock API with 100% success, verify success rate green, error rate 0.0%</testable>
+    </criterion>
+    <criterion id="AC-8" priority="must">
+      <description>RBAC: Only developer/admin roles can access, others redirected</description>
+      <testable>Mock session with operator role, verify redirect to /dashboard</testable>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics-nextjs-feature-parity-completion.md</path>
+        <title>Next.js UI Feature Parity Completion</title>
+        <section>Epic 1, Story 1.5 - Agent Performance Dashboard Metrics Overview</section>
+        <snippet>Provides real-time agent execution metrics (success rate, latency, error rate) for developers and admins. Critical for production operations and agent reliability.</snippet>
+      </doc>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Next.js UI Migration Technical Specification v2</title>
+        <section>Architecture - React Query patterns, shadcn/ui components, TypeScript strict mode</section>
+        <snippet>Defines Next.js 14 App Router patterns, TanStack Query v5 with staleTime 30s/refetchInterval 60s, Liquid Glass design system.</snippet>
+      </doc>
+      <doc>
+        <path>docs/sprint-artifacts/nextjs-story-12-llm-cost-dashboard-budget-bars.md</path>
+        <title>Story 12 - LLM Cost Dashboard Budget Bars (Reference)</title>
+        <section>Patterns: React Query hooks, MetricCard-style components, utility functions</section>
+        <snippet>Demonstrates TanStack Query v5 best practices, color-coded thresholds, formatCurrency pattern, auto-refresh 60s, WCAG 2.1 AA accessibility.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>nextjs-ui/hooks/useBudgetUtilization.ts</path>
+        <kind>hook</kind>
+        <symbol>useBudgetUtilization</symbol>
+        <lines>1-93</lines>
+        <reason>Reference pattern for React Query hook with auto-refresh (refetchInterval 60s, staleTime 30s), query key arrays, exponential backoff retry</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/costs/MetricCard.tsx</path>
+        <kind>component</kind>
+        <symbol>MetricCard</symbol>
+        <lines>1-150</lines>
+        <reason>Existing MetricCard component can be reused or referenced for agent performance metrics cards (label, value, subtitle, trend, loading)</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/lib/utils/budget.ts</path>
+        <kind>utility</kind>
+        <symbol>getBudgetColor, formatCurrency</symbol>
+        <lines>1-128</lines>
+        <reason>Pattern for color-coding thresholds and number formatting - similar logic needed for success rate colors and execution time formatting</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/package.json</path>
+        <kind>config</kind>
+        <symbol>dependencies</symbol>
+        <lines>20-58</lines>
+        <reason>Existing dependencies: @tanstack/react-query ^5.62.2, recharts ^3.3.0, date-fns ^3.6.0, lucide-react ^0.462.0, axios ^1.7.9</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/app/dashboard/llm-costs/page.tsx</path>
+        <kind>page</kind>
+        <symbol>LLMCostsPage</symbol>
+        <lines>N/A</lines>
+        <reason>Reference dashboard page structure: RBAC check, section layout, metrics cards grid (3 cols desktop, 2 tablet, 1 mobile)</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package name="next" version="14.2.15">App Router, Server Components</package>
+        <package name="react" version="18.3.1">Client Components, hooks</package>
+        <package name="@tanstack/react-query" version="5.62.2">Data fetching, caching, auto-refresh</package>
+        <package name="axios" version="1.7.9">HTTP client for API calls</package>
+        <package name="date-fns" version="3.6.0">Date formatting and calculations</package>
+        <package name="lucide-react" version="0.462.0">Icons (Activity, BarChart3, etc.)</package>
+        <package name="tailwindcss" version="3.4.14">Styling, responsive design</package>
+        <package name="typescript" version="5.6.3">Type safety, strict mode</package>
+      </node>
+      <test>
+        <package name="jest" version="30.2.0">Unit testing framework</package>
+        <package name="@testing-library/react" version="16.3.0">Component testing</package>
+        <package name="@testing-library/jest-dom" version="6.9.1">DOM assertions</package>
+        <package name="@playwright/test" version="1.56.1">E2E testing</package>
+        <package name="msw" version="2.6.5">API mocking</package>
+      </test>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architecture">
+      <rule>File size: All files ≤500 lines (extract sub-components if needed)</rule>
+      <rule>TypeScript strict mode: Explicit types, zero `any` usage</rule>
+      <rule>Component structure: 'use client' directives for interactive components, composition over props drilling</rule>
+      <rule>React Query: queryKey arrays for granular caching, staleTime 30s, refetchInterval 60s, retry 3 with exponential backoff</rule>
+      <rule>API integration: Base URL /api/v1 (versioned), 5s timeout, retry 3 attempts, JWT auth + X-Tenant-ID header</rule>
+    </constraint>
+    <constraint type="design">
+      <rule>shadcn/ui components: Use Card, Select for consistency with existing UI</rule>
+      <rule>Responsive layout: 3 cols desktop (lg:grid-cols-3), 2 cols tablet (md:grid-cols-2), 1 col mobile</rule>
+      <rule>Color palette: Green (success ≥95%), Yellow (warning 85-94.9%), Red (critical &lt;85%)</rule>
+      <rule>Accessibility: WCAG 2.1 AA compliant, keyboard navigation (Tab, Enter), ARIA labels, 4.5:1 contrast</rule>
+      <rule>Loading states: Skeleton components matching final UI structure for perceived performance</rule>
+    </constraint>
+    <constraint type="testing">
+      <rule>Coverage target: ≥90% for new code (unit tests)</rule>
+      <rule>Test all edge cases: 0 executions, 100% success, API errors, null values</rule>
+      <rule>Test formatting: formatExecutionTime (ms vs s), formatCount (K/M notation), color thresholds</rule>
+      <rule>Test RBAC: Verify redirect for unauthorized roles (operator, viewer)</rule>
+    </constraint>
+    <constraint type="security">
+      <rule>RBAC enforcement: Frontend check + backend API 403 for non-developer/admin</rule>
+      <rule>Tenant isolation: X-Tenant-ID header enforced, users see only accessible tenants' data</rule>
+      <rule>No sensitive data logging: Do not log agent metrics or performance data to browser console</rule>
+    </constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/agents</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/agents?status=active → { data: AgentListItemDTO[], total_count: number }</signature>
+      <path>Backend API (to be implemented or verified)</path>
+      <notes>Returns list of active agents for selector dropdown. Response includes id, name, status, description, created_at</notes>
+    </interface>
+    <interface>
+      <name>GET /api/agents/{id}/metrics</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/agents/{id}/metrics?start_date=YYYY-MM-DD&amp;end_date=YYYY-MM-DD → AgentMetricsDTO</signature>
+      <path>Backend API (to be implemented or verified)</path>
+      <notes>Returns agent performance metrics: total_executions, success_rate, error_rate, avg_execution_time_ms, p95_execution_time_ms, etc. Auth: JWT + X-Tenant-ID. Timeout: 5s.</notes>
+    </interface>
+    <interface>
+      <name>AgentMetricsDTO</name>
+      <kind>TypeScript interface</kind>
+      <signature>
+        interface AgentMetricsDTO {
+          agent_id: string;
+          agent_name: string;
+          date_range: { start: string; end: string };
+          metrics: {
+            total_executions: number;
+            successful_executions: number;
+            failed_executions: number;
+            success_rate: number; // 0-100
+            error_rate: number; // 0-100
+            avg_execution_time_ms: number;
+            p50_execution_time_ms: number;
+            p95_execution_time_ms: number;
+            p99_execution_time_ms: number;
+          };
+          last_updated: string;
+        }
+      </signature>
+      <path>nextjs-ui/types/agent-performance.ts (to be created)</path>
+      <notes>Data transfer object for agent metrics. All time values in milliseconds. Success/error rates as percentages (0-100).</notes>
+    </interface>
+    <interface>
+      <name>useAgentMetrics hook</name>
+      <kind>React Query hook</kind>
+      <signature>useAgentMetrics({ agentId: string | null, startDate: string, endDate: string, enabled?: boolean }) → UseQueryResult&lt;AgentMetricsDTO&gt;</signature>
+      <path>nextjs-ui/hooks/useAgentMetrics.ts (to be created)</path>
+      <notes>React Query hook for fetching agent metrics. Auto-refresh 60s, staleTime 30s, retry 3. Only fetches if agentId is not null and enabled=true.</notes>
+    </interface>
+    <interface>
+      <name>formatExecutionTime utility</name>
+      <kind>Utility function</kind>
+      <signature>formatExecutionTime(timeMs: number) → string</signature>
+      <path>nextjs-ui/lib/utils/performance.ts (to be created)</path>
+      <notes>Format execution time: &lt;1000ms → "450ms", ≥1000ms → "2.34s" (2 decimals)</notes>
+    </interface>
+    <interface>
+      <name>getSuccessRateColor utility</name>
+      <kind>Utility function</kind>
+      <signature>getSuccessRateColor(rate: number) → { color: string, variant: 'success' | 'warning' | 'destructive' }</signature>
+      <path>nextjs-ui/lib/utils/performance.ts (to be created)</path>
+      <notes>Returns color coding: ≥95% green, 85-94.9% yellow, &lt;85% red</notes>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      All tests use Jest with React Testing Library for unit/integration tests, and Playwright for E2E tests. Test files mirror source structure in __tests__ or __tests__/[component-name].test.tsx. Coverage target: ≥90% for new code. Mock API responses using MSW. Test all edge cases: 0 data, null values, API errors, loading states. WCAG 2.1 AA accessibility tested with axe-core. TypeScript strict mode enforced in test files.
+    </standards>
+    <locations>
+      <location>nextjs-ui/__tests__/lib/utils/performance.test.ts</location>
+      <location>nextjs-ui/__tests__/hooks/useAgentMetrics.test.ts</location>
+      <location>nextjs-ui/__tests__/hooks/useAgents.test.ts</location>
+      <location>nextjs-ui/__tests__/components/agent-performance/MetricCard.test.tsx</location>
+      <location>nextjs-ui/__tests__/components/agent-performance/AgentMetricsCards.test.tsx</location>
+      <location>nextjs-ui/__tests__/app/dashboard/agent-performance/page.test.tsx</location>
+      <location>nextjs-ui/e2e/agent-performance.spec.ts</location>
+    </locations>
+    <ideas>
+      <test for="AC-1" type="integration">
+        Test agent selector: render with agents list, select agent → verify useAgentMetrics called with correct ID. Test date range: change to Last 30 days → verify query params updated.
+      </test>
+      <test for="AC-2" type="unit">
+        Test AgentMetricsCards: mock API with sample data, verify all 6 cards render with correct formatted values. Test formatCount(1234) → "1.2K", formatExecutionTime(450) → "450ms".
+      </test>
+      <test for="AC-3" type="integration">
+        Test auto-refresh: mock API, wait 60s (using jest.advanceTimersByTime), verify refetch called. Test agent change → verify new metrics fetched.
+      </test>
+      <test for="AC-4" type="unit">
+        Test getSuccessRateColor: assert (96) → green, (90) → yellow, (80) → red. Test success rate card applies correct color class.
+      </test>
+      <test for="AC-5" type="unit">
+        Test formatExecutionTime: (450) → "450ms", (999) → "999ms", (1000) → "1.00s", (2345) → "2.35s", (125000) → "125.00s".
+      </test>
+      <test for="AC-6" type="integration">
+        Test empty state: mock API with 0 total_executions, verify empty state component renders with suggestion message.
+      </test>
+      <test for="AC-7" type="unit">
+        Test 100% success: mock metrics with success_rate=100, failed_executions=0, verify success rate green, error rate shows "0.0%".
+      </test>
+      <test for="AC-8" type="integration">
+        Test RBAC: mock session with role="operator", verify redirect to /dashboard. Mock role="developer", verify page loads normally.
+      </test>
+      <test type="e2e">
+        Playwright: Navigate to /dashboard/agent-performance, select agent from dropdown, verify metrics cards populate, change date range to Last 30 days, verify metrics update. Test on mobile viewport (320px).
+      </test>
+    </ideas>
+  </tests>
+</story-context>

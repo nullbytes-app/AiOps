@@ -45,6 +45,13 @@ dependencies = [
     "openapi-pydantic>=0.4.0",
     "fastmcp>=2.0.0",
     "cachetools>=5.3.0",
+    # Story 1B: Authentication dependencies
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
+    "zxcvbn>=4.4.28",
+    "bcrypt>=4.0.0,<5.0.0",  # Pin to 4.x for passlib compatibility
+    # Story 1C: API endpoints dependencies
+    "slowapi>=0.1.9",  # Rate limiting middleware
 ]
 
 [project.optional-dependencies]

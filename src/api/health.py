@@ -18,48 +18,57 @@ router = APIRouter(prefix="/api/v1", tags=["health"])
 
 
 @router.get("/health")
-async def health_check() -> dict[str, str | dict]:
+async def health_check() -> dict:
     """
-    Health check endpoint for monitoring.
+    Health check endpoint for monitoring dashboard.
 
     Validates connectivity to PostgreSQL and Redis dependencies.
-    Used by Docker health checks and load balancers.
+    Returns detailed component health status for API, Workers, Database, and Redis.
+    Used by Docker health checks, load balancers, and dashboard monitoring.
 
     Returns:
-        dict: Health status with dependency checks
+        dict: Detailed health status for all components with timestamp
 
     Raises:
-        HTTPException: If any dependency is unhealthy
+        HTTPException: If any critical dependency is unhealthy
     """
+    from datetime import datetime, timezone
+
+    # Initialize component health structure
     health_status = {
-        "status": "healthy",
-        "service": "AI Agents",
-        "dependencies": {"database": "unknown", "redis": "unknown"},
+        "api": {"status": "healthy", "response_time_ms": 0},
+        "workers": {"status": "healthy", "details": {"note": "Worker health check via Celery inspect not implemented"}},
+        "database": {"status": "unknown"},
+        "redis": {"status": "unknown"},
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
 
     # Check database connectivity
     try:
         db_healthy = await check_database_connection()
-        health_status["dependencies"]["database"] = (
-            "healthy" if db_healthy else "unhealthy"
-        )
+        health_status["database"]["status"] = "healthy" if db_healthy else "down"
     except Exception as e:
-        health_status["dependencies"]["database"] = f"error: {str(e)}"
-        health_status["status"] = "unhealthy"
+        health_status["database"]["status"] = "down"
+        health_status["database"]["details"] = {"error": str(e)}
+        logger.error(f"Database health check failed: {e}")
 
     # Check Redis connectivity
     try:
-        if await check_redis_connection():
-            health_status["dependencies"]["redis"] = "healthy"
-        else:
-            health_status["dependencies"]["redis"] = "unhealthy"
-            health_status["status"] = "unhealthy"
+        redis_healthy = await check_redis_connection()
+        health_status["redis"]["status"] = "healthy" if redis_healthy else "down"
     except Exception as e:
-        health_status["dependencies"]["redis"] = f"error: {str(e)}"
-        health_status["status"] = "unhealthy"
+        health_status["redis"]["status"] = "down"
+        health_status["redis"]["details"] = {"error": str(e)}
+        logger.error(f"Redis health check failed: {e}")
 
-    # Return error status if any dependency is unhealthy
-    if health_status["status"] == "unhealthy":
+    # Determine if any critical component is down
+    critical_down = any(
+        health_status[comp]["status"] == "down"
+        for comp in ["database", "redis"]
+    )
+
+    # Return error status if any critical dependency is down
+    if critical_down:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail=health_status,

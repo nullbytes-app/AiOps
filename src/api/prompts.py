@@ -33,7 +33,7 @@ from src.schemas.agent import (
 from src.services.prompt_service import PromptService
 from src.utils.logger import logger
 
-router = APIRouter(prefix="/api/agents", tags=["prompts"])
+router = APIRouter(prefix="/api/v1/prompts", tags=["prompts"])
 
 
 # ============================================================================
@@ -42,7 +42,7 @@ router = APIRouter(prefix="/api/agents", tags=["prompts"])
 
 
 @router.get(
-    "/prompt-templates",
+    "",
     response_model=list[PromptTemplateResponse],
     summary="List Prompt Templates",
     description="Retrieves available prompt templates. "
@@ -72,7 +72,7 @@ async def list_prompt_templates(
 
 
 @router.post(
-    "/prompt-templates",
+    "",
     response_model=PromptTemplateResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create Custom Prompt Template",
@@ -147,8 +147,47 @@ async def create_prompt_template(
     return template
 
 
+@router.get(
+    "/{template_id}",
+    response_model=PromptTemplateResponse,
+    summary="Get Prompt Template",
+    description="Retrieves a single prompt template by ID.",
+)
+async def get_prompt_template(
+    template_id: UUID,
+    tenant_id: Annotated[str, Depends(get_tenant_id)],
+    db: Annotated[AsyncSession, Depends(get_tenant_db)],
+) -> PromptTemplateResponse:
+    """
+    Get a single prompt template by ID.
+
+    Args:
+        template_id: The template UUID
+        tenant_id: Tenant ID (auto-injected)
+        db: Database session (auto-injected)
+
+    Returns:
+        PromptTemplateResponse
+
+    Raises:
+        404: If template not found
+        403: If accessing another tenant's template
+    """
+    prompt_service = PromptService(db)
+    # Get all templates (will filter by tenant)
+    templates = await prompt_service.get_prompt_templates(tenant_id, include_builtin=True)
+
+    # Find the requested template
+    template = next((t for t in templates if str(t.id) == str(template_id)), None)
+
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    return template
+
+
 @router.put(
-    "/prompt-templates/{template_id}",
+    "/{template_id}",
     response_model=PromptTemplateResponse,
     summary="Update Custom Prompt Template",
     description="Updates an existing custom prompt template. Built-in templates are read-only.",
@@ -188,7 +227,7 @@ async def update_prompt_template(
 
 
 @router.delete(
-    "/prompt-templates/{template_id}",
+    "/{template_id}",
     response_model=dict,
     summary="Delete Custom Prompt Template",
     description="Soft-deletes a custom template (marks as inactive). Built-in templates cannot be deleted.",
@@ -222,7 +261,7 @@ async def delete_prompt_template(
 
 
 @router.post(
-    "/prompt-test",
+    "/test",
     response_model=PromptTestResponse,
     summary="Test System Prompt with LLM",
     description="Tests a system prompt by sending a sample message to the LLM "

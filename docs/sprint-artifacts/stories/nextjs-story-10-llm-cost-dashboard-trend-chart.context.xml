@@ -1,0 +1,1640 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Story Context XML for nextjs-story-10-llm-cost-dashboard-trend-chart
+Generated: 2025-11-20
+Status: ready-for-dev
+
+This context file provides all necessary information for implementing the daily spend trend chart
+for the LLM Cost Dashboard. It includes architecture, existing code patterns, API contracts,
+testing standards, and constraints to guide development.
+-->
+
+<story-context>
+  <meta>
+    <story-id>nextjs-story-10</story-id>
+    <story-key>nextjs-story-10-llm-cost-dashboard-trend-chart</story-key>
+    <story-title>LLM Cost Dashboard - Daily Spend Trend Chart</story-title>
+    <epic-id>Epic 1</epic-id>
+    <epic-name>Analytics &amp; Monitoring Dashboards (Next.js UI Feature Parity)</epic-name>
+    <story-number>1.2</story-number>
+    <priority>P0 (Must Have)</priority>
+    <estimated-effort>5-8 hours</estimated-effort>
+    <generated-date>2025-11-20</generated-date>
+    <context-version>1.0</context-version>
+  </meta>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 1: STORY OVERVIEW -->
+  <!-- ================================================================== -->
+
+  <story-overview>
+    <user-story>
+      <as-a>operations manager</as-a>
+      <i-want>to see a 30-day daily spend trend chart on the LLM Costs dashboard</i-want>
+      <so-that>I can identify spending patterns, track budget trends over time, and quickly spot cost anomalies or unusual spikes in LLM usage</so-that>
+    </user-story>
+
+    <business-value>
+      <item>Enables proactive cost monitoring and budget management for LLM usage</item>
+      <item>Provides visual identification of spending patterns and anomalies over time</item>
+      <item>Supports data-driven decision making for resource allocation and cost optimization</item>
+      <item>Helps operations teams quickly detect and respond to unexpected cost spikes</item>
+      <item>Facilitates budget forecasting based on historical trend analysis</item>
+    </business-value>
+
+    <prerequisites>
+      <item status="completed">Story 1.1 (LLM Cost Dashboard - Overview Metrics) must be completed</item>
+      <item status="completed">Page structure /dashboard/llm-costs already exists</item>
+      <item status="completed">Backend API /api/v1/costs/trend operational</item>
+      <item status="completed">React Query infrastructure in place</item>
+      <item status="completed">Design system components available</item>
+    </prerequisites>
+
+    <constraints>
+      <item id="C1">Must use existing page structure from Story 1.1 (nextjs-ui/app/dashboard/llm-costs/page.tsx)</item>
+      <item id="C2">Follow established patterns from useLLMCostSummary hook for data fetching</item>
+      <item id="C3">Maintain design consistency with existing CostMetricsCards component</item>
+      <item id="C4">All files must be ≤500 lines per project standards (file-size constraint)</item>
+      <item id="C5">Must follow 2025 Recharts v3.x best practices with SSR support for Next.js</item>
+      <item id="C6">Chart export must work across all major browsers (Chrome, Firefox, Safari, Edge)</item>
+      <item id="C7">Performance: Initial render &lt;500ms, tooltip response &lt;50ms, export &lt;2s</item>
+      <item id="C8">Accessibility: WCAG 2.1 AA compliant (keyboard nav, screen reader support)</item>
+      <item id="C9">RBAC enforcement: admin and operator roles only (consistent with Story 1.1)</item>
+      <item id="C10">No additional backend changes allowed - must use existing /api/v1/costs/trend endpoint</item>
+    </constraints>
+
+    <scope>
+      <in-scope>
+        <item>Create DailySpendChart component with Recharts LineChart/AreaChart</item>
+        <item>Implement useLLMCostTrend React Query hook for data fetching</item>
+        <item>Add custom tooltip with date, amount, and percentage delta</item>
+        <item>Implement export-to-PNG functionality using html2canvas</item>
+        <item>Add gradient fill under trend line for professional aesthetic</item>
+        <item>Implement loading, empty, and error states</item>
+        <item>Add responsive layout (mobile, tablet, desktop)</item>
+        <item>Write comprehensive unit and component tests</item>
+        <item>Integrate into existing /dashboard/llm-costs page</item>
+      </in-scope>
+      <out-of-scope>
+        <item>Trend line (linear regression) - deferred to future story</item>
+        <item>Week-over-week or month-over-month comparison - future enhancement</item>
+        <item>Zoom/pan controls for date range selection - future enhancement</item>
+        <item>Comparison mode (overlay multiple months) - future enhancement</item>
+        <item>ML-based forecast line - future enhancement</item>
+        <item>Annotations for significant events - future enhancement</item>
+        <item>Server-side chart rendering for PDF exports - future enhancement</item>
+        <item>PDF or SVG export formats - PNG only for MVP</item>
+      </out-of-scope>
+    </scope>
+  </story-overview>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 2: ACCEPTANCE CRITERIA -->
+  <!-- ================================================================== -->
+
+  <acceptance-criteria>
+    <criterion id="AC1" category="Visual Display">
+      <title>Chart Structure and Layout</title>
+      <description>
+        Chart displays as a responsive line/area chart with smooth curves, proper axis formatting,
+        and consistent design system styling.
+      </description>
+      <requirements>
+        <item>Chart displays as responsive line chart with smooth curves</item>
+        <item>X-axis shows dates in MM/DD format (e.g., "01/15", "01/16")</item>
+        <item>Y-axis shows USD amounts with auto-scaled formatting ($1.2K, $1.5K, $2.0K)</item>
+        <item>Line color matches design system accent-blue</item>
+        <item>Chart fills available horizontal space (responsive width)</item>
+        <item>Minimum height: 300px on all viewports</item>
+        <item>Chart includes gradient fill below line (accent-blue fading to transparent)</item>
+      </requirements>
+      <verification>
+        <test>Render chart with 30 days of mock data and verify visual appearance</test>
+        <test>Check X-axis labels show MM/DD format</test>
+        <test>Check Y-axis labels show compact currency format</test>
+        <test>Verify gradient fill is visible below line</test>
+        <test>Verify chart scales to container width at 320px, 768px, 1024px, 1920px</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC2" category="Data Presentation">
+      <title>30-Day Data Display with Proper Handling</title>
+      <description>
+        Chart always shows exactly 30 days of historical data with proper handling of missing
+        days and zero-spend days.
+      </description>
+      <requirements>
+        <item>Chart always shows exactly 30 days of historical data</item>
+        <item>Most recent date appears on right side of X-axis</item>
+        <item>Oldest date (30 days ago) appears on left side of X-axis</item>
+        <item>Missing days show as gaps in line (no interpolation)</item>
+        <item>Zero-spend days display on line at Y=0</item>
+        <item>Data points are visible on line for clarity</item>
+      </requirements>
+      <verification>
+        <test>Render chart with full 30 days and verify date order</test>
+        <test>Render chart with missing days (e.g., days 10, 15, 20) and verify gaps</test>
+        <test>Render chart with zero-spend days and verify Y=0 placement</test>
+        <test>Verify data points are visible at each date</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC3" category="Interactivity">
+      <title>Hover Tooltip with Delta Calculation</title>
+      <description>
+        Interactive tooltip appears on hover showing exact date, amount, and percentage change
+        vs previous day with color coding.
+      </description>
+      <requirements>
+        <item>Hover over any point shows tooltip with exact date (formatted "January 15, 2025")</item>
+        <item>Tooltip shows exact USD amount (formatted "$1,234.56")</item>
+        <item>Tooltip shows delta vs previous day (e.g., "↑ 15.2% vs yesterday" or "↓ 8.5% vs yesterday")</item>
+        <item>Change indicator color: green for decrease, red for increase</item>
+        <item>Tooltip follows mouse cursor smoothly</item>
+        <item>Tooltip is clearly readable (contrasting background, legible font size)</item>
+      </requirements>
+      <verification>
+        <test>Hover over chart point and verify tooltip appears</test>
+        <test>Verify tooltip shows formatted date (long format)</test>
+        <test>Verify tooltip shows formatted currency ($1,234.56)</test>
+        <test>Verify delta calculation is correct (compare consecutive days)</test>
+        <test>Verify green color for spend decrease, red for spend increase</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC4" category="Export">
+      <title>Export Chart as PNG Image</title>
+      <description>
+        Export button triggers download of chart as high-quality PNG image with proper filename
+        and resolution.
+      </description>
+      <requirements>
+        <item>"Export as PNG" button appears above chart (right-aligned)</item>
+        <item>Button triggers download of chart as PNG image</item>
+        <item>Downloaded file name format: llm-costs-trend-{YYYY-MM-DD}.png</item>
+        <item>Exported image resolution: 1920x600px minimum</item>
+        <item>Exported image includes chart title and current date</item>
+      </requirements>
+      <verification>
+        <test>Click export button and verify PNG download</test>
+        <test>Verify filename matches pattern with current date</test>
+        <test>Verify exported image dimensions (1920x600 or higher)</test>
+        <test>Verify exported image quality (2x resolution)</item>
+        <test>Test export on Chrome, Firefox, Safari, Edge</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC5" category="Responsive - Mobile">
+      <title>Mobile Layout (320px - 767px)</title>
+      <description>
+        Chart adapts to small screens with optimized layout, readable labels, and adjusted
+        interactions.
+      </description>
+      <requirements>
+        <item>Chart scales to full container width</item>
+        <item>Y-axis labels remain readable (may rotate if needed)</item>
+        <item>X-axis shows abbreviated dates ("1/15" instead of "01/15")</item>
+        <item>Tooltip adjusts position to stay within viewport</item>
+        <item>Export button text changes to icon-only (download icon)</item>
+      </requirements>
+      <verification>
+        <test>Resize browser to 320px width and verify chart scales</test>
+        <test>Verify X-axis shows abbreviated dates on mobile</test>
+        <test>Hover and verify tooltip stays within viewport</test>
+        <test>Verify export button shows icon only</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC6" category="Responsive - Tablet">
+      <title>Tablet Layout (768px - 1023px)</title>
+      <description>
+        Chart displays with standard layout on tablet-sized screens.
+      </description>
+      <requirements>
+        <item>Chart displays with standard layout</item>
+        <item>X-axis shows full MM/DD format</item>
+        <item>Tooltip displays all information</item>
+        <item>Export button shows full text "Export as PNG"</item>
+      </requirements>
+      <verification>
+        <test>Resize browser to 768px-1023px and verify standard layout</test>
+        <test>Verify X-axis shows MM/DD format</test>
+        <test>Verify tooltip displays full information</test>
+        <test>Verify export button shows full text</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC7" category="Responsive - Desktop">
+      <title>Desktop Layout (1024px+)</title>
+      <description>
+        Chart utilizes full available space on desktop screens with optimal spacing and layout.
+      </description>
+      <requirements>
+        <item>Chart utilizes full available width</item>
+        <item>All labels fully visible and readable</item>
+        <item>Tooltip may include additional metrics if space allows</item>
+        <item>Export button positioned with adequate spacing</item>
+      </requirements>
+      <verification>
+        <test>Resize browser to 1024px+ and verify full-width chart</test>
+        <test>Verify all labels are visible and readable</test>
+        <test>Verify export button has proper spacing</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC8" category="Loading State">
+      <title>Skeleton Loader During Data Fetch</title>
+      <description>
+        While data fetches, display skeleton loader matching chart dimensions with smooth
+        transition.
+      </description>
+      <requirements>
+        <item>Display skeleton loader matching chart dimensions while data fetches</item>
+        <item>Skeleton shows shimmering animation</item>
+        <item>No flashing or jarring transitions when data loads</item>
+      </requirements>
+      <verification>
+        <test>Delay API response and verify skeleton loader appears</test>
+        <test>Verify skeleton has shimmering animation</test>
+        <test>Verify smooth transition from skeleton to chart</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC9" category="Empty State">
+      <title>Empty State Message for No Data</title>
+      <description>
+        If no data available for 30-day period, show friendly empty state with clear messaging.
+      </description>
+      <requirements>
+        <item>Show empty state message: "No cost data available for the last 30 days"</item>
+        <item>Include illustrative icon (e.g., empty chart icon)</item>
+        <item>Provide context: "Data will appear once LLM usage is recorded"</item>
+      </requirements>
+      <verification>
+        <test>Mock API response with empty array</test>
+        <test>Verify empty state message appears</test>
+        <test>Verify icon and context text are visible</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC10" category="Error State">
+      <title>Error Handling with Retry Button</title>
+      <description>
+        If API call fails, display clear error message with retry option without breaking
+        entire dashboard.
+      </description>
+      <requirements>
+        <item>Display error message: "Unable to load cost trend data"</item>
+        <item>Show "Retry" button</item>
+        <item>Log error to monitoring system</item>
+        <item>Do NOT break entire dashboard (isolated error boundary)</item>
+      </requirements>
+      <verification>
+        <test>Mock API error (500) and verify error message appears</test>
+        <test>Verify "Retry" button is visible and clickable</test>
+        <test>Click retry and verify API call is retried</test>
+        <test>Verify rest of dashboard remains functional</test>
+      </verification>
+    </criterion>
+
+    <criterion id="AC11" category="Performance">
+      <title>Performance Benchmarks</title>
+      <description>
+        Chart meets strict performance requirements for initial render, interaction, and export.
+      </description>
+      <requirements>
+        <item>Initial chart render: &lt;500ms after data fetch completes</item>
+        <item>Tooltip response time: &lt;50ms (immediate feel)</item>
+        <item>Export generation: &lt;2 seconds</item>
+        <item>Chart re-renders on window resize: debounced to 300ms</item>
+      </requirements>
+      <verification>
+        <test>Measure initial render time with Chrome DevTools Performance tab</test>
+        <test>Measure tooltip response time (should feel immediate)</test>
+        <test>Measure export generation time</test>
+        <test>Verify resize events are debounced (300ms)</test>
+      </verification>
+    </criterion>
+  </acceptance-criteria>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 3: TECHNICAL ARCHITECTURE -->
+  <!-- ================================================================== -->
+
+  <technical-architecture>
+    <component-hierarchy>
+      <description>
+        Component structure for the daily spend trend chart feature, integrated into
+        existing /dashboard/llm-costs page.
+      </description>
+      <tree>
+        /dashboard/llm-costs/page.tsx (existing from Story 1.1)
+          └─ DailySpendTrendSection (new wrapper component)
+              ├─ DailySpendChart (new chart component)
+              │   ├─ ResponsiveContainer (Recharts)
+              │   ├─ AreaChart (Recharts)
+              │   ├─ Area (Recharts with gradient fill)
+              │   ├─ XAxis (Recharts with date formatter)
+              │   ├─ YAxis (Recharts with currency formatter)
+              │   ├─ CartesianGrid (Recharts)
+              │   ├─ Tooltip (Recharts with CustomTooltip)
+              │   └─ defs > linearGradient (SVG gradient definition)
+              ├─ CustomTooltip (new tooltip component)
+              └─ ExportButton (new button component)
+      </tree>
+    </component-hierarchy>
+
+    <data-flow>
+      <description>
+        End-to-end data flow from API request to chart rendering and user interactions.
+      </description>
+      <steps>
+        <step n="1">Custom hook useLLMCostTrend() calls React Query</step>
+        <step n="2">React Query executes GET /api/v1/costs/trend?days=30</step>
+        <step n="3">Backend returns DailySpendDTO[] with date and amount fields</step>
+        <step n="4">Hook transforms data: format dates, calculate deltas, prepare chart data</step>
+        <step n="5">Transformed data passed to DailySpendChart component as props</step>
+        <step n="6">Recharts AreaChart renders line with gradient fill</step>
+        <step n="7">User hovers over point → Tooltip shows date, amount, delta</step>
+        <step n="8">User clicks export button → html2canvas captures chart → PNG download</step>
+      </steps>
+    </data-flow>
+
+    <file-structure>
+      <description>
+        New files to be created and existing files to be modified.
+      </description>
+      <new-files>
+        <file>nextjs-ui/hooks/useLLMCostTrend.ts</file>
+        <file>nextjs-ui/hooks/useLLMCostTrend.test.tsx</file>
+        <file>nextjs-ui/app/dashboard/llm-costs/components/DailySpendChart.tsx</file>
+        <file>nextjs-ui/app/dashboard/llm-costs/components/DailySpendChart.test.tsx</file>
+        <file>nextjs-ui/app/dashboard/llm-costs/components/CustomTooltip.tsx</file>
+        <file>nextjs-ui/app/dashboard/llm-costs/components/ExportButton.tsx</file>
+        <file>nextjs-ui/app/dashboard/llm-costs/components/DailySpendTrendSection.tsx</file>
+        <file>nextjs-ui/lib/chartExport.ts</file>
+        <file>nextjs-ui/types/costs.ts (add DailySpendDTO interface)</file>
+      </new-files>
+      <modified-files>
+        <file>nextjs-ui/app/dashboard/llm-costs/page.tsx (integrate new section)</file>
+        <file>nextjs-ui/package.json (add html2canvas dependency if not present)</file>
+      </modified-files>
+    </file-structure>
+
+    <technology-stack>
+      <item name="React" version="18.3.1" purpose="UI framework"/>
+      <item name="Next.js" version="14.2.15" purpose="App Router, SSR, routing"/>
+      <item name="TypeScript" version="5.6.3" purpose="Type safety"/>
+      <item name="Recharts" version="3.3.0" purpose="Chart rendering library"/>
+      <item name="TanStack Query" version="5.62.2" purpose="Data fetching, caching, auto-refresh"/>
+      <item name="date-fns" version="3.6.0" purpose="Date formatting (tree-shakeable)"/>
+      <item name="html2canvas" purpose="PNG export functionality (to be installed)"/>
+      <item name="Tailwind CSS" version="3.4.14" purpose="Styling"/>
+      <item name="axios" version="1.7.9" purpose="HTTP client"/>
+      <item name="lucide-react" version="0.462.0" purpose="Icons (RefreshCw, AlertCircle)"/>
+    </technology-stack>
+
+    <design-patterns>
+      <pattern name="Custom Hook Pattern">
+        <description>useLLMCostTrend hook encapsulates React Query logic, data transformation, and delta calculations</description>
+        <rationale>Separates data fetching logic from UI, enables reusability and testing</rationale>
+        <example>Follow useLLMCostSummary pattern from Story 1.1</example>
+      </pattern>
+      <pattern name="Component Composition">
+        <description>Break chart feature into small, focused components (DailySpendChart, CustomTooltip, ExportButton)</description>
+        <rationale>Maintains file size &lt;500 lines, improves testability and maintainability</rationale>
+      </pattern>
+      <pattern name="Render Props (Recharts Tooltip)">
+        <description>CustomTooltip component used as render prop for Recharts Tooltip</description>
+        <rationale>Enables custom tooltip styling while leveraging Recharts tooltip positioning</rationale>
+      </pattern>
+      <pattern name="Error Boundary Pattern">
+        <description>Isolate chart errors to prevent dashboard-wide failure</description>
+        <rationale>Graceful degradation - rest of dashboard remains functional if chart fails</rationale>
+      </pattern>
+      <pattern name="Loading/Empty/Error State Pattern">
+        <description>Explicit handling of all async states (loading, success, error, empty)</description>
+        <rationale>Better UX, clear user feedback for all scenarios</rationale>
+      </pattern>
+    </design-patterns>
+  </technical-architecture>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 4: API CONTRACTS -->
+  <!-- ================================================================== -->
+
+  <api-contracts>
+    <endpoint id="GET_DAILY_TREND">
+      <method>GET</method>
+      <path>/api/v1/costs/trend</path>
+      <query-params>
+        <param name="days" type="integer" required="false" default="30">
+          <description>Number of days of historical data (1-365)</description>
+          <validation>ge=1, le=365</validation>
+        </param>
+      </query-params>
+      <authentication>
+        <type>JWT Bearer Token</type>
+        <header>Authorization: Bearer {token}</header>
+      </authentication>
+      <authorization>
+        <roles>admin (super_admin, tenant_admin), operator</roles>
+        <tenant-isolation>Filters by authenticated tenant_id from JWT</tenant-isolation>
+      </authorization>
+      <request-example>
+        <![CDATA[
+GET /api/v1/costs/trend?days=30
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+Content-Type: application/json
+        ]]>
+      </request-example>
+      <response-success>
+        <status-code>200</status-code>
+        <content-type>application/json</content-type>
+        <schema>
+          <![CDATA[
+[
+  {
+    "date": "2025-01-01",  // ISO date string (YYYY-MM-DD)
+    "total_spend": 1234.56,  // float, USD amount
+    "transaction_count": 42  // int, number of LLM API calls
+  },
+  {
+    "date": "2025-01-02",
+    "total_spend": 1450.23,
+    "transaction_count": 55
+  }
+  // ... 30 days total
+]
+          ]]>
+        </schema>
+        <example>
+          <![CDATA[
+[
+  {
+    "date": "2024-12-22",
+    "total_spend": 1234.56,
+    "transaction_count": 42
+  },
+  {
+    "date": "2024-12-23",
+    "total_spend": 1450.23,
+    "transaction_count": 55
+  },
+  {
+    "date": "2024-12-24",
+    "total_spend": 0.0,
+    "transaction_count": 0
+  }
+  // ... continues for 30 days
+]
+          ]]>
+        </example>
+        <notes>
+          <item>Missing days are filled with $0.00 (backend fills gaps)</item>
+          <item>Always returns exactly 30 days (or specified days parameter)</item>
+          <item>Dates are in ascending order (oldest to newest)</item>
+          <item>Tenant isolation enforced automatically via JWT tenant_id</item>
+        </notes>
+      </response-success>
+      <response-error>
+        <status-code>401</status-code>
+        <description>Unauthorized - Missing or invalid JWT token</description>
+        <example>
+          <![CDATA[
+{
+  "detail": "Not authenticated"
+}
+          ]]>
+        </example>
+      </response-error>
+      <response-error>
+        <status-code>403</status-code>
+        <description>Forbidden - User lacks admin or operator role</description>
+        <example>
+          <![CDATA[
+{
+  "detail": "Insufficient permissions"
+}
+          ]]>
+        </example>
+      </response-error>
+      <response-error>
+        <status-code>500</status-code>
+        <description>Internal Server Error - Database or processing error</description>
+        <example>
+          <![CDATA[
+{
+  "detail": "Failed to fetch spend trend"
+}
+          ]]>
+        </example>
+      </response-error>
+      <performance>
+        <response-time>P95: &lt;500ms (target)</response-time>
+        <rate-limit>100 requests/minute per user</rate-limit>
+        <caching>Client-side via React Query (staleTime: 55s, refetchInterval: 60s)</caching>
+      </performance>
+      <backend-implementation>
+        <file>src/api/llm_costs.py</file>
+        <function>async def get_daily_spend_trend(...)</function>
+        <lines>183-202</lines>
+      </backend-implementation>
+    </endpoint>
+  </api-contracts>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 5: DATA MODELS & TYPES -->
+  <!-- ================================================================== -->
+
+  <data-models>
+    <typescript-interfaces>
+      <interface name="DailySpendDTO">
+        <description>Backend API response for daily spend data point</description>
+        <source>Add to nextjs-ui/types/costs.ts</source>
+        <definition>
+          <![CDATA[
+/**
+ * Daily spend data point from backend API
+ * Maps to Python schema: src/schemas/llm_cost.py:75-89 (DailySpendDTO)
+ */
+export interface DailySpendDTO {
+  /** Date in YYYY-MM-DD format (e.g., "2025-01-15") */
+  date: string;
+  /** Total spend for the day in USD */
+  total_spend: number;
+  /** Number of LLM API calls on this day */
+  transaction_count: number;
+}
+          ]]>
+        </definition>
+      </interface>
+
+      <interface name="ChartDataPoint">
+        <description>Transformed data structure optimized for Recharts rendering</description>
+        <source>Create in nextjs-ui/app/dashboard/llm-costs/components/DailySpendChart.tsx</source>
+        <definition>
+          <![CDATA[
+/**
+ * Transformed data point for Recharts chart rendering
+ * Includes calculated fields for delta and formatted labels
+ */
+export interface ChartDataPoint {
+  /** JavaScript Date object for Recharts date axis */
+  date: Date;
+  /** Formatted date label for X-axis (e.g., "01/15") */
+  dateLabel: string;
+  /** Raw USD amount */
+  amount: number;
+  /** Formatted amount for tooltip (e.g., "$1,234.56") */
+  amountLabel: string;
+  /** Percentage change from previous day (null for first day) */
+  delta: number | null;
+  /** Formatted delta with arrow (e.g., "↑ 15.2%" or "↓ 8.5%") */
+  deltaLabel: string | null;
+  /** Color for delta text: 'green' for decrease, 'red' for increase */
+  deltaColor: 'green' | 'red' | null;
+}
+          ]]>
+        </definition>
+      </interface>
+    </typescript-interfaces>
+
+    <backend-schemas>
+      <schema name="DailySpendDTO (Python)">
+        <file>src/schemas/llm_cost.py</file>
+        <lines>75-89</lines>
+        <definition>
+          <![CDATA[
+class DailySpendDTO(BaseModel):
+    """
+    Daily spend aggregation for trend chart.
+    Used for AC#3 (cost trends chart - last 30 days).
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    date: date  # Python date object
+    total_spend: float = Field(ge=0.0, description="Total spend for the day in USD")
+    transaction_count: int = Field(ge=0, description="Number of LLM API calls on this day")
+          ]]>
+        </definition>
+      </schema>
+    </backend-schemas>
+  </data-models>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 6: EXISTING CODE PATTERNS -->
+  <!-- ================================================================== -->
+
+  <existing-code-patterns>
+    <pattern name="React Query Hook Pattern">
+      <description>
+        Established pattern for creating custom hooks with React Query for data fetching
+      </description>
+      <reference-file>nextjs-ui/hooks/useLLMCostSummary.ts</reference-file>
+      <example>
+        <![CDATA[
+import { useQuery, UseQueryResult } from '@tanstack/react-query';
+import axios from 'axios';
+import { DailySpendDTO } from '@/types/costs';
+
+async function fetchDailyTrend(days: number): Promise<DailySpendDTO[]> {
+  const response = await axios.get<DailySpendDTO[]>(
+    `/api/v1/costs/trend?days=${days}`,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 5000,
+    }
+  );
+  return response.data;
+}
+
+export function useLLMCostTrend(days: number = 30): UseQueryResult<DailySpendDTO[], Error> {
+  return useQuery({
+    queryKey: ['costs', 'trend', days],
+    queryFn: () => fetchDailyTrend(days),
+    staleTime: 55000,  // 55s
+    refetchInterval: 60000,  // 60s auto-refresh
+    refetchIntervalInBackground: false,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
+}
+        ]]>
+      </example>
+      <key-points>
+        <item>Separate async fetch function from hook</item>
+        <item>Use typed axios.get with response type</item>
+        <item>5 second timeout for API calls</item>
+        <item>Auto-refresh every 60s with staleTime 55s</item>
+        <item>Exponential backoff retry (1s, 2s, 4s, max 30s)</item>
+        <item>Pause auto-refresh when tab inactive (refetchIntervalInBackground: false)</item>
+      </key-points>
+    </pattern>
+
+    <pattern name="Page Structure with Loading/Error States">
+      <description>
+        Standard page structure for dashboard pages with RBAC, loading, error handling
+      </description>
+      <reference-file>nextjs-ui/app/dashboard/llm-costs/page.tsx</reference-file>
+      <example>
+        <![CDATA[
+'use client';
+
+import React from 'react';
+import { useLLMCostTrend } from '@/hooks/useLLMCostTrend';
+import { DailySpendChart } from './components/DailySpendChart';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+
+export default function LLMCostsPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const { data, isLoading, isError, error, refetch } = useLLMCostTrend();
+
+  // RBAC: Redirect non-authenticated users
+  React.useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login');
+    }
+  }, [status, router]);
+
+  // Loading state
+  if (isLoading) {
+    return <LoadingSkeleton />;
+  }
+
+  // Error state
+  if (isError) {
+    return <ErrorState onRetry={refetch} error={error} />;
+  }
+
+  return (
+    <div className="container mx-auto py-8 space-y-6">
+      {/* Page Header */}
+      <div className="flex items-center justify-between">
+        <h1>LLM Cost Dashboard</h1>
+      </div>
+
+      {/* Chart Section */}
+      <DailySpendChart data={data} />
+    </div>
+  );
+}
+        ]]>
+      </example>
+      <key-points>
+        <item>'use client' directive for client-side rendering</item>
+        <item>useSession for auth check, redirect to /login if unauthenticated</item>
+        <item>Handle loading state with skeleton UI</item>
+        <item>Handle error state with retry button</item>
+        <item>Container with py-8 padding and space-y-6 for vertical spacing</item>
+      </key-points>
+    </pattern>
+
+    <pattern name="Component with Loading States">
+      <description>
+        Pattern for components that support loading, empty, and error states
+      </description>
+      <reference-file>nextjs-ui/components/costs/CostMetricsCards.tsx</reference-file>
+      <example>
+        <![CDATA[
+export interface DailySpendChartProps {
+  data?: DailySpendDTO[];
+  loading?: boolean;
+  className?: string;
+}
+
+export function DailySpendChart({ data, loading = false, className }: DailySpendChartProps) {
+  // Show loading skeleton
+  if (loading) {
+    return <ChartSkeleton />;
+  }
+
+  // Show empty state if no data
+  if (!data || data.length === 0) {
+    return <EmptyState message="No cost data available" />;
+  }
+
+  // Transform data for chart
+  const chartData = transformToChartData(data);
+
+  return (
+    <div className={cn('bg-card rounded-lg border border-border p-6', className)}>
+      {/* Chart rendering */}
+    </div>
+  );
+}
+        ]]>
+      </example>
+      <key-points>
+        <item>Props interface with optional loading and className</item>
+        <item>Early returns for loading and empty states</item>
+        <item>Data transformation before rendering</item>
+        <item>Tailwind classes with cn() utility for class merging</item>
+      </key-points>
+    </pattern>
+
+    <pattern name="Testing Pattern with MSW">
+      <description>
+        Unit testing pattern using Jest, React Testing Library, and Mock Service Worker
+      </description>
+      <reference-file>nextjs-ui/hooks/useLLMCostSummary.test.tsx</reference-file>
+      <example>
+        <![CDATA[
+import { renderHook, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import axios from 'axios';
+import { useLLMCostTrend } from './useLLMCostTrend';
+
+// Mock axios
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
+
+// Mock data
+const mockTrendData: DailySpendDTO[] = [
+  { date: '2025-01-01', total_spend: 1234.56, transaction_count: 42 },
+  { date: '2025-01-02', total_spend: 1450.23, transaction_count: 55 },
+];
+
+// Test query client
+function createTestQueryClient() {
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+}
+
+// Test wrapper
+function createWrapper() {
+  const queryClient = createTestQueryClient();
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+
+describe('useLLMCostTrend', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test('fetches trend data successfully', async () => {
+    mockedAxios.get.mockResolvedValueOnce({ data: mockTrendData });
+
+    const { result } = renderHook(() => useLLMCostTrend(), {
+      wrapper: createWrapper(),
+    });
+
+    expect(result.current.isLoading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+
+    expect(result.current.data).toEqual(mockTrendData);
+  });
+});
+        ]]>
+      </example>
+      <key-points>
+        <item>Mock axios with jest.mock</item>
+        <item>Create test QueryClient with retry: false</item>
+        <item>Create wrapper with QueryClientProvider</item>
+        <item>Use renderHook from @testing-library/react</item>
+        <item>Use waitFor for async assertions</item>
+        <item>Clear mocks in beforeEach</item>
+      </key-points>
+    </pattern>
+  </existing-code-patterns>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 7: IMPLEMENTATION GUIDANCE -->
+  <!-- ================================================================== -->
+
+  <implementation-guidance>
+    <recharts-patterns>
+      <title>2025 Recharts v3 Best Practices for Next.js</title>
+      <description>
+        Research-validated patterns for implementing Recharts in Next.js 14 with SSR support
+      </description>
+
+      <pattern name="ResponsiveContainer with SSR">
+        <code>
+          <![CDATA[
+<ResponsiveContainer
+  width="100%"
+  height={300}
+  initialDimension={{ width: 800, height: 300 }}  // SSR fallback for Next.js
+  debounce={300}  // Optimize resize performance
+>
+  <AreaChart data={chartData}>
+    {/* Chart components */}
+  </AreaChart>
+</ResponsiveContainer>
+          ]]>
+        </code>
+        <rationale>
+          initialDimension prevents SSR hydration mismatch, debounce improves resize performance
+        </rationale>
+      </pattern>
+
+      <pattern name="Gradient Fill (Professional Aesthetic)">
+        <code>
+          <![CDATA[
+<defs>
+  <linearGradient id="costGradient" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="5%" stopColor="hsl(var(--accent-blue))" stopOpacity={0.3} />
+    <stop offset="95%" stopColor="hsl(var(--accent-blue))" stopOpacity={0} />
+  </linearGradient>
+</defs>
+<Area
+  type="monotone"
+  dataKey="amount"
+  stroke="hsl(var(--accent-blue))"
+  fill="url(#costGradient)"
+  strokeWidth={2}
+  dot={{ fill: 'hsl(var(--accent-blue))', strokeWidth: 0, r: 3 }}
+  activeDot={{ r: 5 }}
+/>
+          ]]>
+        </code>
+        <rationale>
+          Gradient creates modern, professional appearance; CSS variables ensure design system consistency
+        </rationale>
+      </pattern>
+
+      <pattern name="Custom Tooltip with Delta">
+        <code>
+          <![CDATA[
+<Tooltip
+  content={<CustomTooltip />}
+  cursor={{ stroke: 'hsl(var(--muted-foreground))', strokeWidth: 1, strokeDasharray: '5 5' }}
+/>
+
+// CustomTooltip component
+function CustomTooltip({ active, payload }: TooltipProps) {
+  if (!active || !payload?.[0]) return null;
+  const data = payload[0].payload as ChartDataPoint;
+
+  return (
+    <div className="bg-card border border-border rounded-lg shadow-lg p-3">
+      <p className="text-sm font-semibold mb-1">
+        {format(data.date, 'MMMM dd, yyyy')}
+      </p>
+      <p className="text-2xl font-bold text-foreground">
+        {data.amountLabel}
+      </p>
+      {data.deltaLabel && (
+        <p className={cn(
+          "text-sm mt-1",
+          data.deltaColor === 'red' ? "text-destructive" : "text-green-600"
+        )}>
+          {data.deltaLabel} vs yesterday
+        </p>
+      )}
+    </div>
+  );
+}
+          ]]>
+        </code>
+        <rationale>
+          Custom tooltip enables rich formatting, delta display, and design system styling
+        </rationale>
+      </pattern>
+
+      <pattern name="Formatted Axes">
+        <code>
+          <![CDATA[
+<XAxis
+  dataKey="dateLabel"
+  stroke="hsl(var(--muted-foreground))"
+  tick={{ fontSize: 12 }}
+  tickLine={false}
+  axisLine={false}
+/>
+<YAxis
+  tickFormatter={(value) => formatCompactCurrency(value)}  // "$1.2K", "$1.5K"
+  stroke="hsl(var(--muted-foreground))"
+  tick={{ fontSize: 12 }}
+  tickLine={false}
+  axisLine={false}
+  width={60}
+/>
+          ]]>
+        </code>
+        <rationale>
+          Clean axis styling without tick lines, compact currency for Y-axis readability
+        </rationale>
+      </pattern>
+    </recharts-patterns>
+
+    <data-transformation>
+      <title>Data Transformation Logic</title>
+      <description>
+        Transform backend DailySpendDTO[] to ChartDataPoint[] with delta calculations
+      </description>
+      <code>
+        <![CDATA[
+import { parseISO, format } from 'date-fns';
+
+/**
+ * Transform API response to chart-ready format with delta calculations
+ */
+function transformToChartData(apiData: DailySpendDTO[]): ChartDataPoint[] {
+  return apiData.map((item, index) => {
+    const date = parseISO(item.date);  // Convert ISO string to Date
+    const prevAmount = index > 0 ? apiData[index - 1].total_spend : null;
+    const delta = prevAmount ? ((item.total_spend - prevAmount) / prevAmount) * 100 : null;
+
+    return {
+      date,
+      dateLabel: format(date, 'MM/dd'),
+      amount: item.total_spend,
+      amountLabel: formatCurrency(item.total_spend),
+      delta,
+      deltaLabel: delta !== null
+        ? `${delta >= 0 ? '↑' : '↓'} ${Math.abs(delta).toFixed(1)}%`
+        : null,
+      deltaColor: delta !== null ? (delta >= 0 ? 'red' : 'green') : null,
+    };
+  });
+}
+        ]]>
+      </code>
+      <key-points>
+        <item>Use date-fns parseISO to convert ISO date strings to Date objects</item>
+        <item>Calculate delta as percentage: ((current - previous) / previous) * 100</item>
+        <item>First day has null delta (no previous day for comparison)</item>
+        <item>Use ↑ for increase (red), ↓ for decrease (green)</item>
+        <item>Format delta to 1 decimal place</item>
+      </key-points>
+    </data-transformation>
+
+    <export-functionality>
+      <title>Export Chart as PNG using html2canvas</title>
+      <description>
+        Client-side chart export to PNG with proper resolution and filename
+      </description>
+      <code>
+        <![CDATA[
+import html2canvas from 'html2canvas';
+import { format } from 'date-fns';
+
+/**
+ * Export chart as high-resolution PNG image
+ * @param chartRef - React ref to chart container div
+ */
+export async function exportChartAsPNG(chartRef: React.RefObject<HTMLDivElement>) {
+  if (!chartRef.current) {
+    throw new Error('Chart ref is not available');
+  }
+
+  try {
+    const canvas = await html2canvas(chartRef.current, {
+      backgroundColor: '#ffffff',
+      scale: 2,  // 2x resolution for high-quality export
+      width: 1920,
+      height: 600,
+      useCORS: true,  // Enable CORS for external images
+      logging: false,  // Disable console logs
+    });
+
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.href = dataUrl;
+    link.download = `llm-costs-trend-${format(new Date(), 'yyyy-MM-dd')}.png`;
+    link.click();
+  } catch (error) {
+    console.error('Failed to export chart:', error);
+    throw error;
+  }
+}
+        ]]>
+      </code>
+      <key-points>
+        <item>Use html2canvas with scale: 2 for high-resolution export</item>
+        <item>Set width: 1920, height: 600 for consistent dimensions</item>
+        <item>Generate filename with current date: llm-costs-trend-YYYY-MM-DD.png</item>
+        <item>Enable useCORS if chart includes external images</item>
+        <item>Wrap in try-catch for error handling</item>
+        <item>Trigger download by creating anchor element and clicking</item>
+      </key-points>
+      <notes>
+        <item>Safari may have issues with html2canvas - test thoroughly</item>
+        <item>Consider fallback: server-side rendering or "Copy chart URL"</item>
+        <item>Export is client-side only - no server dependencies</item>
+      </notes>
+    </export-functionality>
+
+    <currency-formatting>
+      <title>Currency Formatting Utilities</title>
+      <description>
+        Reusable functions for currency formatting (full and compact)
+      </description>
+      <code>
+        <![CDATA[
+/**
+ * Format full currency with 2 decimal places
+ * @example formatCurrency(1234.56) // "$1,234.56"
+ */
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+/**
+ * Format compact currency for Y-axis (e.g., "$1.2K", "$1.5M")
+ * @example formatCompactCurrency(1234) // "$1.2K"
+ * @example formatCompactCurrency(1500000) // "$1.5M"
+ */
+export function formatCompactCurrency(amount: number): string {
+  if (amount >= 1_000_000) {
+    return `$${(amount / 1_000_000).toFixed(1)}M`;
+  } else if (amount >= 1_000) {
+    return `$${(amount / 1_000).toFixed(1)}K`;
+  } else {
+    return `$${amount.toFixed(0)}`;
+  }
+}
+        ]]>
+      </code>
+      <location>
+        <item>Create in nextjs-ui/lib/formatters.ts (may already exist from Story 1.1)</item>
+        <item>If exists, add formatCompactCurrency to existing file</item>
+      </location>
+    </currency-formatting>
+
+    <responsive-patterns>
+      <title>Responsive Breakpoint Patterns</title>
+      <description>
+        Tailwind CSS patterns for responsive layout across mobile, tablet, desktop
+      </description>
+      <breakpoints>
+        <breakpoint name="mobile" min="320px" max="767px">
+          <description>Mobile-first layout with full-width chart and icon-only button</description>
+          <classes>
+            <item>Chart container: w-full</item>
+            <item>Export button: hidden sm:flex (hide text, show icon only)</item>
+            <item>X-axis labels: Abbreviated dates ("1/15")</item>
+          </classes>
+        </breakpoint>
+        <breakpoint name="tablet" min="768px" max="1023px">
+          <description>Standard layout with full labels</description>
+          <classes>
+            <item>Chart container: w-full</item>
+            <item>Export button: flex with full text</item>
+            <item>X-axis labels: Full dates ("01/15")</item>
+          </classes>
+        </breakpoint>
+        <breakpoint name="desktop" min="1024px">
+          <description>Full-width layout with optimal spacing</description>
+          <classes>
+            <item>Chart container: w-full with max-width constraints</item>
+            <item>Export button: flex with full text and spacing</item>
+            <item>X-axis labels: Full dates with optimal spacing</item>
+          </classes>
+        </breakpoint>
+      </breakpoints>
+      <implementation>
+        <code>
+          <![CDATA[
+<div className="w-full">
+  {/* Export Button - Icon only on mobile, full text on tablet+ */}
+  <Button
+    onClick={handleExport}
+    className="gap-2"
+  >
+    <Download className="h-4 w-4" />
+    <span className="hidden sm:inline">Export as PNG</span>
+  </Button>
+
+  {/* Chart - Responsive container */}
+  <ResponsiveContainer width="100%" height={300}>
+    <AreaChart data={chartData}>
+      <XAxis
+        dataKey="dateLabel"
+        tick={{ fontSize: 12 }}
+        // Date format handled in data transformation
+      />
+    </AreaChart>
+  </ResponsiveContainer>
+</div>
+          ]]>
+        </code>
+      </implementation>
+    </responsive-patterns>
+  </implementation-guidance>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 8: TESTING STRATEGY -->
+  <!-- ================================================================== -->
+
+  <testing-strategy>
+    <unit-tests>
+      <title>Unit Tests for useLLMCostTrend Hook</title>
+      <file>nextjs-ui/hooks/useLLMCostTrend.test.tsx</file>
+      <coverage-target>90%+</coverage-target>
+      <test-cases>
+        <test-case name="Successful Data Fetch">
+          <description>Hook fetches and returns 30 days of trend data</description>
+          <steps>
+            <step>Mock axios.get to return 30 days of mock data</step>
+            <step>Render hook with wrapper (QueryClientProvider)</step>
+            <step>Verify isLoading is true initially</step>
+            <step>Wait for isSuccess to be true</step>
+            <step>Verify data matches mock response</step>
+          </steps>
+        </test-case>
+        <test-case name="Error Handling">
+          <description>Hook handles API errors with retry logic</description>
+          <steps>
+            <step>Mock axios.get to reject with error</step>
+            <step>Render hook</step>
+            <step>Wait for isError to be true</step>
+            <step>Verify error object is set</step>
+            <step>Verify retry attempts (3 times with exponential backoff)</step>
+          </steps>
+        </test-case>
+        <test-case name="Data Transformation">
+          <description>Hook correctly transforms DailySpendDTO to ChartDataPoint</description>
+          <steps>
+            <step>Mock API with specific data points</step>
+            <step>Render hook and wait for success</step>
+            <step>Verify date is converted to Date object</step>
+            <step>Verify dateLabel is formatted as MM/DD</step>
+            <step>Verify delta is calculated correctly</step>
+            <step>Verify deltaLabel has correct arrow and format</step>
+          </steps>
+        </test-case>
+        <test-case name="Edge Cases">
+          <description>Hook handles edge cases (empty data, single day, zero amounts)</description>
+          <steps>
+            <step>Test with empty array []</step>
+            <step>Test with single day (delta should be null)</step>
+            <step>Test with zero amounts (should not error)</step>
+            <step>Test with missing days (gaps in dates)</step>
+          </steps>
+        </test-case>
+      </test-cases>
+    </unit-tests>
+
+    <component-tests>
+      <title>Component Tests for DailySpendChart</title>
+      <file>nextjs-ui/app/dashboard/llm-costs/components/DailySpendChart.test.tsx</file>
+      <coverage-target>85%+</coverage-target>
+      <test-cases>
+        <test-case name="Chart Renders with Data">
+          <description>Chart renders Recharts components with mock data</description>
+          <steps>
+            <step>Render DailySpendChart with 30 days of mock data</step>
+            <step>Verify ResponsiveContainer is present</step>
+            <step>Verify AreaChart is present</step>
+            <step>Verify XAxis and YAxis are present</step>
+            <step>Verify gradient definition is in DOM</step>
+          </steps>
+        </test-case>
+        <test-case name="Tooltip Interaction">
+          <description>Tooltip appears on hover with correct data</description>
+          <steps>
+            <step>Render chart</step>
+            <step>Simulate hover over data point (using testing-library/user-event)</step>
+            <step>Verify CustomTooltip renders</step>
+            <step>Verify tooltip shows formatted date</step>
+            <step>Verify tooltip shows formatted amount</step>
+            <step>Verify tooltip shows delta with correct color</step>
+          </steps>
+        </test-case>
+        <test-case name="Loading State">
+          <description>Chart shows skeleton loader when loading prop is true</description>
+          <steps>
+            <step>Render DailySpendChart with loading={true}</step>
+            <step>Verify skeleton component is rendered</step>
+            <step>Verify shimmering animation is present</step>
+          </steps>
+        </test-case>
+        <test-case name="Empty State">
+          <description>Chart shows empty state when data is empty array</description>
+          <steps>
+            <step>Render DailySpendChart with data={[]}</step>
+            <step>Verify empty state message is displayed</step>
+            <step>Verify empty state icon is present</step>
+          </steps>
+        </test-case>
+        <test-case name="Export Button Click">
+          <description>Export button triggers PNG download</description>
+          <steps>
+            <step>Render chart with data</step>
+            <step>Mock html2canvas to return mock canvas</step>
+            <step>Click export button</step>
+            <step>Verify html2canvas was called with correct ref</step>
+            <step>Verify download link was created and clicked</step>
+          </steps>
+        </test-case>
+        <test-case name="Responsive Behavior">
+          <description>Chart adapts to different viewport sizes</description>
+          <steps>
+            <step>Mock window.innerWidth to 320px (mobile)</step>
+            <step>Render chart and verify abbreviated date labels</step>
+            <step>Mock window.innerWidth to 768px (tablet)</step>
+            <step>Re-render and verify full date labels</step>
+            <step>Mock window.innerWidth to 1920px (desktop)</step>
+            <step>Re-render and verify full layout</step>
+          </steps>
+        </test-case>
+      </test-cases>
+    </component-tests>
+
+    <integration-tests>
+      <title>Page-Level Integration Tests</title>
+      <file>nextjs-ui/app/dashboard/llm-costs/page.test.tsx (update existing)</file>
+      <description>
+        Add tests for daily spend trend section integration within main page
+      </description>
+      <test-cases>
+        <test-case name="Full Workflow">
+          <description>Test full workflow: fetch → transform → render → interact</description>
+          <steps>
+            <step>Mock /api/v1/costs/summary and /api/v1/costs/trend endpoints</step>
+            <step>Render LLMCostsPage</step>
+            <step>Wait for both API calls to complete</step>
+            <step>Verify metrics cards from Story 1.1 are rendered</step>
+            <step>Verify daily spend chart is rendered</step>
+            <step>Verify chart shows 30 data points</step>
+          </steps>
+        </test-case>
+        <test-case name="RBAC Enforcement">
+          <description>Verify page redirects non-authenticated users</description>
+          <steps>
+            <step>Mock useSession to return unauthenticated status</step>
+            <step>Render page</step>
+            <step>Verify redirect to /login is triggered</step>
+          </steps>
+        </test-case>
+      </test-cases>
+    </integration-tests>
+
+    <e2e-tests>
+      <title>End-to-End Tests with Playwright</title>
+      <file>nextjs-ui/__tests__/e2e/llm-costs-dashboard.spec.ts</file>
+      <description>
+        E2E tests for user workflows on LLM Costs dashboard (optional but recommended)
+      </description>
+      <test-cases>
+        <test-case name="View Dashboard and Export Chart">
+          <description>User navigates to dashboard, views chart, and exports PNG</description>
+          <steps>
+            <step>Navigate to /login and authenticate</step>
+            <step>Navigate to /dashboard/llm-costs</step>
+            <step>Wait for page to load (metrics cards visible)</step>
+            <step>Scroll to daily spend chart section</step>
+            <step>Verify chart is rendered with 30 data points</step>
+            <step>Hover over chart point and verify tooltip appears</step>
+            <step>Click "Export as PNG" button</step>
+            <step>Verify download is triggered (check download event)</step>
+          </steps>
+        </test-case>
+      </test-cases>
+    </e2e-tests>
+
+    <accessibility-tests>
+      <title>Accessibility Tests (WCAG 2.1 AA)</title>
+      <tools>
+        <item>axe DevTools (browser extension)</item>
+        <item>Lighthouse (Chrome DevTools)</item>
+        <item>@testing-library/jest-dom (assertions)</item>
+      </tools>
+      <test-cases>
+        <test-case name="Keyboard Navigation">
+          <description>Chart and controls are keyboard accessible</description>
+          <steps>
+            <step>Tab to chart section</step>
+            <step>Tab to export button and verify focus indicator</step>
+            <step>Press Enter on export button and verify it triggers</step>
+            <step>Verify all interactive elements have visible focus states</step>
+          </steps>
+        </test-case>
+        <test-case name="Screen Reader Compatibility">
+          <description>Chart has proper ARIA labels and alt text</description>
+          <steps>
+            <step>Verify chart container has aria-label or aria-labelledby</step>
+            <step>Verify axis labels are properly labeled</step>
+            <step>Verify empty state has descriptive text</step>
+          </steps>
+        </test-case>
+        <test-case name="Color Contrast">
+          <description>All text meets WCAG 2.1 AA contrast ratios</description>
+          <steps>
+            <step>Run Lighthouse audit</step>
+            <step>Verify axis labels have 4.5:1 contrast ratio minimum</step>
+            <step>Verify tooltip text has 4.5:1 contrast ratio minimum</step>
+            <step>Verify delta text (green/red) has sufficient contrast</step>
+          </steps>
+        </test-case>
+      </test-cases>
+    </accessibility-tests>
+  </testing-strategy>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 9: DEPENDENCIES & LIBRARIES -->
+  <!-- ================================================================== -->
+
+  <dependencies>
+    <existing>
+      <item name="recharts" version="3.3.0" installed="true" />
+      <item name="date-fns" version="3.6.0" installed="true" />
+      <item name="@tanstack/react-query" version="5.62.2" installed="true" />
+      <item name="axios" version="1.7.9" installed="true" />
+      <item name="lucide-react" version="0.462.0" installed="true" />
+      <item name="tailwindcss" version="3.4.14" installed="true" />
+      <item name="next" version="14.2.15" installed="true" />
+      <item name="react" version="18.3.1" installed="true" />
+    </existing>
+    <to-install>
+      <item name="html2canvas" version="latest" reason="PNG export functionality">
+        <command>npm install html2canvas</command>
+        <types>npm install --save-dev @types/html2canvas</types>
+      </item>
+    </to-install>
+    <peer-dependencies>
+      <item>recharts requires React 16.8+ (satisfied by React 18.3.1)</item>
+      <item>date-fns v3.x (currently 3.6.0 - compatible)</item>
+    </peer-dependencies>
+  </dependencies>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 10: RISKS & MITIGATION -->
+  <!-- ================================================================== -->
+
+  <risks>
+    <risk id="R1" severity="medium" likelihood="medium">
+      <title>Performance Degradation on Mobile</title>
+      <description>
+        Chart rendering and interactions may be slow on low-end mobile devices,
+        especially with complex gradients and animations.
+      </description>
+      <impact>Poor user experience, slow tooltip response, laggy scrolling</impact>
+      <mitigation>
+        <strategy>Debounce resize events (300ms)</strategy>
+        <strategy>Use ResponsiveContainer debounce prop</strategy>
+        <strategy>Simplify chart on mobile (fewer data points if needed)</strategy>
+        <strategy>Test on real devices (iPhone, Android) early</strategy>
+        <strategy>Monitor Core Web Vitals (LCP, FID, CLS)</strategy>
+        <strategy>Consider disabling animations on mobile if performance issues persist</strategy>
+      </mitigation>
+    </risk>
+
+    <risk id="R2" severity="medium" likelihood="medium">
+      <title>Export Fails on Safari/iOS</title>
+      <description>
+        html2canvas has known issues with Safari and iOS browsers, may fail to
+        capture chart or produce incorrect output.
+      </description>
+      <impact>Export feature not working for Safari users (significant user base)</impact>
+      <mitigation>
+        <strategy>Test export on Safari early in development</strategy>
+        <strategy>Add fallback export method (server-side generation if needed)</strategy>
+        <strategy>Show user-friendly error message if export fails</strategy>
+        <strategy>Provide alternative: "Copy chart URL" or "Share chart link"</strategy>
+        <strategy>Document Safari limitations if no solution found</strategy>
+      </mitigation>
+    </risk>
+
+    <risk id="R3" severity="low" likelihood="low">
+      <title>API Response Time Exceeds 500ms</title>
+      <description>
+        Backend API may be slow due to large dataset aggregation or database
+        query optimization issues.
+      </description>
+      <impact>Perceived slowness, user frustration</impact>
+      <mitigation>
+        <strategy>Implement optimistic loading (show skeleton immediately)</strategy>
+        <strategy>Add caching layer (React Query cache 5min)</strategy>
+        <strategy>Show "Loading may take a moment" message if > 2s</strategy>
+        <strategy>Work with backend team to optimize query (index on date column)</strategy>
+        <strategy>Consider pagination if dataset grows beyond 30 days</strategy>
+      </mitigation>
+    </risk>
+
+    <risk id="R4" severity="low" likelihood="medium">
+      <title>Data Gaps or Inconsistencies</title>
+      <description>
+        Backend may return incomplete data (missing days, inconsistent amounts)
+        due to data ingestion issues.
+      </description>
+      <impact>Chart shows gaps or misleading trends</impact>
+      <mitigation>
+        <strategy>Handle missing days gracefully (show gaps in line, don't interpolate)</strategy>
+        <strategy>Add note in tooltip for missing days: "No data for this day"</strategy>
+        <strategy>Don't interpolate missing data (honest representation)</strategy>
+        <strategy>Log warnings to monitoring system for investigation</strategy>
+        <strategy>Show data quality indicator if too many gaps detected</strategy>
+      </mitigation>
+    </risk>
+  </risks>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 11: FUTURE ENHANCEMENTS -->
+  <!-- ================================================================== -->
+
+  <future-enhancements>
+    <enhancement priority="P1">
+      <title>Trend Line (Linear Regression)</title>
+      <description>Add optional trend line showing projected spending trajectory</description>
+      <rationale>Helps users forecast future costs based on historical trends</rationale>
+      <story>Defer to Story 1.3 or future story</story>
+    </enhancement>
+
+    <enhancement priority="P1">
+      <title>Week-over-Week and Month-over-Month Comparison</title>
+      <description>Add comparison view showing current vs previous period</description>
+      <rationale>Enables period-over-period analysis for pattern identification</rationale>
+      <story>Defer to future story</story>
+    </enhancement>
+
+    <enhancement priority="P2">
+      <title>Zoom and Pan Controls</title>
+      <description>Add interactive controls to zoom into specific date ranges</description>
+      <rationale>Power users may want to focus on specific time periods</rationale>
+      <story>Defer to future story</story>
+    </enhancement>
+
+    <enhancement priority="P2">
+      <title>Comparison Mode (Overlay Multiple Months)</title>
+      <description>Overlay multiple months to compare seasonal patterns</description>
+      <rationale>Identify seasonal trends and year-over-year patterns</rationale>
+      <story>Defer to future story</story>
+    </enhancement>
+
+    <enhancement priority="P3">
+      <title>ML-Based Forecast Line</title>
+      <description>Add ML-powered forecast showing predicted future spend</description>
+      <rationale>Advanced forecasting for budget planning</rationale>
+      <story>Defer to future ML-focused epic</story>
+    </enhancement>
+
+    <enhancement priority="P3">
+      <title>Event Annotations</title>
+      <description>Mark significant events on chart (e.g., "New agent deployed")</description>
+      <rationale>Correlate cost changes with operational events</rationale>
+      <story>Defer to future story</story>
+    </enhancement>
+
+    <enhancement priority="P3">
+      <title>Server-Side Chart Rendering</title>
+      <description>Render chart server-side for PDF exports and email reports</description>
+      <rationale>Enable automated reporting and email digests</rationale>
+      <story>Defer to future reporting epic</story>
+    </enhancement>
+
+    <enhancement priority="P3">
+      <title>Additional Export Formats (PDF, SVG)</title>
+      <description>Add PDF and SVG export options beyond PNG</description>
+      <rationale>Some users may prefer vector formats for presentations</rationale>
+      <story>Defer to future story</story>
+    </enhancement>
+  </future-enhancements>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 12: DEFINITION OF DONE -->
+  <!-- ================================================================== -->
+
+  <definition-of-done>
+    <checklist>
+      <category name="Functionality">
+        <item>All 11 acceptance criteria met and verified</item>
+        <item>Chart renders with 30 days of data</item>
+        <item>Tooltip shows date, amount, and delta correctly</item>
+        <item>Export to PNG works on all major browsers</item>
+        <item>Responsive layout works on mobile, tablet, desktop</item>
+        <item>Loading, empty, and error states display properly</item>
+      </category>
+
+      <category name="Code Quality">
+        <item>All files ≤500 lines (enforced by CI/CD check-file-size.py)</item>
+        <item>TypeScript strict mode enabled, no type errors</item>
+        <item>ESLint passes with no errors or warnings</item>
+        <item>Code follows existing patterns from Story 1.1</item>
+        <item>Components are properly decomposed (DailySpendChart, CustomTooltip, ExportButton)</item>
+        <item>Proper error handling and null checks</item>
+      </category>
+
+      <category name="Testing">
+        <item>All unit tests written and passing (useLLMCostTrend hook)</item>
+        <item>All component tests written and passing (DailySpendChart)</item>
+        <item>Test coverage ≥80% for new code</item>
+        <item>Integration tests updated (page.test.tsx)</item>
+        <item>Manual testing on Chrome, Firefox, Safari, Edge</item>
+        <item>Mobile testing on iOS Safari and Android Chrome</item>
+      </category>
+
+      <category name="Performance">
+        <item>Initial render &lt;500ms (Chrome DevTools Performance tab)</item>
+        <item>Tooltip response &lt;50ms</item>
+        <item>Export generation &lt;2s</item>
+        <item>Lighthouse Performance score ≥90</item>
+        <item>No memory leaks on repeated renders</item>
+      </category>
+
+      <category name="Accessibility">
+        <item>Lighthouse Accessibility score: 100</item>
+        <item>axe DevTools: 0 violations</item>
+        <item>Keyboard navigation works (Tab to export button, Enter to trigger)</item>
+        <item>Screen reader support (ARIA labels, semantic HTML)</item>
+        <item>Color contrast ratios meet WCAG 2.1 AA (4.5:1 minimum)</item>
+        <item>Focus indicators visible and clear</item>
+      </category>
+
+      <category name="Documentation">
+        <item>Component props documented with JSDoc</item>
+        <item>Inline comments for complex logic (delta calculation, data transformation)</item>
+        <item>README updated if needed (new dependencies, setup steps)</item>
+        <item>Story file updated with implementation notes</item>
+      </category>
+
+      <category name="Deployment">
+        <item>Deployed to staging environment</item>
+        <item>Stakeholder demo completed and approved</item>
+        <item>No console errors or warnings in production build</item>
+        <item>Story marked as "ready-for-dev" in sprint-status.yaml</item>
+        <item>Code reviewed by at least one team member</item>
+        <item>Merged to main branch via pull request</item>
+      </category>
+    </checklist>
+  </definition-of-done>
+
+  <!-- ================================================================== -->
+  <!-- SECTION 13: REFERENCES -->
+  <!-- ================================================================== -->
+
+  <references>
+    <documentation>
+      <item type="Epic">docs/epics-nextjs-feature-parity-completion.md</item>
+      <item type="Tech Spec">docs/nextjs-ui-migration-tech-spec-v2.md</item>
+      <item type="Story">docs/sprint-artifacts/stories/nextjs-story-10-llm-cost-dashboard-trend-chart.md</item>
+      <item type="Sprint Status">docs/sprint-artifacts/sprint-status.yaml</item>
+    </documentation>
+
+    <code-references>
+      <item type="Existing Page">nextjs-ui/app/dashboard/llm-costs/page.tsx (Story 1.1)</item>
+      <item type="Hook Pattern">nextjs-ui/hooks/useLLMCostSummary.ts</item>
+      <item type="Component Pattern">nextjs-ui/components/costs/CostMetricsCards.tsx</item>
+      <item type="Test Pattern">nextjs-ui/hooks/useLLMCostSummary.test.tsx</item>
+      <item type="Backend API">src/api/llm_costs.py:183-202 (get_daily_spend_trend)</item>
+      <item type="Backend Schema">src/schemas/llm_cost.py:75-89 (DailySpendDTO)</item>
+    </code-references>
+
+    <external-links>
+      <item name="Recharts Documentation" url="https://recharts.org/en-US/api" />
+      <item name="Recharts Area Chart Example" url="https://recharts.org/en-US/examples/SimpleAreaChart" />
+      <item name="TanStack Query Documentation" url="https://tanstack.com/query/latest/docs/framework/react/overview" />
+      <item name="date-fns Format Reference" url="https://date-fns.org/v3.6.0/docs/format" />
+      <item name="html2canvas Documentation" url="https://html2canvas.hertzen.com/" />
+      <item name="Next.js App Router" url="https://nextjs.org/docs/app" />
+      <item name="WCAG 2.1 Guidelines" url="https://www.w3.org/WAI/WCAG21/quickref/" />
+    </external-links>
+  </references>
+
+</story-context>

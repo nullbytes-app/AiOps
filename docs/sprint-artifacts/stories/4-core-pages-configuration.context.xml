@@ -1,0 +1,454 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>4</storyId>
+    <title>Core Configuration Pages</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-core-pages-configuration.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>tenant administrator</asA>
+    <iWant>configuration pages for managing tenants, agents, LLM providers, and MCP servers</iWant>
+    <soThat>I can configure and manage the AI Agents platform through a modern, intuitive interface with proper role-based access control</soThat>
+    <tasks>
+      <task id="1" title="Setup Form Validation & Hooks" estimated="4 hours">
+        <subtask>Install react-hook-form@7.51.0, @hookform/resolvers@3.3.4, zod@3.22.4</subtask>
+        <subtask>Create Zod schemas: lib/schemas/tenant.ts, agent.ts, provider.ts, mcp-server.ts</subtask>
+        <subtask>Create API hooks with mutations: lib/hooks/useTenants.ts, useAgents.ts, useProviders.ts, useMcpServers.ts</subtask>
+        <subtask>Implement optimistic updates pattern in all mutation hooks</subtask>
+        <subtask>Create reusable form components: FormField.tsx, FormError.tsx, FormSkeleton.tsx</subtask>
+        <subtask>Write unit tests for Zod schemas (validation edge cases)</subtask>
+      </task>
+      <task id="2" title="Build Tenants CRUD Pages" estimated="5 hours">
+        <subtask>Create app/(dashboard)/configuration/tenants/page.tsx (list view)</subtask>
+        <subtask>Create components/configuration/tenants/TenantTable.tsx (sortable, searchable)</subtask>
+        <subtask>Create components/configuration/tenants/TenantForm.tsx (create/edit form)</subtask>
+        <subtask>Create components/configuration/tenants/DeleteTenantDialog.tsx</subtask>
+        <subtask>Create app/(dashboard)/configuration/tenants/[id]/page.tsx (detail view)</subtask>
+        <subtask>Create app/(dashboard)/configuration/tenants/new/page.tsx (create page)</subtask>
+        <subtask>Implement role-based access control (hide actions based on permissions)</subtask>
+        <subtask>Add empty state component</subtask>
+        <subtask>Write component tests for TenantTable, TenantForm</subtask>
+        <subtask>Write E2E test: Create tenant → Edit → Delete</subtask>
+      </task>
+      <task id="3" title="Build Agents CRUD Pages" estimated="8 hours">
+        <subtask>Create app/(dashboard)/configuration/agents/page.tsx (list view)</subtask>
+        <subtask>Create components/configuration/agents/AgentTable.tsx (with status filter)</subtask>
+        <subtask>Create components/configuration/agents/AgentForm.tsx (complex form with LLM config)</subtask>
+        <subtask>Create app/(dashboard)/configuration/agents/[id]/page.tsx (detail with 3 tabs)</subtask>
+        <subtask>Implement tab navigation (Overview, Tools Assignment, Test Sandbox)</subtask>
+        <subtask>Create system prompt editor (textarea with character count)</subtask>
+        <subtask>Add LLM model dropdown (fetched from providers API)</subtask>
+        <subtask>Add temperature slider (0-1, step 0.1)</subtask>
+        <subtask>Write tests for AgentForm validation (all fields)</subtask>
+        <subtask>Write E2E test: Create agent → Navigate tabs → Save</subtask>
+      </task>
+      <task id="4" title="Build Tool Assignment UI" estimated="6 hours">
+        <subtask>Install @dnd-kit/core@6.1.0, @dnd-kit/sortable@8.0.0</subtask>
+        <subtask>Create components/configuration/agents/ToolAssignment.tsx</subtask>
+        <subtask>Implement drag-and-drop with dnd-kit (2 columns: Available, Assigned)</subtask>
+        <subtask>Fetch tools from /api/v1/tools and /api/v1/mcp-servers/[id]/tools</subtask>
+        <subtask>Create ToolCard component (draggable card with tool info)</subtask>
+        <subtask>Implement save changes button (only enabled if changes made)</subtask>
+        <subtask>Add optimistic update on save</subtask>
+        <subtask>Implement keyboard accessibility (Tab + Space/Enter to move tools)</subtask>
+        <subtask>Write tests for drag-and-drop interaction</subtask>
+        <subtask>Write E2E test: Assign tool → Save → Verify in list</subtask>
+      </task>
+      <task id="5" title="Build Test Sandbox" estimated="4 hours">
+        <subtask>Create components/configuration/agents/TestSandbox.tsx</subtask>
+        <subtask>Create test execution hook: lib/hooks/useTestAgent.ts</subtask>
+        <subtask>Implement input textarea with placeholder</subtask>
+        <subtask>Add "Execute Test" button with loading state</subtask>
+        <subtask>Display agent response (JSON formatted with syntax highlighting)</subtask>
+        <subtask>Show execution metadata (duration, tokens, cost)</subtask>
+        <subtask>Add error state display</subtask>
+        <subtask>Install react-syntax-highlighter@15.5.0 for JSON formatting</subtask>
+        <subtask>Write tests for execute test flow</subtask>
+        <subtask>Write E2E test: Enter message → Execute → Verify output</subtask>
+      </task>
+      <task id="6" title="Build LLM Providers Pages" estimated="6 hours">
+        <subtask>Create app/(dashboard)/configuration/llm-providers/page.tsx (grid view)</subtask>
+        <subtask>Create components/configuration/providers/ProviderCard.tsx</subtask>
+        <subtask>Create components/configuration/providers/ProviderGrid.tsx</subtask>
+        <subtask>Create components/configuration/providers/ProviderForm.tsx</subtask>
+        <subtask>Create components/configuration/providers/TestConnection.tsx</subtask>
+        <subtask>Create components/configuration/providers/ModelList.tsx</subtask>
+        <subtask>Create app/(dashboard)/configuration/llm-providers/[id]/page.tsx (2 tabs)</subtask>
+        <subtask>Implement test connection flow (POST /test → display results)</subtask>
+        <subtask>Implement API key masking (show/hide toggle)</subtask>
+        <subtask>Add model refresh button</subtask>
+        <subtask>Write tests for ProviderForm, TestConnection</subtask>
+        <subtask>Write E2E test: Add provider → Test connection → Verify models</subtask>
+      </task>
+      <task id="7" title="Build MCP Servers Pages" estimated="7 hours">
+        <subtask>Create app/(dashboard)/configuration/mcp-servers/page.tsx (table view)</subtask>
+        <subtask>Create components/configuration/mcp-servers/McpServerTable.tsx</subtask>
+        <subtask>Create components/configuration/mcp-servers/McpServerForm.tsx</subtask>
+        <subtask>Create components/configuration/mcp-servers/ToolsList.tsx</subtask>
+        <subtask>Create components/configuration/mcp-servers/HealthLogs.tsx</subtask>
+        <subtask>Create app/(dashboard)/configuration/mcp-servers/[id]/page.tsx (3 tabs)</subtask>
+        <subtask>Implement conditional form fields (HTTP vs stdio)</subtask>
+        <subtask>Add environment variables input (key-value pairs with "Add Variable" button)</subtask>
+        <subtask>Implement test connection & tool discovery</subtask>
+        <subtask>Add health logs table with auto-refresh (30s interval)</subtask>
+        <subtask>Write tests for McpServerForm (conditional fields)</subtask>
+        <subtask>Write E2E test: Add server → Test connection → View tools</subtask>
+      </task>
+      <task id="8" title="Add Confirmation Dialogs & Empty States" estimated="3 hours">
+        <subtask>Create components/configuration/shared/ConfirmDialog.tsx (reusable)</subtask>
+        <subtask>Create components/configuration/shared/EmptyState.tsx</subtask>
+        <subtask>Add delete confirmation to all CRUD pages (tenants, agents, providers, servers)</subtask>
+        <subtask>Implement empty states for all list pages</subtask>
+        <subtask>Add illustrations to empty states (optional, can use icons)</subtask>
+        <subtask>Write tests for ConfirmDialog (cancel, confirm, keyboard)</subtask>
+        <subtask>Test empty state rendering</subtask>
+      </task>
+      <task id="9" title="Update Navigation & MSW Mocks" estimated="2 hours">
+        <subtask>Update components/dashboard/Sidebar.tsx (add "Configuration" group)</subtask>
+        <subtask>Add 4 navigation links: Tenants, Agents, LLM Providers, MCP Servers</subtask>
+        <subtask>Add icons: Building2 (Tenants), Bot (Agents), Zap (Providers), Server (MCP)</subtask>
+        <subtask>Create mocks/handlers/configuration.ts (all CRUD endpoints)</subtask>
+        <subtask>Add handlers to mocks/handlers.ts</subtask>
+        <subtask>Generate mock data for all entities</subtask>
+        <subtask>Test navigation (click each link, verify active state)</subtask>
+      </task>
+      <task id="10" title="Write Component & Integration Tests" estimated="8 hours">
+        <subtask>Write TenantForm.test.tsx (validation, submit, optimistic update)</subtask>
+        <subtask>Write AgentForm.test.tsx (all fields, LLM config, temperature slider)</subtask>
+        <subtask>Write ToolAssignment.test.tsx (drag-and-drop, save changes)</subtask>
+        <subtask>Write TestSandbox.test.tsx (execute test, display output, error handling)</subtask>
+        <subtask>Write ProviderForm.test.tsx (test connection, API key masking, model list)</subtask>
+        <subtask>Write McpServerForm.test.tsx (conditional fields, env vars, tool discovery)</subtask>
+        <subtask>Write ConfirmDialog.test.tsx (cancel, confirm, keyboard)</subtask>
+        <subtask>Write integration tests for each page (render, data fetch, CRUD operations)</subtask>
+        <subtask>Achieve >80% coverage for all configuration components</subtask>
+        <subtask>Run tests: npm test</subtask>
+      </task>
+      <task id="11" title="Write E2E Tests & Accessibility Audit" estimated="5 hours">
+        <subtask>Write e2e/tenant-crud.spec.ts (create → edit → delete)</subtask>
+        <subtask>Write e2e/agent-creation.spec.ts (create agent → assign tools → test)</subtask>
+        <subtask>Write e2e/provider-test-connection.spec.ts (add provider → test → verify models)</subtask>
+        <subtask>Write e2e/mcp-server-tools.spec.ts (add server → discover tools → view)</subtask>
+        <subtask>Write e2e/form-validation.spec.ts (invalid inputs → error messages)</subtask>
+        <subtask>Write e2e/configuration-accessibility.spec.ts (axe-core audit)</subtask>
+        <subtask>Test all forms have proper labels</subtask>
+        <subtask>Test error messages linked with aria-describedby</subtask>
+        <subtask>Test dialogs have aria-modal and focus trap</subtask>
+        <subtask>Test drag-and-drop keyboard accessibility</subtask>
+        <subtask>Run Playwright: npm run test:e2e</subtask>
+      </task>
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    <criterion id="AC-1" title="Tenants Page (/configuration/tenants)">
+      <requirement>List View: Table displays Tenant Name, Tenant ID, Agent Count, Created Date, Actions</requirement>
+      <requirement>Sortable columns (click header to sort by name, created date)</requirement>
+      <requirement>Search filter by tenant name (real-time filtering)</requirement>
+      <requirement>Pagination (20 tenants per page)</requirement>
+      <requirement>"Create Tenant" button (top-right, only visible to super_admin)</requirement>
+      <requirement>Each row has Edit and Delete action buttons</requirement>
+      <requirement>Detail View: Displays tenant details, associated agents count and list</requirement>
+      <requirement>Edit form inline (toggle edit mode with "Edit" button)</requirement>
+      <requirement>Delete button with confirmation dialog</requirement>
+      <requirement>Breadcrumbs: Configuration > Tenants > [Tenant Name]</requirement>
+      <requirement>Form: Name (required, min 3 chars), Description (optional, max 500 chars), Logo URL (optional, valid URL)</requirement>
+      <requirement>Zod validation, React Hook Form state management</requirement>
+      <requirement>Submit button disabled during API call (loading state)</requirement>
+      <requirement>Success/Error toast notifications</requirement>
+      <requirement>Optimistic UI update with rollback on error</requirement>
+      <requirement>Delete confirmation modal with warning message</requirement>
+      <requirement>Permissions: super_admin (Full CRUD), tenant_admin (View all, edit own), operator/developer/viewer (Read-only)</requirement>
+    </criterion>
+    <criterion id="AC-2" title="Agents Page (/configuration/agents)">
+      <requirement>List View: Table displays Agent Name, Type, Status (active/inactive badge), Tools Count, Last Run</requirement>
+      <requirement>Filter by status dropdown: All, Active, Inactive</requirement>
+      <requirement>Search by agent name (real-time)</requirement>
+      <requirement>Pagination (20 agents per page)</requirement>
+      <requirement>"Create Agent" button (top-right)</requirement>
+      <requirement>Actions: Edit, Test, Delete</requirement>
+      <requirement>Detail View: 3 tabs (Overview, Tools Assignment, Test Sandbox)</requirement>
+      <requirement>Overview Tab: Agent name, type, status, system prompt, LLM configuration, memory configuration</requirement>
+      <requirement>Tools Assignment Tab: Drag-and-drop interface with 2 columns (Available Tools, Assigned Tools)</requirement>
+      <requirement>Available tools fetched from /api/v1/tools and /api/v1/mcp-servers/[id]/tools</requirement>
+      <requirement>Each tool card shows: Tool name, description, source (OpenAPI or MCP server name)</requirement>
+      <requirement>Drag tool from left to right to assign, right to left to unassign</requirement>
+      <requirement>Save button at bottom (only enabled if changes made)</requirement>
+      <requirement>Optimistic update on save</requirement>
+      <requirement>Test Sandbox Tab: Input field, Execute Test button, Output section with JSON formatting</requirement>
+      <requirement>Execution metadata: Duration, tokens used, cost</requirement>
+      <requirement>Loading state during test execution, error state if test fails</requirement>
+      <requirement>Form: Name, Type, System Prompt, LLM Model, Provider, Temperature, Max Tokens, Status</requirement>
+      <requirement>Zod validation, React Hook Form state management</requirement>
+      <requirement>Delete confirmation with warning about webhook endpoints</requirement>
+      <requirement>Permissions: tenant_admin/developer (Full CRUD), operator (test agents, view only), viewer (read-only)</requirement>
+    </criterion>
+    <criterion id="AC-3" title="LLM Providers Page (/configuration/llm-providers)">
+      <requirement>List View: Card grid layout (3 columns on desktop, 1 on mobile)</requirement>
+      <requirement>Each card shows: Provider logo, Provider name, Model count badge, Status badge, Actions</requirement>
+      <requirement>"Add Provider" button (top-right)</requirement>
+      <requirement>Filter by status: All, Healthy, Unhealthy</requirement>
+      <requirement>Detail View: 2 tabs (Configuration, Models)</requirement>
+      <requirement>Configuration Tab: Provider name, type, Base URL, API Key (masked), Test Connection button, Edit button</requirement>
+      <requirement>API Key masked: ••••••••last4, with "Show/Hide" toggle</requirement>
+      <requirement>Test Connection button: Shows response time + model list</requirement>
+      <requirement>Models Tab: Table of available models with Model ID, Context Window, Cost per 1K tokens</requirement>
+      <requirement>"Refresh Models" button (triggers model discovery)</requirement>
+      <requirement>Form: Name, Type (dropdown), Base URL, API Key, Models (multi-select after test connection)</requirement>
+      <requirement>Test Connection validates API key before allowing submit</requirement>
+      <requirement>Success message: "Connected successfully. Found 15 models."</requirement>
+      <requirement>Error message: "Connection failed: Invalid API key"</requirement>
+      <requirement>Submit disabled until test connection succeeds</requirement>
+      <requirement>Delete confirmation with warning about agents using this provider</requirement>
+      <requirement>Permissions: tenant_admin (Full CRUD), operator/developer (Read-only, can test connection), viewer (read-only)</requirement>
+    </criterion>
+    <criterion id="AC-4" title="MCP Servers Page (/configuration/mcp-servers)">
+      <requirement>List View: Table displays Server Name, Type (HTTP, SSE, stdio), Status (health badge), Tools Count, Last Health Check</requirement>
+      <requirement>Filter by type dropdown: All, HTTP, SSE, stdio</requirement>
+      <requirement>Filter by status: All, Healthy, Unhealthy</requirement>
+      <requirement>Search by server name</requirement>
+      <requirement>Pagination (20 servers per page)</requirement>
+      <requirement>"Add MCP Server" button (top-right)</requirement>
+      <requirement>Actions: Edit, Test Connection, View Tools, Delete</requirement>
+      <requirement>Detail View: 3 tabs (Configuration, Tools, Health Logs)</requirement>
+      <requirement>Configuration Tab: Server name, type, connection URL (for HTTP/SSE), environment variables (for stdio), health check interval, edit button</requirement>
+      <requirement>Tools Tab: Table of tools exposed by this server (Tool Name, Description, Parameters)</requirement>
+      <requirement>Fetched from /api/v1/mcp-servers/[id]/tools</requirement>
+      <requirement>"Refresh Tools" button (triggers tool discovery)</requirement>
+      <requirement>Empty state if no tools: "No tools discovered. Check server configuration."</requirement>
+      <requirement>Health Logs Tab: Table of last 50 health check results (Timestamp, Status, Response Time, Error)</requirement>
+      <requirement>Auto-refresh every 30 seconds</requirement>
+      <requirement>Form: Name, Type (radio buttons), Connection URL (for HTTP/SSE), Environment Variables (for stdio), Health Check Interval</requirement>
+      <requirement>Conditional fields based on type: HTTP/SSE (URL input), stdio (Command input + env vars)</requirement>
+      <requirement>Validation: URL format for HTTP/SSE, command path for stdio</requirement>
+      <requirement>Test Connection & Discover Tools button</requirement>
+      <requirement>Success response shows: Green checkmark, Response time, Tools discovered count, Tool list preview</requirement>
+      <requirement>Delete confirmation with warning about agents using tools from this server</requirement>
+      <requirement>Permissions: tenant_admin/developer (Full CRUD), operator (Read-only, can test connection), viewer (read-only)</requirement>
+    </criterion>
+    <criterion id="AC-5" title="Forms, Validation & UX Patterns">
+      <requirement>Zod schemas for all forms (tenants, agents, providers, servers)</requirement>
+      <requirement>React Hook Form integration with zodResolver</requirement>
+      <requirement>Inline error messages below invalid fields (red text)</requirement>
+      <requirement>Field-level validation on blur</requirement>
+      <requirement>Submit button disabled until form valid</requirement>
+      <requirement>Error summary at top of form if multiple errors</requirement>
+      <requirement>Optimistic UI Updates: Create (row appears immediately), Update (changes reflect immediately), Delete (row fades out immediately)</requirement>
+      <requirement>On API error: Rollback changes, show error toast, re-enable actions</requirement>
+      <requirement>TanStack Query mutations with onMutate, onError, onSettled</requirement>
+      <requirement>Toast Notifications (Sonner): Success/Error messages, Position top-right on desktop, Auto-dismiss after 5 seconds (errors stay until dismissed)</requirement>
+      <requirement>Confirmation Dialogs: Headless UI Dialog component, Title + Description + Warning, Buttons (Cancel, Confirm), Keyboard (ESC to cancel, Enter to confirm)</requirement>
+      <requirement>Loading States: Form submit (button shows spinner), Test connection (button shows spinner), Table data fetch (skeleton rows), Page navigation (progress bar)</requirement>
+      <requirement>Empty States: No entities message + illustration + "Create [Entity]" button</requirement>
+    </criterion>
+    <criterion id="AC-6" title="Testing & Quality">
+      <requirement>Component Tests (Jest + RTL): TenantForm, AgentForm, ToolAssignment, TestSandbox, ProviderForm, McpServerForm tests</requirement>
+      <requirement>Mock all API calls with MSW</requirement>
+      <requirement>Coverage >80% for all form components</requirement>
+      <requirement>Integration Tests (Playwright E2E): tenant-crud, agent-creation, provider-test-connection, mcp-server-tools, form-validation tests</requirement>
+      <requirement>Accessibility: WCAG 2.1 Level AA compliance, All forms have proper label elements, Error messages linked with aria-describedby</requirement>
+      <requirement>Dialogs use aria-modal="true", focus trapped inside</requirement>
+      <requirement>Drag-and-drop accessible via keyboard (Tab + Space/Enter to move)</requirement>
+      <requirement>Color contrast >4.5:1 for all form text</requirement>
+      <requirement>Screen reader announces form errors</requirement>
+    </criterion>
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/epics-nextjs-ui-migration.md" title="Next.js UI Migration Epic Breakdown" section="Epic 3: Next.js UI Core Implementation">
+        Epic 3 covers Stories 2-6, focusing on building the Next.js UI with Apple Liquid Glass design. Story 4 (Core Configuration Pages) implements CRUD pages for Tenants, Agents, LLM Providers, and MCP Servers with forms, validation, drag-and-drop tool assignment, and test sandboxes. Dependencies: Story 2 (Project Setup) and Story 3 (Core Monitoring Pages) completed.
+      </doc>
+      <doc path="docs/nextjs-ui-migration-tech-spec-v2.md" title="Technical Specification: Next.js UI Migration" section="Section 3.3: Configuration Pages Implementation">
+        Tech-spec v2.0 defines configuration pages with React Hook Form + Zod validation, TanStack Query optimistic updates, dnd-kit drag-and-drop, and comprehensive testing. Includes form validation patterns, API integration examples, and accessibility requirements. Incorporates team retrospective feedback including JWT roles-on-demand architecture and API versioning (/api/v1/*).
+      </doc>
+      <doc path="docs/architecture.md" title="AI Agents - Decision Architecture" section="Technology Stack Details">
+        Core technologies: FastAPI backend, PostgreSQL 17 database, Redis message broker, Celery workers, LangGraph AI orchestration, OpenRouter API gateway. Next.js 14 frontend with TanStack Query, React Hook Form, Zod validation, MSW mocks for testing. Observability: Loguru logging, Prometheus metrics, Grafana dashboards.
+      </doc>
+      <doc path="docs/design-system/design-tokens.json" title="Design System Tokens" section="Colors, Spacing, Typography">
+        Liquid Glass design system with glassmorphism effects, neural network background, dark mode support. Color palette includes glass backgrounds (rgba(255,255,255,0.75)), accent blue (#3b82f6), accent purple (#8b5cf6), destructive red (#ef4444). Spacing scale: 4, 8, 16, 24, 32, 48, 64px. Typography: Inter font family, H1-H6 scales, animation timings (fast: 150ms, base: 300ms, slow: 500ms).
+      </doc>
+      <doc path="docs/adr/003-jwt-roles-on-demand.md" title="ADR 003: JWT Roles On-Demand" section="Decision">
+        CRITICAL DECISION: Roles are NOT stored in JWT tokens to prevent token bloat. Instead, roles are fetched on-demand from database when user switches tenants or accesses protected resources. This allows users to have different roles across multiple tenants without requiring massive JWT payloads.
+      </doc>
+      <doc path="docs/adr/004-api-versioning-strategy.md" title="ADR 004: API Versioning Strategy" section="Decision">
+        All backend API endpoints use /api/v1/* versioning pattern. Examples: /api/v1/tenants, /api/v1/agents, /api/v1/llm-providers, /api/v1/mcp-servers. This enables backward compatibility and graceful API evolution.
+      </doc>
+      <doc path="docs/user-research/personas.md" title="User Personas" section="Persona 2: Tenant Admin">
+        Jordan Martinez (Tenant Admin) manages team access, configures agents, monitors costs. Pain points: Can't delegate permissions, limited reporting. Primary user of Tenants and Agents configuration pages. Needs: Quick tenant switching, role assignment, agent status monitoring.
+      </doc>
+    </docs>
+
+    <code>
+      <artifact path="nextjs-ui/lib/api/client.ts" kind="service" symbol="createApiClient" lines="16-70" reason="Axios instance configured for FastAPI backend with JWT token interceptor. All CRUD API calls will use this client. Shows pattern for Authorization header injection from NextAuth session.">
+        <description>Creates configured axios instance with baseURL (process.env.NEXT_PUBLIC_API_URL), 30s timeout, automatic JWT token injection from NextAuth session, 401 error handling (redirect to /api/auth/signin), error logging in development mode.</description>
+      </artifact>
+      <artifact path="nextjs-ui/lib/hooks/useAgentMetrics.ts" kind="hook" symbol="useAgentMetrics" lines="71-107" reason="Example TanStack Query hook showing 2025 best practices: object-based config, staleTime/refetchInterval, retry with exponential backoff, select transform for data normalization.">
+        <description>TanStack Query v5 hook with queryKey array, staleTime (25s), refetchInterval (30s), refetchIntervalInBackground (false), retry (3 attempts), retryDelay (exponential backoff), select transform to normalize API response to UI-friendly format.</description>
+      </artifact>
+      <artifact path="nextjs-ui/components/ui/Button.tsx" kind="component" symbol="Button" lines="1-72" reason="Existing Button component implementing Liquid Glass design with variants (primary, secondary, ghost, danger), sizes (sm, md, lg), loading state, disabled state. Shows design pattern to follow for new components.">
+        <description>Button with cn() utility for className merging, variant system, size system, isLoading prop showing spinner, disabled state, focus ring, transition animations, accessibility attributes. Uses Tailwind classes following design-tokens.json.</description>
+      </artifact>
+      <artifact path="nextjs-ui/app/globals.css" kind="stylesheet" symbol="glass-card" lines="28-46" reason="Liquid Glass card base class used throughout the app. Configuration pages will use this for cards, modals, and form containers.">
+        <description>.glass-card class with background rgba(255,255,255,0.75), border rgba(255,255,255,1), border-radius 24px, backdrop-filter blur(32px) saturate(180%), box-shadow, elasticBounceIn animation, hover transform with perspective and translateZ.</description>
+      </artifact>
+      <artifact path="nextjs-ui/components/dashboard/Sidebar.tsx" kind="component" symbol="Sidebar" lines="1-150" reason="Sidebar navigation component where Configuration section needs to be added. Shows pattern for navigation groups, active link highlighting, icons from lucide-react.">
+        <description>Sidebar with navigation groups (Dashboard, Monitoring, Configuration), Link components with active state detection using usePathname(), lucide-react icons (Home, Activity, Settings, Building2, Bot, Zap, Server), responsive mobile hamburger menu.</description>
+      </artifact>
+      <artifact path="nextjs-ui/package.json" kind="config" symbol="dependencies" lines="19-34" reason="Current dependencies showing TanStack Query v5, Next.js 14.2.15, NextAuth, Headless UI, Sonner toast, Zustand state, Recharts. Need to add react-hook-form, zod, @dnd-kit packages.">
+        <description>Dependencies: @tanstack/react-query@5.62.2, next@14.2.15, next-auth@4.24.13, @headlessui/react@2.2.9, sonner@2.0.7, framer-motion@11.11.17, lucide-react@0.462.0, zustand@5.0.1, recharts@3.3.0. DevDependencies: @playwright/test, msw@2.6.5, jest, @testing-library/react.</description>
+      </artifact>
+      <artifact path="nextjs-ui/__tests__/components/ui/Button.test.tsx" kind="test" symbol="Button tests" lines="1-144" reason="Example test file showing testing patterns: render with @testing-library/react, userEvent for interactions, expect matchers for accessibility, keyboard support testing.">
+        <description>Jest + RTL tests covering: render children, all variants (primary, secondary, ghost, danger), all sizes (sm, md, lg), loading state, disabled state, onClick handler, keyboard interaction (Enter, Space), accessibility (role, className, HTML attributes), 100% coverage.</description>
+      </artifact>
+      <artifact path="nextjs-ui/jest.config.js" kind="config" symbol="jest config" lines="1-46" reason="Jest configuration for Next.js with jsdom environment, module aliases, coverage thresholds (70%), collectCoverageFrom patterns. Shows testing setup for this project.">
+        <description>Jest config: testEnvironment jsdom, setupFilesAfterEnv (jest.setup.js), moduleNameMapper (@/ alias), collectCoverageFrom (components, lib/utils, mocks, exclude stories/providers/app), coverageThreshold (70% branches/functions/lines/statements).</description>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <npm>
+        <package name="react-hook-form" version="7.51.0" purpose="Form state management with performance optimization, minimal re-renders">Latest 2025 best practices for form handling with TypeScript</package>
+        <package name="@hookform/resolvers" version="3.3.4" purpose="Zod resolver integration for react-hook-form validation">Connects Zod schemas to React Hook Form</package>
+        <package name="zod" version="3.22.4" purpose="TypeScript-first schema validation with static type inference">Type-safe form validation, runtime checks</package>
+        <package name="@dnd-kit/core" version="6.1.0" purpose="Drag-and-drop core library with accessibility support">Modern, performant DnD for tool assignment UI</package>
+        <package name="@dnd-kit/sortable" version="8.0.0" purpose="Sortable preset for @dnd-kit with array reordering utilities">Drag-and-drop tool cards between columns</package>
+        <package name="react-syntax-highlighter" version="15.5.0" purpose="Syntax highlighting for JSON output in Test Sandbox">Formats agent test responses with code highlighting</package>
+        <package name="@tanstack/react-query" version="5.62.2" purpose="Data fetching, caching, mutations with optimistic updates">Already installed, used for all API calls</package>
+        <package name="next" version="14.2.15" purpose="React framework with App Router, SSR, RSC">Already installed</package>
+        <package name="next-auth" version="4.24.13" purpose="Authentication with JWT session management">Already installed, provides session tokens</package>
+        <package name="@headlessui/react" version="2.2.9" purpose="Unstyled, accessible UI components (Dialog, Menu, Tabs)">Already installed, used for modals and tabs</package>
+        <package name="sonner" version="2.0.7" purpose="Toast notifications with beautiful animations">Already installed, used for success/error toasts</package>
+        <package name="axios" version="1.7.9" purpose="HTTP client with interceptors for API calls">Already installed, apiClient uses this</package>
+        <package name="lucide-react" version="0.462.0" purpose="Icon library with 1000+ icons">Already installed, used for navigation and UI icons</package>
+        <package name="msw" version="2.6.5" purpose="Mock Service Worker for API mocking in tests">Already installed in devDependencies</package>
+        <package name="@playwright/test" version="1.56.1" purpose="E2E testing framework with browser automation">Already installed in devDependencies</package>
+        <package name="jest" version="30.2.0" purpose="JavaScript testing framework">Already installed in devDependencies</package>
+        <package name="@testing-library/react" version="16.3.0" purpose="React testing utilities with user-centric queries">Already installed in devDependencies</package>
+      </npm>
+      <backend>
+        <api endpoint="/api/v1/tenants" method="GET, POST, PUT, DELETE" status="EXISTS">Tenant CRUD operations with tenant_id, name, description, logo_url fields. Created in Epic 3.</api>
+        <api endpoint="/api/v1/agents" method="GET, POST, PUT, DELETE" status="EXISTS">Agent CRUD operations with agent_id, name, type, status, system_prompt, llm_config fields. Created in Epic 8.</api>
+        <api endpoint="/api/v1/llm-providers" method="GET, POST, PUT, DELETE" status="EXISTS">LLM Provider CRUD operations with provider_id, name, type, base_url, api_key, models fields. Created in Epic 8.</api>
+        <api endpoint="/api/v1/llm-providers/{id}/models" method="GET" status="EXISTS">Fetch available models for a provider. Returns model_id, context_window, cost_input, cost_output.</api>
+        <api endpoint="/api/v1/llm-providers/test" method="POST" status="EXISTS">Test provider connection. Request: {type, base_url, api_key}. Response: {success, response_time_ms, models_found, models[]}.</api>
+        <api endpoint="/api/v1/mcp-servers" method="GET, POST, PUT, DELETE" status="EXISTS">MCP Server CRUD operations with server_id, name, type, connection_url, env_vars, health_check_interval fields. Created in Epic 11.</api>
+        <api endpoint="/api/v1/mcp-servers/{id}/tools" method="GET" status="EXISTS">Fetch tools exposed by MCP server. Returns tools[{name, description, parameters[]}].</api>
+        <api endpoint="/api/v1/mcp-servers/{id}/health-logs" method="GET" status="EXISTS">Fetch health check history. Returns logs[{timestamp, status, response_time_ms, error}].</api>
+        <api endpoint="/api/v1/tools" method="GET" status="EXISTS">Fetch all available tools (OpenAPI + MCP). Returns tools[{id, name, description, source}]. Created in Epic 8.</api>
+        <api endpoint="/api/v1/agents/{id}/tools" method="GET, PUT" status="EXISTS">Get/update tool assignment for an agent. Request: {tool_ids[]}. Response: {assigned_tools[]}.</api>
+        <api endpoint="/api/v1/agents/{id}/test" method="POST" status="EXISTS">Execute agent test. Request: {message}. Response: {response, duration_ms, tokens_used, cost}.</api>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint type="architectural">RBAC enforcement: All CRUD operations must check user role. super_admin has full access, tenant_admin can edit own tenant, operator/developer/viewer are read-only for most resources. Use NextAuth session.user.role and session.user.tenant_id for permission checks.</constraint>
+    <constraint type="architectural">Multi-tenant isolation: All API calls must include tenant_id in query params or headers. Backend enforces Row-Level Security (RLS) in PostgreSQL. Frontend must use TenantSwitcher to set active tenant context.</constraint>
+    <constraint type="architectural">API versioning: All endpoints use /api/v1/* pattern. Never hardcode URLs - use process.env.NEXT_PUBLIC_API_URL + '/api/v1/{resource}'.</constraint>
+    <constraint type="architectural">JWT roles on-demand: User roles are NOT in JWT token. Roles fetched from /api/v1/users/me on login and tenant switch. Do not cache roles in localStorage - always use NextAuth session.</constraint>
+    <constraint type="design">Liquid Glass design system: All cards must use .glass-card class, buttons follow existing Button component pattern (variants: primary/secondary/ghost/danger), forms use consistent spacing (gap-6 for form fields, gap-4 for buttons).</constraint>
+    <constraint type="design">Accessibility: WCAG 2.1 AA compliance required. All forms must have label elements (not just placeholders), error messages must use aria-describedby, modals must have aria-modal="true" and focus trap, drag-and-drop must support keyboard (Tab + Space/Enter).</constraint>
+    <constraint type="testing">Test coverage >80% for all new components. Must write both unit tests (Jest + RTL) and E2E tests (Playwright). Mock all API calls with MSW. Follow existing test patterns in __tests__/components/ui/Button.test.tsx.</constraint>
+    <constraint type="validation">All forms use Zod schemas for validation. React Hook Form with zodResolver. Field-level validation on blur, submit button disabled until form valid, inline error messages below fields, error summary at top if multiple errors.</constraint>
+    <constraint type="pattern">Optimistic updates required for all mutations. Use TanStack Query onMutate to update cache immediately, onError to rollback, onSettled to invalidate queries. Follow pattern in lib/hooks/useAgentMetrics.ts.</constraint>
+    <constraint type="pattern">File structure: Pages in app/(dashboard)/configuration/{resource}/, components in components/configuration/{resource}/, hooks in lib/hooks/use{Resource}.ts, schemas in lib/schemas/{resource}.ts, API in lib/api/{resource}.ts.</constraint>
+    <constraint type="security">API key masking: LLM provider API keys must be masked (show only last 4 chars: ••••••••last4). Show/Hide toggle for unmasking. Never log API keys to console or error messages.</constraint>
+    <constraint type="performance">Form performance: React Hook Form chosen for minimal re-renders. Use mode: 'onBlur' for validation (not onChange). Debounce search inputs (300ms). Paginate tables (20 items per page).</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface name="TenantFormData" kind="Zod schema" signature="z.object({ name: z.string().min(3).max(50), description: z.string().max(500).optional(), logo_url: z.string().url().optional().or(z.literal('')) })" path="lib/schemas/tenant.ts">
+      <description>Type-safe schema for tenant create/edit form. Use z.infer&lt;typeof tenantSchema&gt; for TypeScript type.</description>
+    </interface>
+    <interface name="AgentFormData" kind="Zod schema" signature="z.object({ name: z.string().min(3), type: z.enum(['Conversational', 'Task-Based', 'Reactive', 'Webhook-Triggered']), system_prompt: z.string().min(20), llm_model: z.string(), provider_id: z.string(), temperature: z.number().min(0).max(1), max_tokens: z.number().min(100).max(8000), status: z.enum(['active', 'inactive']) })" path="lib/schemas/agent.ts">
+      <description>Type-safe schema for agent create/edit form. Temperature slider 0-1, max_tokens 100-8000.</description>
+    </interface>
+    <interface name="useTenants" kind="TanStack Query hook" signature="(): UseQueryResult&lt;Tenant[], Error&gt;" path="lib/hooks/useTenants.ts">
+      <description>Fetch all tenants for current user. Returns query with data, isLoading, isError, refetch. QueryKey: ['tenants'].</description>
+    </interface>
+    <interface name="useCreateTenant" kind="TanStack Query mutation" signature="(): UseMutationResult&lt;Tenant, Error, TenantFormData&gt;" path="lib/hooks/useTenants.ts">
+      <description>Create new tenant with optimistic update. Mutation uses onMutate to add temp row, onError to rollback, onSettled to invalidate ['tenants'] query.</description>
+    </interface>
+    <interface name="useUpdateTenant" kind="TanStack Query mutation" signature="(): UseMutationResult&lt;Tenant, Error, {id: string, data: Partial&lt;TenantFormData&gt;}&gt;" path="lib/hooks/useTenants.ts">
+      <description>Update existing tenant with optimistic update. Mutation uses onMutate to update cache, onError to rollback, onSettled to invalidate ['tenants'] query.</description>
+    </interface>
+    <interface name="useDeleteTenant" kind="TanStack Query mutation" signature="(): UseMutationResult&lt;void, Error, string&gt;" path="lib/hooks/useTenants.ts">
+      <description>Delete tenant with optimistic update. Mutation uses onMutate to remove row from cache, onError to rollback, onSettled to invalidate ['tenants'] query.</description>
+    </interface>
+    <interface name="DndContext" kind="React component" signature="&lt;DndContext onDragEnd={handleDragEnd}&gt;{children}&lt;/DndContext&gt;" path="@dnd-kit/core">
+      <description>Drag-and-drop context provider. onDragEnd receives {active: {id}, over: {id}} for reordering or moving between columns.</description>
+    </interface>
+    <interface name="useDraggable" kind="dnd-kit hook" signature="(config: {id: string, data?: any}): {attributes, listeners, setNodeRef, transform, isDragging}" path="@dnd-kit/core">
+      <description>Makes element draggable. Spread {...attributes} and {...listeners} on drag handle, ref={setNodeRef} on draggable element, transform for CSS positioning.</description>
+    </interface>
+    <interface name="useDroppable" kind="dnd-kit hook" signature="(config: {id: string, data?: any}): {setNodeRef, isOver}" path="@dnd-kit/core">
+      <description>Makes element droppable. ref={setNodeRef} on drop zone, isOver for visual feedback during drag.</description>
+    </interface>
+    <interface name="apiClient" kind="Axios instance" signature="AxiosInstance" path="lib/api/client.ts">
+      <description>Configured axios client with baseURL, JWT token interceptor, error handling. Use apiClient.get/post/put/delete for all API calls.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      All tests use Jest with jsdom environment, @testing-library/react for component testing, @testing-library/user-event for interactions, MSW for API mocking, Playwright for E2E tests. Test files colocated in __tests__/ directory mirroring component structure. Coverage threshold: 70% branches/functions/lines/statements (global), aim for 80%+ on new configuration components. Accessibility tested with @axe-core/playwright in E2E tests. Follow existing patterns in nextjs-ui/__tests__/components/ui/Button.test.tsx (render, expect, userEvent, keyboard support, accessibility).
+    </standards>
+    <locations>
+      <location>nextjs-ui/__tests__/components/configuration/tenants/*.test.tsx</location>
+      <location>nextjs-ui/__tests__/components/configuration/agents/*.test.tsx</location>
+      <location>nextjs-ui/__tests__/components/configuration/providers/*.test.tsx</location>
+      <location>nextjs-ui/__tests__/components/configuration/mcp-servers/*.test.tsx</location>
+      <location>nextjs-ui/__tests__/components/configuration/shared/*.test.tsx</location>
+      <location>nextjs-ui/__tests__/lib/hooks/useTenants.test.ts</location>
+      <location>nextjs-ui/__tests__/lib/hooks/useAgents.test.ts</location>
+      <location>nextjs-ui/__tests__/lib/schemas/*.test.ts</location>
+      <location>nextjs-ui/e2e/configuration/*.spec.ts</location>
+    </locations>
+    <ideas>
+      <idea ac="AC-1" test="TenantForm validation: Test required fields (name), min/max length (name 3-50 chars, description 500 chars), URL validation (logo_url), submit disabled when invalid, inline error messages appear on blur, error summary shows when form submitted with errors.">
+        <file>__tests__/components/configuration/tenants/TenantForm.test.tsx</file>
+      </idea>
+      <idea ac="AC-1" test="Optimistic update: Create tenant → verify row appears immediately with 'Creating...' badge → wait for API success → verify badge removed. Delete tenant → verify row fades out → simulate API error → verify row reappears → verify error toast shown.">
+        <file>__tests__/components/configuration/tenants/TenantTable.test.tsx</file>
+      </idea>
+      <idea ac="AC-2" test="AgentForm validation: Test all fields (name, type, system_prompt min 20 chars, temperature 0-1, max_tokens 100-8000), dropdown options (type: 4 options, model: fetched from API), slider updates value on drag, status toggle switches active/inactive.">
+        <file>__tests__/components/configuration/agents/AgentForm.test.tsx</file>
+      </idea>
+      <idea ac="AC-2" test="Drag-and-drop tool assignment: Drag tool from Available to Assigned → verify card moves → verify Save button enabled → click Save → verify optimistic update → wait for API success. Test keyboard: Tab to tool card → Space to pick up → Arrow keys to move → Space to drop → verify same behavior as mouse.">
+        <file>__tests__/components/configuration/agents/ToolAssignment.test.tsx</file>
+      </idea>
+      <idea ac="AC-2" test="Test Sandbox: Enter message → click Execute Test → verify loading spinner → wait for API response → verify JSON output with syntax highlighting → verify metadata (duration, tokens, cost) displayed. Simulate API error → verify error message shown with details.">
+        <file>__tests__/components/configuration/agents/TestSandbox.test.tsx</file>
+      </idea>
+      <idea ac="AC-3" test="Provider Test Connection: Fill form (name, type, base_url, api_key) → click Test Connection → verify loading state → wait for success response → verify 'Connected successfully. Found 15 models' message → verify Submit button enabled. Simulate connection failure → verify error message 'Connection failed: Invalid API key' → verify Submit still disabled.">
+        <file>__tests__/components/configuration/providers/TestConnection.test.tsx</file>
+      </idea>
+      <idea ac="AC-3" test="API key masking: Verify API key field shows ••••••••last4 by default → click Show toggle → verify full key visible → click Hide → verify masked again. Test form submit sends unmasked key to API.">
+        <file>__tests__/components/configuration/providers/ProviderForm.test.tsx</file>
+      </idea>
+      <idea ac="AC-4" test="MCP Server conditional fields: Select HTTP type → verify Connection URL field shown → verify Environment Variables hidden. Select stdio type → verify Environment Variables shown → verify Connection URL hidden. Test validation: HTTP requires valid URL, stdio requires command path.">
+        <file>__tests__/components/configuration/mcp-servers/McpServerForm.test.tsx</file>
+      </idea>
+      <idea ac="AC-5" test="Confirmation dialog: Click Delete tenant → verify modal appears with warning 'This action cannot be undone. All associated agents will also be deleted.' → press ESC → verify modal closed, no deletion. Click Delete again → click Confirm → verify API DELETE called → verify optimistic removal.">
+        <file>__tests__/components/configuration/shared/ConfirmDialog.test.tsx</file>
+      </idea>
+      <idea ac="AC-5" test="Empty states: Render TenantTable with empty array → verify 'No tenants yet. Create your first tenant to get started.' message → verify 'Create Tenant' button present → click button → verify navigate to /configuration/tenants/new.">
+        <file>__tests__/components/configuration/shared/EmptyState.test.tsx</file>
+      </idea>
+      <idea ac="AC-6" test="E2E tenant CRUD: Login as super_admin → navigate to /configuration/tenants → click 'Create Tenant' → fill form (name: Acme Corp, description: Main tenant) → submit → verify success toast → verify row in table → click Edit → update name to 'Acme Corporation' → save → verify updated → click Delete → confirm → verify removed from table.">
+        <file>e2e/configuration/tenant-crud.spec.ts</file>
+      </idea>
+      <idea ac="AC-6" test="E2E agent creation with tool assignment: Create agent (name: Test Agent, type: Conversational) → navigate to Tools Assignment tab → drag 'read_file' from Available to Assigned → click Save → verify success toast → navigate to Test Sandbox tab → enter message 'Read test.txt' → click Execute Test → verify output with duration/tokens/cost.">
+        <file>e2e/configuration/agent-creation.spec.ts</file>
+      </idea>
+      <idea ac="AC-6" test="Accessibility audit: Run axe-core on all configuration pages (/tenants, /agents, /llm-providers, /mcp-servers, /tenants/new) → verify zero violations → test all forms have labels (not just placeholders) → test error messages linked with aria-describedby → test dialogs have aria-modal and focus trap → test drag-and-drop supports keyboard navigation.">
+        <file>e2e/configuration/accessibility.spec.ts</file>
+      </idea>
+    </ideas>
+  </tests>
+</story-context>

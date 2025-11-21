@@ -1,0 +1,1674 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Story Context: Story 1B - Auth Service & JWT Implementation
+Epic: 2 (Authentication & Authorization Foundation)
+Generated: 2025-01-17
+Status: READY FOR DEVELOPMENT
+
+This context file provides all necessary information for developers to implement
+Story 1B, including architecture decisions, API specifications, security requirements,
+testing standards, and integration points with Story 1A artifacts.
+
+CRITICAL DEPENDENCIES:
+- Story 1A MUST be completed (User, UserTenantRole, AuthAuditLog models exist)
+- Database migration from Story 1A must be applied
+- Test database must be configured
+
+KEY SECURITY REQUIREMENTS:
+- JWT tokens: HS256 algorithm, 7-day expiration
+- JWT payload: ONLY sub, email, default_tenant_id, iat, exp (NO roles - ADR 003)
+- Password hashing: bcrypt with 10 rounds minimum
+- Password policy: 12+ chars, uppercase, number, special, zxcvbn score >= 3
+- Account lockout: 5 failed attempts = 15 min lockout
+- Constant-time password comparison to prevent timing attacks
+-->
+
+<story-context>
+  <metadata>
+    <story-id>1B</story-id>
+    <story-key>1b-auth-service-and-jwt-implementation</story-key>
+    <epic-id>2</epic-id>
+    <epic-title>Authentication & Authorization Foundation</epic-title>
+    <project>AI Agents Platform - Next.js UI Migration</project>
+    <generated-date>2025-01-17</generated-date>
+    <version>1.0</version>
+    <priority>CRITICAL</priority>
+    <dependencies>
+      <dependency>Story 1A - Database & Auth Foundation (COMPLETED)</dependency>
+    </dependencies>
+  </metadata>
+
+  <!-- =================================================================================
+       SECTION 1: STORY DEFINITION & ACCEPTANCE CRITERIA
+       ================================================================================= -->
+  <story-definition>
+    <goal>
+      Implement authentication business logic layer including password hashing, JWT
+      generation/validation, password policy enforcement, and account lockout mechanism.
+      This story creates the core authentication services that will be consumed by
+      API endpoints in Story 1C.
+    </goal>
+
+    <overview>
+      Story 1B builds upon the database foundation from Story 1A by implementing the
+      authentication business logic. This includes:
+      1. AuthService: JWT token generation, validation, and user authentication
+      2. UserService: CRUD operations for user management
+      3. Password Policy: Complexity rules, strength validation using zxcvbn
+      4. Account Lockout: Automatic lockout after 5 failed attempts
+      5. Comprehensive unit tests achieving 90%+ coverage
+
+      This service layer provides the building blocks for the authentication endpoints
+      that will be exposed in Story 1C, and ultimately consumed by the Next.js frontend
+      in Stories 2-6.
+    </overview>
+
+    <acceptance-criteria>
+      <criterion id="AC1" critical="true">
+        <description>Password hashing uses bcrypt with 10 rounds minimum</description>
+        <verification>
+          - Unit test verifies bcrypt.gensalt(rounds=10) is used
+          - Password hashing takes ~200-300ms (acceptable performance)
+          - Verify hashes cannot be reversed (one-way function)
+        </verification>
+      </criterion>
+
+      <criterion id="AC2" critical="true">
+        <description>JWT tokens generated with 7-day expiration</description>
+        <verification>
+          - Unit test verifies exp claim is set to iat + 7 days
+          - Token payload contains only: sub, email, default_tenant_id, iat, exp
+          - NO roles in JWT (roles fetched on-demand - see ADR 003)
+        </verification>
+      </criterion>
+
+      <criterion id="AC3" critical="true">
+        <description>JWT contains ONLY: sub, email, default_tenant_id, iat, exp (NO roles)</description>
+        <verification>
+          - Unit test decodes JWT and asserts exact payload structure
+          - NO role, permissions, or tenant arrays in JWT
+          - Follows lean JWT architecture from Tech Spec v2.0
+        </verification>
+      </criterion>
+
+      <criterion id="AC4" critical="true">
+        <description>Password policy enforced: 12+ chars, 1 upper, 1 number, 1 special, zxcvbn score >= 3</description>
+        <verification>
+          - Unit test verifies all 5 password rules
+          - Common passwords (e.g., "Password123!") rejected by zxcvbn
+          - Error messages guide users to stronger passwords
+        </verification>
+      </criterion>
+
+      <criterion id="AC5" critical="true">
+        <description>Account locks after 5 failed attempts for 15 minutes</description>
+        <verification>
+          - Unit test simulates 5 failed login attempts
+          - User.locked_until is set to now() + 15 minutes
+          - Subsequent login attempts rejected with 423 Locked error
+          - Account automatically unlocks after 15 minutes
+        </verification>
+      </criterion>
+
+      <criterion id="AC6">
+        <description>Unit tests pass with 90%+ coverage</description>
+        <verification>
+          - pytest-cov reports 90%+ line coverage for auth_service.py
+          - pytest-cov reports 90%+ line coverage for user_service.py
+          - All edge cases tested (empty passwords, SQL injection, timing attacks)
+        </verification>
+      </criterion>
+    </acceptance-criteria>
+
+    <out-of-scope>
+      <item>API endpoints (Story 1C)</item>
+      <item>JWT middleware (Story 1C)</item>
+      <item>RBAC permission checks (Story 1C)</item>
+      <item>Rate limiting (Story 1C)</item>
+      <item>Frontend integration (Stories 2-6)</item>
+      <item>OAuth/SSO integration (Future)</item>
+      <item>Multi-factor authentication (Future)</item>
+    </out-of-scope>
+  </story-definition>
+
+  <!-- =================================================================================
+       SECTION 2: ARCHITECTURE & DESIGN DECISIONS
+       ================================================================================= -->
+  <architecture>
+    <adr-references>
+      <adr id="003" title="JWT Roles Fetched On-Demand" critical="true">
+        <decision>
+          Roles are NOT stored in JWT payload. Instead, roles are fetched on-demand
+          from the UserTenantRole table when user switches tenants.
+        </decision>
+        <rationale>
+          Prevents JWT token bloat when users have access to 50+ tenants. A JWT
+          containing all roles would exceed 8KB, causing issues with HTTP headers.
+        </rationale>
+        <implementation>
+          JWT payload contains only: sub (user_id), email, default_tenant_id, iat, exp.
+          Frontend calls GET /api/v1/users/me/role?tenant_id=xxx to fetch role when
+          tenant is switched in the UI.
+        </implementation>
+      </adr>
+
+      <adr id="security-001" title="Constant-Time Password Comparison">
+        <decision>
+          Use passlib's built-in constant-time comparison (pwd_context.verify())
+          instead of simple string comparison.
+        </decision>
+        <rationale>
+          Prevents timing attacks where attacker measures response time to guess
+          password characters.
+        </rationale>
+        <implementation>
+          Always use: pwd_context.verify(plain_password, hashed_password)
+          Never use: plain_password == hashed_password
+        </implementation>
+      </adr>
+
+      <adr id="security-002" title="Password History Prevention">
+        <decision>
+          Store last 5 password hashes in User.password_history (JSON array).
+          Reject password changes if new password matches any of last 5.
+        </decision>
+        <rationale>
+          Prevents users from cycling through same passwords after forced resets.
+          Aligns with NIST 800-63B guidance.
+        </rationale>
+        <implementation>
+          On password change:
+          1. Check new hash against User.password_history
+          2. If match: reject with error
+          3. If unique: prepend to password_history, trim to 5 entries
+        </implementation>
+      </adr>
+    </adr-references>
+
+    <system-context>
+      <description>
+        Story 1B implements the core authentication services that sit between the
+        database layer (Story 1A) and the API layer (Story 1C).
+
+        Layer Architecture:
+        1. Database Layer (Story 1A) - User, UserTenantRole, AuthAuditLog models
+        2. Service Layer (Story 1B) - AuthService, UserService ← WE ARE HERE
+        3. API Layer (Story 1C) - FastAPI endpoints, middleware
+        4. Frontend Layer (Stories 2-6) - Next.js UI
+
+        Story 1B services are pure Python business logic with no FastAPI dependencies.
+        This allows services to be easily unit tested without spinning up a web server.
+      </description>
+
+      <key-interfaces>
+        <interface name="AuthService">
+          <purpose>JWT token generation, validation, user authentication</purpose>
+          <methods>
+            <method name="authenticate_user">
+              Input: email (str), password (str), db (AsyncSession)
+              Output: User | None
+              Logic: Fetch user, verify password, check lockout, reset/increment attempts
+            </method>
+            <method name="create_access_token">
+              Input: user (User)
+              Output: str (JWT token)
+              Logic: Create JWT with sub, email, default_tenant_id, iat, exp (7 days)
+            </method>
+            <method name="verify_access_token">
+              Input: token (str)
+              Output: dict (JWT payload) | raises InvalidTokenError
+              Logic: Decode JWT, verify signature, check expiration
+            </method>
+            <method name="validate_password_strength">
+              Input: password (str)
+              Output: tuple[bool, str] (is_valid, error_message)
+              Logic: Check 12+ chars, upper/lower/digit/special, zxcvbn score >= 3
+            </method>
+            <method name="hash_password">
+              Input: password (str)
+              Output: str (bcrypt hash)
+              Logic: bcrypt.gensalt(rounds=10), hash password
+            </method>
+          </methods>
+        </interface>
+
+        <interface name="UserService">
+          <purpose>CRUD operations for user management</purpose>
+          <methods>
+            <method name="create_user">
+              Input: email, password, default_tenant_id, db
+              Output: User
+              Logic: Validate password, hash, create user, set password_expires_at
+            </method>
+            <method name="get_user_by_email">
+              Input: email, db
+              Output: User | None
+              Logic: Query users table by email
+            </method>
+            <method name="get_user_by_id">
+              Input: user_id, db
+              Output: User | None
+              Logic: Query users table by id
+            </method>
+            <method name="update_password">
+              Input: user, new_password, db
+              Output: User
+              Logic: Check password history, validate strength, hash, update
+            </method>
+            <method name="check_password_history">
+              Input: user, new_password_hash
+              Output: bool (is_reused)
+              Logic: Compare new hash against User.password_history
+            </method>
+          </methods>
+        </interface>
+      </key-interfaces>
+    </system-context>
+
+    <security-requirements>
+      <requirement id="SEC1" priority="P0">
+        <title>JWT Secret Key Security</title>
+        <description>
+          JWT signing secret must be >= 256 bits (32 characters) of cryptographically
+          random data. Loaded from environment variable JWT_SECRET_KEY.
+        </description>
+        <implementation>
+          - Generate: openssl rand -base64 32
+          - Store in .env file: JWT_SECRET_KEY="generated_secret_here"
+          - Load via pydantic Settings in config.py
+          - Never commit secret to git
+        </implementation>
+      </requirement>
+
+      <requirement id="SEC2" priority="P0">
+        <title>Bcrypt Rounds Configuration</title>
+        <description>
+          Use bcrypt with 10 rounds minimum. This provides ~200-300ms hashing time,
+          balancing security (resistant to brute force) and UX (login not too slow).
+        </description>
+        <implementation>
+          from passlib.context import CryptContext
+          pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
+        </implementation>
+      </requirement>
+
+      <requirement id="SEC3" priority="P0">
+        <title>SQL Injection Prevention</title>
+        <description>
+          Always use SQLAlchemy ORM or parameterized queries. Never concatenate
+          user input into SQL strings.
+        </description>
+        <implementation>
+          ✅ CORRECT: db.execute(select(User).where(User.email == email))
+          ❌ WRONG: db.execute(f"SELECT * FROM users WHERE email = '{email}'")
+        </implementation>
+      </requirement>
+
+      <requirement id="SEC4" priority="P1">
+        <title>Error Message Information Disclosure</title>
+        <description>
+          Never reveal whether email exists in system. Use generic error messages
+          like "Invalid credentials" for both "user not found" and "wrong password".
+        </description>
+        <implementation>
+          ❌ WRONG: "User not found" or "Incorrect password"
+          ✅ CORRECT: "Invalid credentials" (for both cases)
+        </implementation>
+      </requirement>
+
+      <requirement id="SEC5" priority="P1">
+        <title>Account Lockout Timing Attack Prevention</title>
+        <description>
+          Lockout check must happen BEFORE password verification to prevent timing
+          attacks that reveal account existence.
+        </description>
+        <implementation>
+          Order of operations in authenticate_user():
+          1. Fetch user by email
+          2. If user not found: return None (do NOT reveal)
+          3. Check if user.locked_until > now(): return None (locked)
+          4. Verify password (constant-time)
+          5. Handle success/failure
+        </implementation>
+      </requirement>
+    </security-requirements>
+  </architecture>
+
+  <!-- =================================================================================
+       SECTION 3: TECHNICAL SPECIFICATIONS
+       ================================================================================= -->
+  <technical-specifications>
+    <dependencies>
+      <library name="passlib[bcrypt]" version=">=1.7.4" purpose="Password hashing">
+        <usage>
+          from passlib.context import CryptContext
+          pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
+        </usage>
+        <best-practices>
+          - Use rounds=10 or higher (2025 recommendation from web research)
+          - Consider bcrypt_sha256 for passwords > 72 bytes
+          - CryptContext handles salting automatically
+          - Always use pwd_context.verify() for constant-time comparison
+        </best-practices>
+        <documentation>https://passlib.readthedocs.io/en/stable/lib/passlib.hash.bcrypt.html</documentation>
+      </library>
+
+      <library name="python-jose[cryptography]" version=">=3.3.0" purpose="JWT encoding/decoding">
+        <usage>
+          from jose import JWTError, jwt
+
+          # Encoding
+          to_encode = {"sub": str(user.id), "email": user.email, ...}
+          encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm="HS256")
+
+          # Decoding
+          payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+        </usage>
+        <security-warnings>
+          - ALWAYS specify algorithms=["HS256"] when decoding (prevents algorithm confusion)
+          - NEVER trust the "alg" header from user-provided tokens (CVE-2024-33663)
+          - Use HS256 for internal APIs; consider RS256 for distributed systems
+        </security-warnings>
+        <documentation>https://python-jose.readthedocs.io/</documentation>
+        <cve-note>
+          CVE-2024-33663: python-jose vulnerable to algorithm confusion attack.
+          Mitigated by explicitly specifying algorithms=["HS256"] in jwt.decode().
+        </cve-note>
+      </library>
+
+      <library name="zxcvbn-python" version="latest" purpose="Password strength estimation">
+        <installation>pip install zxcvbn</installation>
+        <usage>
+          from zxcvbn import zxcvbn
+
+          result = zxcvbn(password, user_inputs=[email, "ai-agents"])
+          score = result['score']  # 0-4 scale
+          feedback = result['feedback']
+
+          if score < 3:
+              raise ValueError(feedback['warning'])
+        </usage>
+        <scoring>
+          0 = too guessable
+          1 = very guessable
+          2 = somewhat guessable
+          3 = safely unguessable (MINIMUM REQUIRED)
+          4 = very unguessable
+        </scoring>
+        <best-practices>
+          - Pass user_inputs to detect passwords based on personal info
+          - zxcvbn recognizes 30k common passwords, names, dates, patterns
+          - Max password length should be <= 72 chars to prevent DoS
+        </best-practices>
+        <documentation>https://github.com/dropbox/zxcvbn</documentation>
+      </library>
+
+      <library name="sqlalchemy[asyncio]" version=">=2.0.23" purpose="Database ORM">
+        <note>Already installed from Story 1A. Use for user queries.</note>
+      </library>
+
+      <library name="pydantic" version=">=2.5.0" purpose="Data validation">
+        <note>Use for request/response schemas, input validation.</note>
+      </library>
+    </dependencies>
+
+    <configuration>
+      <env-vars>
+        <var name="JWT_SECRET_KEY" required="true" security="CRITICAL">
+          <description>Secret key for signing JWT tokens (HS256 algorithm)</description>
+          <generation>openssl rand -base64 32</generation>
+          <example>JWT_SECRET_KEY="YOUR_GENERATED_SECRET_HERE"</example>
+          <validation>Must be >= 32 characters</validation>
+        </var>
+
+        <var name="JWT_ALGORITHM" required="false" default="HS256">
+          <description>JWT signing algorithm</description>
+          <allowed-values>["HS256"]</allowed-values>
+          <note>Story 1B only supports HS256. RS256 deferred to future story.</note>
+        </var>
+
+        <var name="JWT_EXPIRATION_DAYS" required="false" default="7">
+          <description>JWT token expiration in days</description>
+          <validation>Must be > 0 and <= 30</validation>
+        </var>
+
+        <var name="PASSWORD_MIN_LENGTH" required="false" default="12">
+          <description>Minimum password length</description>
+          <validation>Must be >= 12 per NIST 800-63B</validation>
+        </var>
+
+        <var name="PASSWORD_EXPIRATION_DAYS" required="false" default="90">
+          <description>Password expiration in days</description>
+          <note>Set User.password_expires_at on creation and password change</note>
+        </var>
+
+        <var name="ACCOUNT_LOCKOUT_THRESHOLD" required="false" default="5">
+          <description>Failed login attempts before lockout</description>
+        </var>
+
+        <var name="ACCOUNT_LOCKOUT_DURATION_MINUTES" required="false" default="15">
+          <description>Account lockout duration in minutes</description>
+        </var>
+      </env-vars>
+
+      <config-class>
+        <file-path>src/config.py</file-path>
+        <additions>
+          <code><![CDATA[
+# JWT Configuration (Story 1B)
+jwt_secret_key: str = Field(
+    ...,
+    description="Secret key for JWT token signing (min 32 chars)",
+    min_length=32,
+)
+jwt_algorithm: str = Field(
+    default="HS256",
+    description="JWT signing algorithm",
+)
+jwt_expiration_days: int = Field(
+    default=7,
+    description="JWT token expiration in days",
+    ge=1,
+    le=30,
+)
+
+# Password Policy Configuration (Story 1B)
+password_min_length: int = Field(
+    default=12,
+    description="Minimum password length",
+    ge=8,
+)
+password_expiration_days: int = Field(
+    default=90,
+    description="Password expiration in days",
+    ge=1,
+)
+
+# Account Lockout Configuration (Story 1B)
+account_lockout_threshold: int = Field(
+    default=5,
+    description="Failed login attempts before lockout",
+    ge=3,
+    le=10,
+)
+account_lockout_duration_minutes: int = Field(
+    default=15,
+    description="Account lockout duration in minutes",
+    ge=5,
+    le=60,
+)
+          ]]></code>
+        </additions>
+      </config-class>
+    </configuration>
+
+    <implementation-patterns>
+      <pattern name="Service Layer Design">
+        <principle>
+          Services should be pure business logic with no FastAPI dependencies.
+          This allows services to be easily tested and reused.
+        </principle>
+        <structure>
+          src/services/
+          ├── auth_service.py       # Authentication logic (JWT, password)
+          ├── user_service.py       # User CRUD operations
+          └── __init__.py
+        </structure>
+        <example>
+          # ✅ CORRECT: Service has no FastAPI imports
+          from sqlalchemy.ext.asyncio import AsyncSession
+          from src.database.models import User
+          from src.config import settings
+
+          async def get_user_by_email(email: str, db: AsyncSession) -> User | None:
+              result = await db.execute(select(User).where(User.email == email))
+              return result.scalar_one_or_none()
+
+          # ❌ WRONG: Service imports FastAPI
+          from fastapi import HTTPException  # DON'T DO THIS IN SERVICE
+        </example>
+      </pattern>
+
+      <pattern name="Async/Await Consistency">
+        <principle>
+          All database operations must be async. Service methods that touch the
+          database must be async def.
+        </principle>
+        <example>
+          # ✅ CORRECT
+          async def authenticate_user(email: str, password: str, db: AsyncSession):
+              user = await get_user_by_email(email, db)
+              # ...
+
+          # ❌ WRONG (missing await)
+          async def authenticate_user(email: str, password: str, db: AsyncSession):
+              user = get_user_by_email(email, db)  # Missing await!
+        </example>
+      </pattern>
+
+      <pattern name="Error Handling in Services">
+        <principle>
+          Services should return None or raise ValueError for business logic errors.
+          They should NOT raise HTTPException (that's for API layer).
+        </principle>
+        <example>
+          # ✅ CORRECT (Service layer)
+          def validate_password_strength(password: str) -> tuple[bool, str]:
+              if len(password) < 12:
+                  return False, "Password must be at least 12 characters"
+              return True, ""
+
+          # ❌ WRONG (Service layer)
+          from fastapi import HTTPException
+          def validate_password_strength(password: str):
+              if len(password) < 12:
+                  raise HTTPException(400, "Password too short")  # DON'T!
+        </example>
+      </pattern>
+
+      <pattern name="Constant-Time Comparison">
+        <principle>
+          Always use cryptographically secure comparison functions to prevent
+          timing attacks.
+        </principle>
+        <example>
+          # ✅ CORRECT (passlib handles constant-time internally)
+          is_valid = pwd_context.verify(plain_password, user.password_hash)
+
+          # ❌ WRONG (timing attack vulnerability)
+          is_valid = (plain_password == user.password_hash)
+        </example>
+      </pattern>
+    </implementation-patterns>
+  </technical-specifications>
+
+  <!-- =================================================================================
+       SECTION 4: EXISTING CODE & INTEGRATION POINTS
+       ================================================================================= -->
+  <existing-code>
+    <database-models>
+      <note>
+        The following models were created in Story 1A and are READY for use.
+        DO NOT modify these models in Story 1B.
+      </note>
+
+      <model name="User" file="src/database/models.py" line="711-803">
+        <description>User account model with authentication fields</description>
+        <key-fields>
+          <field name="id" type="UUID" pk="true">Globally unique user ID</field>
+          <field name="email" type="String(255)" unique="true">User email (login)</field>
+          <field name="password_hash" type="String(255)">Bcrypt hashed password</field>
+          <field name="default_tenant_id" type="UUID" nullable="true">Default tenant</field>
+          <field name="failed_login_attempts" type="Integer" default="0">Failed login counter</field>
+          <field name="locked_until" type="DateTime" nullable="true">Account lockout timestamp</field>
+          <field name="password_expires_at" type="DateTime" nullable="true">Password expiry</field>
+          <field name="password_history" type="JSON" default="[]">Last 5 password hashes</field>
+          <field name="created_at" type="DateTime">Account creation</field>
+          <field name="updated_at" type="DateTime">Last update</field>
+        </key-fields>
+        <usage-in-story-1b>
+          - Read user by email in authenticate_user()
+          - Update failed_login_attempts, locked_until on failed login
+          - Reset failed_login_attempts on successful login
+          - Check password_expires_at to determine if password expired
+          - Update password_history when password changes
+        </usage-in-story-1b>
+      </model>
+
+      <model name="UserTenantRole" file="src/database/models.py" line="828-880">
+        <description>Many-to-many user-tenant-role mapping</description>
+        <key-fields>
+          <field name="id" type="UUID" pk="true">Primary key</field>
+          <field name="user_id" type="UUID" fk="users.id">User reference</field>
+          <field name="tenant_id" type="String(100)">Tenant identifier</field>
+          <field name="role" type="RoleEnum">Role (super_admin, tenant_admin, etc.)</field>
+        </key-fields>
+        <note-for-story-1b>
+          Story 1B does NOT need to interact with this table. Roles are fetched
+          in Story 1C (API layer) when user switches tenants.
+        </note-for-story-1b>
+      </model>
+
+      <model name="RoleEnum" file="src/database/models.py" line="806-825">
+        <description>RBAC roles enumeration</description>
+        <values>
+          <value>SUPER_ADMIN = "super_admin"</value>
+          <value>TENANT_ADMIN = "tenant_admin"</value>
+          <value>OPERATOR = "operator"</value>
+          <value>DEVELOPER = "developer"</value>
+          <value>VIEWER = "viewer"</value>
+        </values>
+      </model>
+
+      <model name="AuthAuditLog" file="src/database/models.py" line="882-950">
+        <description>Authentication event logging</description>
+        <key-fields>
+          <field name="user_id" type="UUID" nullable="true">User (null for failed logins)</field>
+          <field name="event_type" type="String(50)">Event (login, logout, etc.)</field>
+          <field name="success" type="Boolean">Success/failure</field>
+          <field name="ip_address" type="String(45)">Client IP</field>
+          <field name="user_agent" type="Text" nullable="true">Client user agent</field>
+          <field name="created_at" type="DateTime">Event timestamp</field>
+        </key-fields>
+        <usage-in-story-1b>
+          - Log successful logins with user_id, event_type="login", success=True
+          - Log failed logins with user_id=None, event_type="login", success=False
+          - Log account lockouts with event_type="account_locked"
+          - Story 1C will provide IP and user agent from HTTP request
+        </usage-in-story-1b>
+      </model>
+    </database-models>
+
+    <existing-services>
+      <note>
+        Story 1B creates NEW services. No existing auth services to integrate with.
+      </note>
+    </existing-services>
+
+    <test-patterns>
+      <file name="tests/unit/test_user_model.py" from-story="1A">
+        <description>
+          Story 1A created comprehensive tests for User, UserTenantRole, and
+          AuthAuditLog models. These tests demonstrate the testing patterns to
+          follow in Story 1B.
+        </description>
+        <key-patterns>
+          <pattern name="Async Test Structure">
+            @pytest.mark.asyncio
+            async def test_name(self, async_session: AsyncSession):
+                # Arrange
+                user = User(...)
+
+                # Act
+                async_session.add(user)
+                await async_session.commit()
+
+                # Assert
+                result = await async_session.execute(select(User)...)
+                assert result.scalar_one().email == expected
+          </pattern>
+
+          <pattern name="Fixtures">
+            - Use async_session fixture (from conftest.py)
+            - Use test_db_engine fixture for database connection
+            - Tests automatically rollback after each test
+          </pattern>
+
+          <pattern name="Coverage">
+            - Happy path tests
+            - Edge case tests (duplicate email, null values)
+            - Constraint violation tests (IntegrityError)
+            - Business logic tests (lockout, password history)
+          </pattern>
+        </key-patterns>
+      </file>
+
+      <test-database-setup>
+        <location>tests/conftest.py</location>
+        <connection-string>postgresql+asyncpg://aiagents:password@localhost:5432/ai_agents_test</connection-string>
+        <note>
+          Test database must exist before running tests. Run migrations:
+          AI_AGENTS_DATABASE_URL="postgresql+asyncpg://aiagents:password@localhost:5432/ai_agents_test" \
+            alembic upgrade head
+        </note>
+      </test-database-setup>
+    </test-patterns>
+  </existing-code>
+
+  <!-- =================================================================================
+       SECTION 5: TESTING STRATEGY & REQUIREMENTS
+       ================================================================================= -->
+  <testing-strategy>
+    <overview>
+      Story 1B requires comprehensive unit tests with 90%+ coverage. Tests must
+      cover all business logic paths including happy paths, edge cases, and
+      security scenarios (timing attacks, SQL injection attempts, etc.).
+    </overview>
+
+    <test-files>
+      <file name="tests/unit/test_auth_service.py" required="true">
+        <test-cases>
+          <test-case name="test_hash_password_success">
+            Verify password hashing produces bcrypt hash starting with $2b$
+          </test-case>
+          <test-case name="test_hash_password_different_salts">
+            Verify same password produces different hashes (salting works)
+          </test-case>
+          <test-case name="test_create_access_token_success">
+            Verify JWT contains sub, email, default_tenant_id, iat, exp
+          </test-case>
+          <test-case name="test_create_access_token_no_roles">
+            Verify JWT does NOT contain roles, permissions, or tenant arrays
+          </test-case>
+          <test-case name="test_verify_access_token_success">
+            Verify valid JWT decodes successfully
+          </test-case>
+          <test-case name="test_verify_access_token_expired">
+            Verify expired JWT raises ExpiredSignatureError
+          </test-case>
+          <test-case name="test_verify_access_token_invalid_signature">
+            Verify JWT with wrong signature raises JWTError
+          </test-case>
+          <test-case name="test_validate_password_too_short">
+            Verify password < 12 chars rejected
+          </test-case>
+          <test-case name="test_validate_password_no_uppercase">
+            Verify password without uppercase rejected
+          </test-case>
+          <test-case name="test_validate_password_no_digit">
+            Verify password without digit rejected
+          </test-case>
+          <test-case name="test_validate_password_no_special">
+            Verify password without special char rejected
+          </test-case>
+          <test-case name="test_validate_password_common_password">
+            Verify common password (e.g., "Password123!") rejected by zxcvbn
+          </test-case>
+          <test-case name="test_validate_password_zxcvbn_score_too_low">
+            Verify password with zxcvbn score < 3 rejected
+          </test-case>
+          <test-case name="test_validate_password_success">
+            Verify strong password passes all checks
+          </test-case>
+          <test-case name="test_authenticate_user_success">
+            Verify correct email+password returns user, resets failed_login_attempts
+          </test-case>
+          <test-case name="test_authenticate_user_wrong_password">
+            Verify wrong password returns None, increments failed_login_attempts
+          </test-case>
+          <test-case name="test_authenticate_user_account_locked">
+            Verify locked account returns None even with correct password
+          </test-case>
+          <test-case name="test_authenticate_user_lockout_expired">
+            Verify account unlocks after locked_until timestamp passes
+          </test-case>
+          <test-case name="test_authenticate_user_user_not_found">
+            Verify non-existent email returns None (no information disclosure)
+          </test-case>
+        </test-cases>
+      </file>
+
+      <file name="tests/unit/test_user_service.py" required="true">
+        <test-cases>
+          <test-case name="test_create_user_success">
+            Verify user created with hashed password, password_expires_at set
+          </test-case>
+          <test-case name="test_create_user_duplicate_email">
+            Verify duplicate email raises IntegrityError
+          </test-case>
+          <test-case name="test_create_user_weak_password">
+            Verify weak password rejected before user creation
+          </test-case>
+          <test-case name="test_get_user_by_email_success">
+            Verify user fetched by email
+          </test-case>
+          <test-case name="test_get_user_by_email_not_found">
+            Verify returns None for non-existent email
+          </test-case>
+          <test-case name="test_get_user_by_id_success">
+            Verify user fetched by UUID
+          </test-case>
+          <test-case name="test_update_password_success">
+            Verify password updated, old hash added to password_history
+          </test-case>
+          <test-case name="test_update_password_reused_password">
+            Verify reused password (in history) rejected
+          </test-case>
+          <test-case name="test_update_password_history_trimmed_to_5">
+            Verify password_history never exceeds 5 entries
+          </test-case>
+          <test-case name="test_check_password_history_reused">
+            Verify check_password_history returns True for reused hash
+          </test-case>
+          <test-case name="test_check_password_history_unique">
+            Verify check_password_history returns False for new hash
+          </test-case>
+        </test-cases>
+      </file>
+    </test-files>
+
+    <coverage-requirements>
+      <requirement>Line coverage >= 90% for src/services/auth_service.py</requirement>
+      <requirement>Line coverage >= 90% for src/services/user_service.py</requirement>
+      <requirement>Branch coverage >= 75% (pytest-cov with --cov-branch)</requirement>
+    </coverage-requirements>
+
+    <test-execution>
+      <command>
+        # Run all Story 1B tests
+        pytest tests/unit/test_auth_service.py tests/unit/test_user_service.py -v --cov=src/services --cov-report=html --cov-report=term-missing
+      </command>
+      <expected-output>
+        ============================= test session starts ==============================
+        tests/unit/test_auth_service.py::TestAuthService::test_hash_password_success PASSED [ 5%]
+        ...
+        tests/unit/test_user_service.py::TestUserService::test_create_user_success PASSED [100%]
+
+        ----------- coverage: platform darwin, python 3.12.x -----------
+        Name                            Stmts   Miss  Cover   Missing
+        ---------------------------------------------------------------
+        src/services/auth_service.py       150     10    93%   23, 45-47
+        src/services/user_service.py       120      8    93%   67, 89-91
+        ---------------------------------------------------------------
+        TOTAL                              270     18    93%
+      </expected-output>
+    </test-execution>
+
+    <security-test-cases>
+      <test-case name="SQL Injection Prevention">
+        <description>
+          Verify user_service rejects SQL injection attempts in email field
+        </description>
+        <test-code><![CDATA[
+async def test_get_user_sql_injection_attempt(async_session):
+    """Verify SQL injection attempt in email fails gracefully."""
+    # Arrange: Attempt SQL injection
+    malicious_email = "admin'--"
+
+    # Act
+    user = await user_service.get_user_by_email(malicious_email, async_session)
+
+    # Assert: Returns None (SQLAlchemy parameterizes query)
+    assert user is None
+        ]]></test-code>
+      </test-case>
+
+      <test-case name="Timing Attack Prevention">
+        <description>
+          Verify password verification takes constant time regardless of correctness
+        </description>
+        <test-code><![CDATA[
+import time
+
+async def test_password_verification_constant_time(async_session):
+    """Verify password verification doesn't leak info via timing."""
+    # Arrange: Create user
+    user = User(email="timing@example.com", password_hash=hash_password("correct123"))
+    async_session.add(user)
+    await async_session.commit()
+
+    # Act: Measure time for correct vs wrong password
+    start1 = time.perf_counter()
+    result1 = pwd_context.verify("correct123", user.password_hash)
+    time1 = time.perf_counter() - start1
+
+    start2 = time.perf_counter()
+    result2 = pwd_context.verify("wrong123", user.password_hash)
+    time2 = time.perf_counter() - start2
+
+    # Assert: Times should be within 10ms (constant-time)
+    assert abs(time1 - time2) < 0.01  # < 10ms difference
+        ]]></test-code>
+      </test-case>
+    </security-test-cases>
+  </testing-strategy>
+
+  <!-- =================================================================================
+       SECTION 6: IMPLEMENTATION TASKS & CHECKLIST
+       ================================================================================= -->
+  <implementation-tasks>
+    <task id="TASK1" priority="P0" estimated-hours="2">
+      <title>Create src/services/auth_service.py skeleton</title>
+      <description>
+        Create auth_service.py with function stubs (no implementation yet).
+        This allows tests to import functions without errors.
+      </description>
+      <subtasks>
+        <subtask>Create src/services/ directory if not exists</subtask>
+        <subtask>Create src/services/__init__.py</subtask>
+        <subtask>Create src/services/auth_service.py with function signatures</subtask>
+        <subtask>Add type hints and docstrings to all functions</subtask>
+      </subtasks>
+      <deliverable>src/services/auth_service.py (empty functions)</deliverable>
+    </task>
+
+    <task id="TASK2" priority="P0" estimated-hours="2">
+      <title>Create src/services/user_service.py skeleton</title>
+      <description>
+        Create user_service.py with function stubs.
+      </description>
+      <deliverable>src/services/user_service.py (empty functions)</deliverable>
+    </task>
+
+    <task id="TASK3" priority="P0" estimated-hours="3">
+      <title>Implement password hashing and validation</title>
+      <description>
+        Implement hash_password() and validate_password_strength() in auth_service.py.
+      </description>
+      <subtasks>
+        <subtask>Implement hash_password() using passlib bcrypt</subtask>
+        <subtask>Implement validate_password_strength() with 5 rules</subtask>
+        <subtask>Integrate zxcvbn for common password detection</subtask>
+        <subtask>Add unit tests for both functions</subtask>
+      </subtasks>
+      <acceptance>
+        - hash_password() produces bcrypt hash
+        - validate_password_strength() enforces all 5 rules
+        - zxcvbn rejects common passwords
+      </acceptance>
+    </task>
+
+    <task id="TASK4" priority="P0" estimated-hours="4">
+      <title>Implement JWT token generation and validation</title>
+      <description>
+        Implement create_access_token() and verify_access_token().
+      </description>
+      <subtasks>
+        <subtask>Implement create_access_token() with lean JWT payload</subtask>
+        <subtask>Implement verify_access_token() with algorithm validation</subtask>
+        <subtask>Add unit tests for token generation/validation</subtask>
+        <subtask>Add test for expired token handling</subtask>
+      </subtasks>
+      <acceptance>
+        - JWT contains only: sub, email, default_tenant_id, iat, exp
+        - JWT expires after 7 days
+        - Expired tokens raise ExpiredSignatureError
+      </acceptance>
+    </task>
+
+    <task id="TASK5" priority="P0" estimated-hours="5">
+      <title>Implement authenticate_user() with lockout logic</title>
+      <description>
+        Implement core authentication function with account lockout.
+      </description>
+      <subtasks>
+        <subtask>Implement authenticate_user() core logic</subtask>
+        <subtask>Add lockout check before password verification</subtask>
+        <subtask>Implement failed attempt counter increment</subtask>
+        <subtask>Implement account lockout after 5 failed attempts</subtask>
+        <subtask>Implement failed attempt reset on success</subtask>
+        <subtask>Add unit tests for all scenarios</subtask>
+      </subtasks>
+      <acceptance>
+        - Correct credentials return user
+        - Wrong password increments failed_login_attempts
+        - 5 failed attempts lock account for 15 minutes
+        - Locked account rejects even correct password
+        - Successful login resets failed_login_attempts
+      </acceptance>
+    </task>
+
+    <task id="TASK6" priority="P0" estimated-hours="4">
+      <title>Implement user CRUD operations</title>
+      <description>
+        Implement create_user(), get_user_by_email(), get_user_by_id(), update_password().
+      </description>
+      <subtasks>
+        <subtask>Implement create_user() with password validation</subtask>
+        <subtask>Implement get_user_by_email()</subtask>
+        <subtask>Implement get_user_by_id()</subtask>
+        <subtask>Implement update_password() with history check</subtask>
+        <subtask>Implement check_password_history()</subtask>
+        <subtask>Add unit tests for all functions</subtask>
+      </subtasks>
+      <acceptance>
+        - create_user() creates user with hashed password
+        - update_password() rejects reused passwords
+        - password_history never exceeds 5 entries
+      </acceptance>
+    </task>
+
+    <task id="TASK7" priority="P1" estimated-hours="2">
+      <title>Update src/config.py with JWT settings</title>
+      <description>
+        Add JWT and password policy settings to config.py.
+      </description>
+      <subtasks>
+        <subtask>Add jwt_secret_key field with validation (>= 32 chars)</subtask>
+        <subtask>Add jwt_algorithm, jwt_expiration_days fields</subtask>
+        <subtask>Add password policy fields (min_length, expiration_days)</subtask>
+        <subtask>Add account lockout fields (threshold, duration_minutes)</subtask>
+      </subtasks>
+      <deliverable>Updated src/config.py</deliverable>
+    </task>
+
+    <task id="TASK8" priority="P1" estimated-hours="3">
+      <title>Write comprehensive unit tests</title>
+      <description>
+        Complete test coverage for auth_service.py and user_service.py.
+      </description>
+      <acceptance>
+        - Line coverage >= 90%
+        - Branch coverage >= 75%
+        - All edge cases tested
+        - Security scenarios tested (SQL injection, timing attacks)
+      </acceptance>
+    </task>
+
+    <task id="TASK9" priority="P2" estimated-hours="1">
+      <title>Generate JWT secret key and update .env</title>
+      <description>
+        Generate cryptographically secure JWT secret and add to .env file.
+      </description>
+      <commands>
+        openssl rand -base64 32
+        echo "JWT_SECRET_KEY=\"generated_secret_here\"" >> .env
+      </commands>
+    </task>
+
+    <task id="TASK10" priority="P2" estimated-hours="1">
+      <title>Run tests and verify 90%+ coverage</title>
+      <description>
+        Execute test suite and verify coverage requirements met.
+      </description>
+      <commands>
+        pytest tests/unit/test_auth_service.py tests/unit/test_user_service.py \
+          -v --cov=src/services --cov-report=html --cov-report=term-missing \
+          --cov-fail-under=90
+      </commands>
+      <acceptance>
+        - All tests pass
+        - Coverage report shows >= 90% line coverage
+        - No critical security vulnerabilities
+      </acceptance>
+    </task>
+  </implementation-tasks>
+
+  <completion-checklist>
+    <item>✅ src/services/auth_service.py created with all functions</item>
+    <item>✅ src/services/user_service.py created with all functions</item>
+    <item>✅ src/config.py updated with JWT and password policy settings</item>
+    <item>✅ Password hashing uses bcrypt with 10 rounds</item>
+    <item>✅ JWT tokens contain only: sub, email, default_tenant_id, iat, exp</item>
+    <item>✅ Password policy enforced: 12+ chars, upper/lower/digit/special, zxcvbn >= 3</item>
+    <item>✅ Account lockout implemented: 5 attempts = 15 min lockout</item>
+    <item>✅ Password history prevents reuse of last 5 passwords</item>
+    <item>✅ Unit tests written for test_auth_service.py (20+ tests)</item>
+    <item>✅ Unit tests written for test_user_service.py (10+ tests)</item>
+    <item>✅ Test coverage >= 90% for both service files</item>
+    <item>✅ Security test cases pass (SQL injection, timing attacks)</item>
+    <item>✅ JWT secret key generated and added to .env</item>
+    <item>✅ All tests pass: pytest tests/unit/test_auth_service.py test_user_service.py</item>
+    <item>✅ Code formatted with black</item>
+    <item>✅ Type hints validated with mypy</item>
+    <item>✅ Story marked as "Ready for Review" in sprint-status.yaml</item>
+  </completion-checklist>
+
+  <!-- =================================================================================
+       SECTION 7: RESEARCH FINDINGS (2025 BEST PRACTICES)
+       ================================================================================= -->
+  <research-findings date="2025-01-17">
+    <note>
+      The following best practices were researched using Context7 MCP and web search
+      as requested by the user, incorporating latest 2025 security recommendations.
+    </note>
+
+    <finding source="WebSearch: python-jose JWT best practices 2025">
+      <title>JWT Security Best Practices 2025</title>
+      <key-points>
+        <point>Prefer RS256 over HS256 for distributed systems (asymmetric signing)</point>
+        <point>Use strong secret keys (>= 256 bits / 32 chars) for HS256</point>
+        <point>ALWAYS specify algorithms=["HS256"] when decoding (prevents CVE-2024-33663)</point>
+        <point>Never store sensitive data in JWT (no PII, passwords, secrets)</point>
+        <point>Use appropriate expiration times (30 min access, 7 day refresh)</point>
+        <point>Implement sliding sessions with separate access/refresh tokens</point>
+      </key-points>
+      <application-to-story-1b>
+        - Story 1B uses HS256 (internal API, single server)
+        - JWT expires after 7 days (acceptable for MVP)
+        - JWT contains minimal data: sub, email, default_tenant_id
+        - Refresh tokens deferred to future story
+      </application-to-story-1b>
+    </finding>
+
+    <finding source="WebSearch: passlib bcrypt rounds 2025">
+      <title>Bcrypt Rounds Recommendations 2025</title>
+      <key-points>
+        <point>Rounds=12 (~400ms) is current industry standard</point>
+        <point>Rounds=10 (~200ms) acceptable for MVP with good UX</point>
+        <point>Aim for 250-500ms processing time per hash</point>
+        <point>Use bcrypt_sha256 for passwords > 72 bytes (bcrypt truncates)</point>
+        <point>Argon2 recommended for new projects (2019 PHC winner)</point>
+      </key-points>
+      <application-to-story-1b>
+        - Story 1B uses bcrypt rounds=10 (balances security and UX)
+        - Tech-spec specified 10 rounds
+        - Future story can increase to rounds=12 if needed
+      </application-to-story-1b>
+    </finding>
+
+    <finding source="WebSearch: zxcvbn python 2025">
+      <title>zxcvbn Password Strength Estimation 2025</title>
+      <key-points>
+        <point>zxcvbn actively maintained (Feb 2025 release)</point>
+        <point>Recognizes 30k common passwords, names, patterns</point>
+        <point>Score 3/4 = "safely unguessable" (minimum recommended)</point>
+        <point>Provide user_inputs to detect personal info in passwords</point>
+        <point>Limit max password length to 72 chars (prevents DoS)</point>
+      </key-points>
+      <application-to-story-1b>
+        - Story 1B requires zxcvbn score >= 3
+        - Pass email to user_inputs to detect email-based passwords
+        - Enforce max 72 chars (bcrypt limit + DoS prevention)
+      </application-to-story-1b>
+    </finding>
+
+    <finding source="WebSearch: FastAPI JWT RBAC 2025">
+      <title>FastAPI JWT Authentication Patterns 2025</title>
+      <key-points>
+        <point>Use dependency injection for JWT validation (not middleware)</point>
+        <point>Separate concerns: auth service (Story 1B), API endpoints (Story 1C)</point>
+        <point>Use OAuth2PasswordBearer for token extraction</point>
+        <point>Implement RBAC with permission-based dependencies</point>
+        <point>Store roles in database, NOT in JWT (prevents token bloat)</point>
+      </key-points>
+      <application-to-story-1b>
+        - Story 1B creates auth_service (no FastAPI dependencies)
+        - Story 1C will use OAuth2PasswordBearer + dependencies
+        - Confirms ADR 003: roles fetched on-demand, not in JWT
+      </application-to-story-1b>
+    </finding>
+
+    <finding source="CVE-2024-33663 Analysis">
+      <title>python-jose Algorithm Confusion Vulnerability</title>
+      <description>
+        CVE-2024-33663 involves crafting a JWT with a header specifying HMAC-SHA256
+        (HS256) as the algorithm, but using an ECC key for the HMAC signing. This
+        allows attackers to forge JWTs if the verification doesn't enforce algorithm.
+      </description>
+      <mitigation>
+        ALWAYS specify algorithms=["HS256"] explicitly when calling jwt.decode().
+        NEVER trust the "alg" header from user-provided tokens.
+      </mitigation>
+      <code-example><![CDATA[
+# ✅ CORRECT (mitigates CVE-2024-33663)
+payload = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+
+# ❌ VULNERABLE (allows algorithm confusion)
+payload = jwt.decode(token, SECRET_KEY)  # Trusts token's alg header!
+      ]]></code-example>
+    </finding>
+  </research-findings>
+
+  <!-- =================================================================================
+       SECTION 8: INTEGRATION WITH STORY 1C (API LAYER)
+       ================================================================================= -->
+  <story-1c-handoff>
+    <note>
+      Story 1C (API Endpoints & Middleware) will consume the services created in
+      Story 1B. This section documents the expected integration points.
+    </note>
+
+    <api-endpoint-examples>
+      <endpoint path="POST /api/v1/auth/login" story-1c="true">
+        <description>User login endpoint (Story 1C)</description>
+        <story-1b-usage>
+          1. Call auth_service.authenticate_user(email, password, db)
+          2. If returns user: call auth_service.create_access_token(user)
+          3. Log event: auth_audit_log (event_type="login", success=True/False)
+          4. Return JWT token to client
+        </story-1b-usage>
+      </endpoint>
+
+      <endpoint path="POST /api/v1/auth/register" story-1c="true">
+        <description>User registration endpoint (Story 1C)</description>
+        <story-1b-usage>
+          1. Call auth_service.validate_password_strength(password)
+          2. If valid: call user_service.create_user(email, password, ...)
+          3. Return success response
+        </story-1b-usage>
+      </endpoint>
+
+      <endpoint path="GET /api/v1/auth/me" story-1c="true">
+        <description>Get current user profile (Story 1C)</description>
+        <story-1b-usage>
+          1. Extract JWT from Authorization header
+          2. Call auth_service.verify_access_token(token)
+          3. Extract user_id from payload['sub']
+          4. Call user_service.get_user_by_id(user_id, db)
+          5. Return user profile (exclude password_hash)
+        </story-1b-usage>
+      </endpoint>
+    </api-endpoint-examples>
+
+    <middleware-integration story-1c="true">
+      <jwt-middleware>
+        <description>
+          Story 1C will create JWT middleware that validates tokens and sets
+          request.state.user for authenticated requests.
+        </description>
+        <story-1b-usage>
+          try:
+              payload = auth_service.verify_access_token(token)
+              user = await user_service.get_user_by_id(payload['sub'], db)
+              request.state.user = user
+          except JWTError:
+              raise HTTPException(401, "Invalid token")
+        </story-1b-usage>
+      </jwt-middleware>
+    </middleware-integration>
+  </story-1c-handoff>
+
+  <!-- =================================================================================
+       SECTION 9: RISK ASSESSMENT & MITIGATION
+       ================================================================================= -->
+  <risks>
+    <risk id="RISK1" severity="HIGH" probability="LOW">
+      <title>JWT Secret Key Exposed</title>
+      <impact>
+        If JWT_SECRET_KEY is committed to git or leaked, attackers can forge valid
+        tokens and bypass authentication.
+      </impact>
+      <mitigation>
+        - Add .env to .gitignore (already done)
+        - Never log JWT_SECRET_KEY
+        - Rotate key if exposed (requires all users to re-login)
+        - Use environment variables in production (Render.com secrets)
+      </mitigation>
+    </risk>
+
+    <risk id="RISK2" severity="MEDIUM" probability="MEDIUM">
+      <title>Bcrypt Performance Issues</title>
+      <impact>
+        Bcrypt hashing (~200ms) could slow down login under high load.
+      </impact>
+      <mitigation>
+        - Acceptable for MVP (< 100 concurrent logins)
+        - Monitor login latency in production
+        - Consider async hashing with thread pool if needed
+        - Rate limiting in Story 1C prevents brute force
+      </mitigation>
+    </risk>
+
+    <risk id="RISK3" severity="LOW" probability="LOW">
+      <title>Password Policy Too Strict</title>
+      <impact>
+        Users may struggle to create passwords meeting all requirements.
+      </impact>
+      <mitigation>
+        - Provide clear error messages with examples
+        - Show password strength indicator in UI (Story 2)
+        - Allow password manager integration
+        - zxcvbn provides helpful feedback
+      </mitigation>
+    </risk>
+
+    <risk id="RISK4" severity="HIGH" probability="LOW">
+      <title>Account Lockout DoS</title>
+      <impact>
+        Attacker could intentionally lock user accounts by trying wrong passwords.
+      </impact>
+      <mitigation>
+        - Rate limiting in Story 1C (5 attempts per IP per 15 min)
+        - CAPTCHA after 3 failed attempts (Future story)
+        - Admin can manually unlock accounts
+        - Monitor failed login patterns
+      </mitigation>
+    </risk>
+  </risks>
+
+  <!-- =================================================================================
+       SECTION 10: APPENDICES
+       ================================================================================= -->
+  <appendices>
+    <appendix id="A" title="Code Examples">
+      <example name="Complete auth_service.py Structure">
+        <file-path>src/services/auth_service.py</file-path>
+        <code><![CDATA[
+"""
+Authentication service for JWT token management and password handling.
+
+This service provides core authentication logic including password hashing,
+JWT token generation/validation, and password policy enforcement.
+
+Story: 1B - Auth Service & JWT Implementation
+Epic: 2 (Authentication & Authorization Foundation)
+"""
+
+from datetime import datetime, timedelta
+from typing import Optional
+
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from zxcvbn import zxcvbn
+
+from src.config import settings
+from src.database.models import User
+
+# Passlib context for bcrypt password hashing
+pwd_context = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=10,  # 10 rounds = ~200-300ms (Story 1B requirement)
+)
+
+
+def hash_password(password: str) -> str:
+    """
+    Hash a password using bcrypt.
+
+    Args:
+        password: Plain text password
+
+    Returns:
+        Bcrypt hashed password
+    """
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verify a password against a hash (constant-time comparison).
+
+    Args:
+        plain_password: Plain text password to verify
+        hashed_password: Bcrypt hash to verify against
+
+    Returns:
+        True if password matches, False otherwise
+    """
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """
+    Validate password meets strength requirements.
+
+    Requirements (Story 1B):
+    - Minimum 12 characters
+    - At least 1 uppercase letter
+    - At least 1 lowercase letter
+    - At least 1 digit
+    - At least 1 special character (!@#$%^&*)
+    - zxcvbn score >= 3 (safely unguessable)
+
+    Args:
+        password: Password to validate
+
+    Returns:
+        Tuple of (is_valid, error_message)
+        - (True, "") if valid
+        - (False, "error message") if invalid
+    """
+    # Implementation here...
+    pass
+
+
+def create_access_token(user: User) -> str:
+    """
+    Create JWT access token for authenticated user.
+
+    CRITICAL: JWT payload contains ONLY these fields (ADR 003):
+    - sub: user.id (UUID as string)
+    - email: user.email
+    - default_tenant_id: user.default_tenant_id (UUID as string)
+    - iat: issued at timestamp
+    - exp: expiration timestamp (7 days from now)
+
+    Roles are NOT included in JWT. They are fetched on-demand when
+    user switches tenants (see Story 1C).
+
+    Args:
+        user: Authenticated user
+
+    Returns:
+        JWT token string
+    """
+    # Implementation here...
+    pass
+
+
+def verify_access_token(token: str) -> dict:
+    """
+    Verify and decode JWT access token.
+
+    SECURITY: Always specify algorithms=["HS256"] to prevent
+    algorithm confusion attacks (CVE-2024-33663).
+
+    Args:
+        token: JWT token string
+
+    Returns:
+        Decoded JWT payload dict
+
+    Raises:
+        JWTError: If token invalid or expired
+    """
+    # Implementation here...
+    pass
+
+
+async def authenticate_user(
+    email: str,
+    password: str,
+    db: AsyncSession
+) -> Optional[User]:
+    """
+    Authenticate user by email and password.
+
+    Security features:
+    - Constant-time password comparison (prevents timing attacks)
+    - Account lockout check BEFORE password verification
+    - Failed attempt counter increment on wrong password
+    - Account lockout after 5 failed attempts (15 minutes)
+    - Failed attempt reset on successful login
+
+    Args:
+        email: User email
+        password: Plain text password
+        db: Database session
+
+    Returns:
+        User if authentication successful, None otherwise
+
+    Note: Returns None for both "user not found" and "wrong password"
+    to prevent information disclosure.
+    """
+    # Implementation here...
+    pass
+        ]]></code>
+      </example>
+
+      <example name="Complete user_service.py Structure">
+        <file-path>src/services/user_service.py</file-path>
+        <code><![CDATA[
+"""
+User management service for CRUD operations.
+
+This service provides user management functions including creation,
+retrieval, and password updates with password history enforcement.
+
+Story: 1B - Auth Service & JWT Implementation
+Epic: 2 (Authentication & Authorization Foundation)
+"""
+
+from datetime import datetime, timedelta
+from typing import Optional
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.config import settings
+from src.database.models import User
+from src.services.auth_service import hash_password, validate_password_strength
+
+
+async def create_user(
+    email: str,
+    password: str,
+    default_tenant_id: UUID,
+    db: AsyncSession
+) -> User:
+    """
+    Create new user account.
+
+    Steps:
+    1. Validate password strength
+    2. Hash password
+    3. Create user record
+    4. Set password_expires_at (90 days from now)
+    5. Save to database
+
+    Args:
+        email: User email (must be unique)
+        password: Plain text password
+        default_tenant_id: User's default tenant UUID
+        db: Database session
+
+    Returns:
+        Created User object
+
+    Raises:
+        ValueError: If password validation fails
+        IntegrityError: If email already exists (from SQLAlchemy)
+    """
+    # Implementation here...
+    pass
+
+
+async def get_user_by_email(
+    email: str,
+    db: AsyncSession
+) -> Optional[User]:
+    """
+    Retrieve user by email address.
+
+    Args:
+        email: User email
+        db: Database session
+
+    Returns:
+        User if found, None otherwise
+    """
+    # Implementation here...
+    pass
+
+
+async def get_user_by_id(
+    user_id: UUID,
+    db: AsyncSession
+) -> Optional[User]:
+    """
+    Retrieve user by UUID.
+
+    Args:
+        user_id: User UUID
+        db: Database session
+
+    Returns:
+        User if found, None otherwise
+    """
+    # Implementation here...
+    pass
+
+
+async def update_password(
+    user: User,
+    new_password: str,
+    db: AsyncSession
+) -> User:
+    """
+    Update user password with history check.
+
+    Steps:
+    1. Validate password strength
+    2. Hash new password
+    3. Check password history (reject if reused)
+    4. Update password_hash
+    5. Add old hash to password_history (trim to 5)
+    6. Set new password_expires_at (90 days from now)
+    7. Save to database
+
+    Args:
+        user: User to update
+        new_password: New plain text password
+        db: Database session
+
+    Returns:
+        Updated User object
+
+    Raises:
+        ValueError: If password invalid or reused
+    """
+    # Implementation here...
+    pass
+
+
+def check_password_history(user: User, new_password_hash: str) -> bool:
+    """
+    Check if new password hash exists in user's password history.
+
+    Args:
+        user: User object
+        new_password_hash: New hashed password to check
+
+    Returns:
+        True if password was previously used, False otherwise
+    """
+    # Implementation here...
+    pass
+        ]]></code>
+      </example>
+    </appendix>
+
+    <appendix id="B" title="Environment Variables Reference">
+      <env-vars-table>
+        | Variable | Required | Default | Description |
+        |----------|----------|---------|-------------|
+        | JWT_SECRET_KEY | YES | N/A | JWT signing secret (>= 32 chars) |
+        | JWT_ALGORITHM | NO | HS256 | JWT algorithm (only HS256 supported) |
+        | JWT_EXPIRATION_DAYS | NO | 7 | JWT expiration in days |
+        | PASSWORD_MIN_LENGTH | NO | 12 | Minimum password length |
+        | PASSWORD_EXPIRATION_DAYS | NO | 90 | Password expiry in days |
+        | ACCOUNT_LOCKOUT_THRESHOLD | NO | 5 | Failed attempts before lockout |
+        | ACCOUNT_LOCKOUT_DURATION_MINUTES | NO | 15 | Lockout duration |
+      </env-vars-table>
+    </appendix>
+
+    <appendix id="C" title="JWT Payload Example">
+      <jwt-structure>
+        <header>
+          {
+            "alg": "HS256",
+            "typ": "JWT"
+          }
+        </header>
+        <payload>
+          {
+            "sub": "123e4567-e89b-12d3-a456-426614174000",  // user.id (UUID)
+            "email": "user@example.com",                     // user.email
+            "default_tenant_id": "789e4567-e89b-12d3-a456-426614174999",  // user.default_tenant_id
+            "iat": 1705449600,                               // issued at (Unix timestamp)
+            "exp": 1706054400                                // expires at (iat + 7 days)
+          }
+        </payload>
+        <note>
+          CRITICAL: JWT does NOT contain roles, permissions, or tenant arrays.
+          Roles are fetched on-demand from UserTenantRole table when user switches tenants.
+          See ADR 003: JWT Roles Fetched On-Demand.
+        </note>
+      </jwt-structure>
+    </appendix>
+
+    <appendix id="D" title="Password Policy Error Messages">
+      <error-messages>
+        <message code="PASSWORD_TOO_SHORT">
+          Password must be at least 12 characters long.
+        </message>
+        <message code="PASSWORD_NO_UPPERCASE">
+          Password must contain at least one uppercase letter (A-Z).
+        </message>
+        <message code="PASSWORD_NO_LOWERCASE">
+          Password must contain at least one lowercase letter (a-z).
+        </message>
+        <message code="PASSWORD_NO_DIGIT">
+          Password must contain at least one number (0-9).
+        </message>
+        <message code="PASSWORD_NO_SPECIAL">
+          Password must contain at least one special character (!@#$%^&*).
+        </message>
+        <message code="PASSWORD_TOO_COMMON">
+          Password is too common. Please choose a more unique password.
+          Suggestions: {zxcvbn_feedback}
+        </message>
+        <message code="PASSWORD_REUSED">
+          You cannot reuse any of your last 5 passwords. Please choose a new password.
+        </message>
+      </error-messages>
+    </appendix>
+  </appendices>
+
+</story-context>

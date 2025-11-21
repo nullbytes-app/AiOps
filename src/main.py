@@ -11,10 +11,15 @@ to capture all requests automatically via FastAPIInstrumentor.
 import logging
 
 from fastapi import FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_client import make_asgi_app
 
-from src.api import health, webhooks, feedback, plugins, agents, prompts, budget, llm_providers, llm_models, fallback_chains, byok, agent_testing, memory, llm_costs, agent_performance, tenant_spend, executions, openapi_tools, mcp_servers, agent_execution, unified_tools
+from src.api import health, webhooks, feedback, plugins, agents, prompts, budget, llm_providers, llm_models, fallback_chains, byok, agent_testing, memory, llm_costs, agent_performance, tenant_spend, executions, openapi_tools, mcp_servers, agent_execution, unified_tools, metrics, tenants
+from src.api import auth, users  # Story 1C: Authentication endpoints
 from src.api.admin import tenants as admin_tenants
+from src.api.exception_handlers import setup_exception_handlers  # Story 1C
+from src.middleware.rate_limit import setup_rate_limiting, limiter  # Story 1C
+from src.middleware.audit_log import AuditLogMiddleware  # Story 1C
 from src.config import is_kubernetes_env, settings
 from src.cache.redis_client import check_redis_connection
 from src.database.connection import check_database_connection
@@ -44,7 +49,40 @@ app = FastAPI(
 # Automatically creates spans for all HTTP requests with route, method, status_code
 FastAPIInstrumentor.instrument_app(app)
 
-# Register routers
+# ==============================================================================
+# Story 1C: Middleware Setup
+# ==============================================================================
+
+# Set up rate limiting (must be before routers)
+setup_rate_limiting(app)
+
+# Add audit logging middleware for /api/auth/* endpoints
+app.add_middleware(AuditLogMiddleware)
+
+# CORS middleware (must be after other middleware)
+# Handle case when settings is None during test collection
+cors_origins = settings.cors_origins if settings else ["http://localhost:3000", "http://localhost:5173"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allow_headers=["*"],
+    expose_headers=["X-Total-Count", "X-Page-Count"],  # For pagination
+)
+
+# Register exception handlers
+setup_exception_handlers(app)
+
+# ==============================================================================
+# Register Routers
+# ==============================================================================
+
+# Story 1C: Authentication routers (register BEFORE other routers)
+app.include_router(auth.router)
+app.include_router(users.router)
+
+# Existing routers
 app.include_router(webhooks.router)
 app.include_router(health.router)
 app.include_router(admin_tenants.router)  # Admin tenant management endpoints
@@ -67,6 +105,8 @@ app.include_router(executions.router, prefix="/api/executions")  # Story 10.1: E
 app.include_router(mcp_servers.router)  # Story 11.1.4: MCP Server Management API endpoints
 app.include_router(agent_execution.router)  # Story 11.1.7: Agent execution with MCP tool invocation
 app.include_router(unified_tools.router)  # Story 11.1.5: Unified tool discovery for OpenAPI and MCP tools
+app.include_router(metrics.router)  # Metrics API endpoints for dashboard monitoring
+app.include_router(tenants.router)  # Public tenants API endpoints (session-authenticated)
 
 # Mount Prometheus metrics endpoint at /metrics
 # Returns metrics in Prometheus text format (text/plain; version=0.0.4)

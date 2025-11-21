@@ -23,7 +23,7 @@ from src.plugins.servicedesk_plus.api_client import (
 )
 from src.plugins.servicedesk_plus import webhook_validator
 from src.services.tenant_service import TenantService
-from src.database.connection import get_db_session
+from src.database.session import get_db_session
 from src.cache.redis_client import get_redis_client
 from src.utils.logger import logger
 from src.utils.exceptions import TenantNotFoundException
@@ -76,7 +76,9 @@ class ServiceDeskPlusPlugin(TicketingToolPlugin):
         """
         pass
 
-    async def validate_webhook(self, payload: Dict[str, Any], signature: str) -> bool:
+    async def validate_webhook(
+        self, payload: Dict[str, Any], signature: str, raw_body: Optional[bytes] = None
+    ) -> bool:
         """
         Validate ServiceDesk Plus webhook signature using HMAC-SHA256.
 
@@ -93,6 +95,7 @@ class ServiceDeskPlusPlugin(TicketingToolPlugin):
         Args:
             payload: Webhook JSON payload from ServiceDesk Plus
             signature: HMAC-SHA256 signature from X-ServiceDesk-Signature header
+            raw_body: Optional raw request body bytes for signature validation (preserves exact JSON format)
 
         Returns:
             True if signature valid and timestamp within tolerance, False otherwise
@@ -116,10 +119,32 @@ class ServiceDeskPlusPlugin(TicketingToolPlugin):
             ...     raise SecurityError("Invalid webhook signature")
         """
         try:
+            # Parse signature header (validates format and strips sha256= prefix)
+            try:
+                _, provided_signature = webhook_validator.parse_signature_header(signature)
+            except ValueError as e:
+                logger.error(f"Invalid signature header format: {str(e)}")
+                return False
+
             # Extract tenant_id from payload (lightweight parsing)
             import json
 
-            payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            # Use raw body if provided (preserves exact JSON format for signature validation)
+            # Otherwise re-serialize the payload dict (backward compatibility)
+            if raw_body:
+                payload_bytes = raw_body
+            else:
+                # Custom JSON encoder to handle datetime objects
+                class DateTimeEncoder(json.JSONEncoder):
+                    def default(self, obj):
+                        if isinstance(obj, datetime):
+                            return obj.isoformat()
+                        return super().default(obj)
+
+                payload_bytes = json.dumps(payload, separators=(",", ":"), cls=DateTimeEncoder).encode(
+                    "utf-8"
+                )
+
             tenant_id = webhook_validator.extract_tenant_id_from_payload(payload_bytes)
 
             # Retrieve tenant configuration to get webhook secret
@@ -148,24 +173,43 @@ class ServiceDeskPlusPlugin(TicketingToolPlugin):
                     secret=tenant_config.webhook_signing_secret, payload_bytes=payload_bytes
                 )
 
+                # DEBUG: Log signature comparison details
+                logger.info(
+                    f"Webhook signature validation details for tenant {tenant_id}: "
+                    f"provided={provided_signature[:16]}..., expected={expected_signature[:16]}..., "
+                    f"payload_bytes_len={len(payload_bytes)}, secret_len={len(tenant_config.webhook_signing_secret)}"
+                )
+
                 # Constant-time comparison (prevents timing attacks)
-                if not webhook_validator.secure_compare(signature, expected_signature):
+                if not webhook_validator.secure_compare(provided_signature, expected_signature):
                     logger.error(
                         f"Webhook signature mismatch for tenant: {tenant_id}",
-                        extra={"tenant_id": tenant_id, "event_type": "signature_mismatch"},
+                        extra={
+                            "tenant_id": tenant_id,
+                            "event_type": "signature_mismatch",
+                            "provided": signature[:16] + "...",  # First 16 chars only for security
+                            "expected": expected_signature[:16] + "...",
+                        },
                     )
                     return False
 
                 # Validate timestamp for replay attack prevention
-                created_at_str = payload.get("created_at")
-                if created_at_str:
+                created_at_value = payload.get("created_at")
+                if created_at_value:
                     try:
-                        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                        # Handle both string and datetime types (Pydantic may have already parsed it)
+                        if isinstance(created_at_value, str):
+                            created_at = datetime.fromisoformat(created_at_value.replace("Z", "+00:00"))
+                        elif isinstance(created_at_value, datetime):
+                            created_at = created_at_value
+                        else:
+                            raise ValueError(f"Invalid created_at type: {type(created_at_value)}")
+
                         webhook_validator.validate_webhook_timestamp(created_at)
                     except ValueError as e:
                         logger.error(
                             f"Webhook timestamp validation failed: {str(e)}",
-                            extra={"tenant_id": tenant_id, "created_at": created_at_str},
+                            extra={"tenant_id": tenant_id, "created_at": str(created_at_value)},
                         )
                         return False
 
@@ -410,37 +454,58 @@ class ServiceDeskPlusPlugin(TicketingToolPlugin):
             if not tenant_id:
                 raise ValueError("tenant_id field is required in webhook payload")
 
-            # Extract ticket data (nested in data.ticket for ServiceDesk Plus)
-            data = payload.get("data", {})
-            ticket = data.get("ticket", {})
+            # Handle both flat format (from Pydantic WebhookPayload) and nested format (original ServiceDesk Plus)
+            # Flat format: {"ticket_id": "123", "description": "...", "priority": "high", "created_at": "..."}
+            # Nested format: {"data": {"ticket": {"id": "123", "description": "...", "priority": "Urgent", "created_time": "..."}}}
 
-            # Extract ticket_id
-            ticket_id = ticket.get("id")
-            if not ticket_id:
-                raise ValueError("ticket.id field is required in webhook payload")
+            # Try flat format first (from Pydantic model)
+            if "ticket_id" in payload:
+                # Flat format (WebhookPayload schema)
+                ticket_id = str(payload.get("ticket_id"))
+                description = payload.get("description", "")
+                priority_raw = payload.get("priority", "medium")
+                created_at_value = payload.get("created_at")
 
-            # Convert to string (ServiceDesk Plus may send as int or str)
-            ticket_id = str(ticket_id)
+                # Handle datetime that may already be parsed by Pydantic
+                if isinstance(created_at_value, datetime):
+                    created_at = created_at_value
+                elif isinstance(created_at_value, str):
+                    created_at = datetime.fromisoformat(created_at_value.replace("Z", "+00:00"))
+                else:
+                    raise ValueError(f"Invalid created_at type: {type(created_at_value)}")
 
-            # Extract description
-            description = ticket.get("description", "")
+            else:
+                # Nested format (original ServiceDesk Plus)
+                data = payload.get("data", {})
+                ticket = data.get("ticket", {})
 
-            # Extract and normalize priority
-            priority_raw = ticket.get("priority", "Medium")
+                # Extract ticket_id
+                ticket_id = ticket.get("id")
+                if not ticket_id:
+                    raise ValueError("ticket.id field is required in webhook payload")
+                ticket_id = str(ticket_id)
+
+                # Extract description
+                description = ticket.get("description", "")
+
+                # Extract and normalize priority
+                priority_raw = ticket.get("priority", "Medium")
+
+                # Extract and parse created_at timestamp
+                created_at_str = ticket.get("created_time")
+                if not created_at_str:
+                    raise ValueError("ticket.created_time field is required")
+
+                # Parse ISO 8601 timestamp
+                try:
+                    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
+                except (ValueError, AttributeError) as e:
+                    raise ValueError(
+                        f"Invalid created_time format: {created_at_str}. Expected ISO 8601."
+                    )
+
+            # Normalize priority (works for both formats)
             priority = self._normalize_priority(priority_raw)
-
-            # Extract and parse created_at timestamp
-            created_at_str = ticket.get("created_time")
-            if not created_at_str:
-                raise ValueError("ticket.created_time field is required")
-
-            # Parse ISO 8601 timestamp
-            try:
-                created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-            except (ValueError, AttributeError) as e:
-                raise ValueError(
-                    f"Invalid created_time format: {created_at_str}. Expected ISO 8601."
-                )
 
             # Return standardized TicketMetadata
             return TicketMetadata(

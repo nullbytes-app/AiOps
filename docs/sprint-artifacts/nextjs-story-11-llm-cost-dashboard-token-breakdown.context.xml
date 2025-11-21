@@ -1,0 +1,203 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>nextjs-ui-migration-epic</epicId>
+    <storyId>nextjs-story-11</storyId>
+    <title>LLM Cost Dashboard - Token Breakdown Pie Chart</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-20</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-11-llm-cost-dashboard-token-breakdown.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>operations manager</asA>
+    <iWant>to see token usage breakdown by type</iWant>
+    <soThat>I understand where tokens are being consumed</soThat>
+    <tasks>
+- Create `TokenBreakdownChart` component (pie/donut) with Recharts PieChart, donut chart (innerRadius), color palette (input=blue, output=green), hover tooltip, total tokens in center
+- Create `TokenBreakdownTable` component with sortable table (token type, count, cost, percentage), column sort indicators, number formatting (1.2M), loading skeleton
+- Create `useTokenBreakdown()` hook with React Query, date range parameters (start_date, end_date), error handling/retry, calculate percentages client-side
+- Implement date range selector component with preset buttons ("Last 7 days", "Last 30 days"), custom date range picker, URL query params storage, default "Last 30 days"
+- Add loading states for chart + table (skeleton screens)
+- Format large numbers (1.2M, 1.2K) - reuse formatLargeNumber utility from Story 9
+- Write tests for percentage calculations: (count / total) * 100, rounding to 2 decimals, edge case total=0, chart data transformation
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+**AC#1:** Token breakdown section shows pie/donut chart with input tokens (percentage + count), output tokens (percentage + count), total tokens (center of donut), color-coded slices (consistent with design system), hover tooltip (token type, count, percentage)
+
+**AC#2:** Data table below chart shows token type | count | cost | percentage with sortable columns and formatted numbers (1.2M notation)
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Next.js UI Migration Technical Specification v2.0</title>
+        <section>Section 3.2 - Frontend Stack, Section 4 - Data Visualization</section>
+        <snippet>Chart Library: Recharts 2.13.3, Styling: Tailwind CSS 3.4.14 + Apple Liquid Glass design system, Date Range Patterns: Store selection in URL query params, Number Formatting: formatLargeNumber() utility, Table Sorting: @tanstack/react-table or simple state-based sorting</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/epics-nextjs-feature-parity-completion.md</path>
+        <title>Next.js UI Feature Parity & Completion Epic</title>
+        <section>Epic 1: Analytics & Monitoring Dashboards, Story 1.3 (lines 185-226)</section>
+        <snippet>LLM Cost Dashboard - Token breakdown (Story 1.3): Create TokenBreakdownChart component, TokenBreakdownTable with sorting, DateRangeSelector (reusable), useTokenBreakdown hook. Priority: P0 (Must Have), API Status: ✅ APIs Ready</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/architecture.md</path>
+        <title>AI Agents Decision Architecture</title>
+        <section>Decision Summary - Frontend & Charting</section>
+        <snippet>Chart Library: Recharts 2.13.3 (already in use for Story 10 trend chart), Test Framework: Jest + React Testing Library, Target Coverage: 70% line coverage for components, 90% for utilities</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/design-system/design-tokens.json</path>
+        <title>Apple Liquid Glass Design System Tokens</title>
+        <section>Colors - Chart Colors, Effects - Glassmorphism</section>
+        <snippet>Chart colors: accent.blue (#3B82F6 for input tokens), accent.green (#10B981 for output tokens). Glass card: bg rgba(255,255,255,0.75), backdrop-blur 32px, shadow 0 8px 32px rgba(0,0,0,0.08), border-radius 24px</snippet>
+      </artifact>
+    </docs>
+    <code>
+      <artifact>
+        <path>nextjs-ui/src/components/costs/TokenBreakdownChart.tsx</path>
+        <kind>component</kind>
+        <symbol>TokenBreakdownChart</symbol>
+        <lines>NEW</lines>
+        <reason>Primary component for pie/donut chart visualization. Needs to implement Recharts PieChart with responsive container, custom tooltip, center label for total tokens, and glassmorphic styling from design system.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/components/costs/TokenBreakdownTable.tsx</path>
+        <kind>component</kind>
+        <symbol>TokenBreakdownTable</symbol>
+        <lines>NEW</lines>
+        <reason>Data table component with client-side sorting capability. Must display token type, count (formatted), cost (currency), and percentage with sortable column headers and loading skeleton.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/components/costs/DateRangeSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>DateRangeSelector</symbol>
+        <lines>NEW</lines>
+        <reason>Reusable date range picker for LLM cost features (Stories 1.3, 1.4, 1.5, 1.6, 1.7, 1.8). Stores selection in URL query params, supports presets ("Last 7/30 days") and custom range.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/hooks/useTokenBreakdown.ts</path>
+        <kind>hook</kind>
+        <symbol>useTokenBreakdown</symbol>
+        <lines>NEW</lines>
+        <reason>React Query hook for fetching token breakdown data from GET /api/v1/costs/token-breakdown. Handles date range params, error handling, retry logic, and client-side percentage calculations.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/types/costs.ts</path>
+        <kind>type</kind>
+        <symbol>TokenBreakdownDTO</symbol>
+        <lines>NEW</lines>
+        <reason>TypeScript interface for API response. Define TokenBreakdownDTO with tokenType ('input' | 'output'), count (number), cost (number). Client adds percentage field.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/lib/formatters.ts</path>
+        <kind>utility</kind>
+        <symbol>formatLargeNumber</symbol>
+        <lines>REUSE from Story 9</lines>
+        <reason>Number formatter utility created in Story 9. Converts large numbers to 1.2M, 1.2K notation. Reuse for token count column in table.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/lib/formatters.ts</path>
+        <kind>utility</kind>
+        <symbol>formatCurrency</symbol>
+        <lines>REUSE from Story 9</lines>
+        <reason>Currency formatter utility created in Story 9. Formats cost values with proper USD symbol and decimal places. Reuse for cost column in table.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/src/app/(dashboard)/llm-costs/page.tsx</path>
+        <kind>page</kind>
+        <symbol>LLMCostsPage</symbol>
+        <lines>EXTEND from Story 9</lines>
+        <reason>Parent page created in Story 9. Add TokenBreakdown section below existing components. RBAC already enforced (admin + operator roles only).</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package>recharts</package>
+        <version>2.13.3</version>
+        <description>Chart library for PieChart component</description>
+      </node>
+      <node>
+        <package>@tanstack/react-query</package>
+        <version>latest</version>
+        <description>Data fetching library for useTokenBreakdown hook</description>
+      </node>
+      <node>
+        <package>date-fns</package>
+        <version>latest</version>
+        <description>Date manipulation for DateRangeSelector component</description>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+**Development Constraints:**
+1. **File Size**: All components ≤ 500 lines (project standard from Epic 12)
+2. **Chart Library**: MUST use Recharts 2.13.3 (already used in Story 10)
+3. **Styling**: MUST use Tailwind CSS + design tokens from docs/design-system/design-tokens.json
+4. **Color Palette**: Input tokens = #3B82F6 (blue), Output tokens = #10B981 (green)
+5. **URL State**: Date range selection stored in URL query params for shareability
+6. **Loading States**: Skeleton screens matching component dimensions (glassmorphic style)
+7. **Responsive**: Chart full-width mobile, constrained desktop. Table horizontal scroll mobile.
+8. **Client-Side Sorting**: Data is small (<10 rows), no server-side sorting needed
+9. **RBAC**: Inherits from parent page /dashboard/llm-costs (admin + operator roles only)
+10. **API Endpoint**: GET /api/v1/costs/token-breakdown with start_date, end_date params
+11. **Percentage Calculation**: Client-side: (count / total) * 100, handle edge case total=0 → 0%
+12. **Number Formatting**: Reuse formatLargeNumber() and formatCurrency() from Story 9
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/costs/token-breakdown</name>
+      <kind>REST endpoint</kind>
+      <signature>GET /api/v1/costs/token-breakdown?start_date={ISO8601}&end_date={ISO8601}</signature>
+      <path>Backend API (already exists per Epic Plan)</path>
+    </interface>
+    <interface>
+      <name>TokenBreakdownDTO</name>
+      <kind>TypeScript interface</kind>
+      <signature>interface TokenBreakdownDTO { tokenType: 'input' | 'output'; count: number; cost: number; }</signature>
+      <path>nextjs-ui/src/types/costs.ts</path>
+    </interface>
+    <interface>
+      <name>useTokenBreakdown</name>
+      <kind>React Query hook</kind>
+      <signature>useTokenBreakdown(startDate?: Date, endDate?: Date) => { data, isLoading, error, refetch }</signature>
+      <path>nextjs-ui/src/hooks/useTokenBreakdown.ts</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+**Testing Framework:** Jest + React Testing Library + MSW (Mock Service Worker)
+**Coverage Targets:** 70% line coverage for components, 90% for utilities
+**Test Location:** nextjs-ui/src/components/costs/*.test.tsx, nextjs-ui/src/hooks/*.test.ts
+**Mock API:** Use MSW to mock GET /api/v1/costs/token-breakdown responses
+**Async Testing:** Use waitFor() and findBy* queries for async data fetching
+**User Interactions:** Test sorting (click column headers), date range selection, chart hover interactions
+    </standards>
+    <locations>
+      <directory>nextjs-ui/src/components/costs/__tests__/</directory>
+      <directory>nextjs-ui/src/hooks/__tests__/</directory>
+      <directory>nextjs-ui/src/lib/__tests__/</directory>
+    </locations>
+    <ideas>
+      <test ac_ref="AC#1">Test TokenBreakdownChart renders pie/donut chart with correct data, center label shows total tokens, hover tooltip displays token type/count/percentage</test>
+      <test ac_ref="AC#1">Test chart uses correct color palette: input=#3B82F6 (blue), output=#10B981 (green)</test>
+      <test ac_ref="AC#1">Test chart handles edge case: zero total tokens → show placeholder message</test>
+      <test ac_ref="AC#1">Test chart handles edge case: single token type → show 100% pie</test>
+      <test ac_ref="AC#2">Test TokenBreakdownTable renders all columns (token type, count, cost, percentage)</test>
+      <test ac_ref="AC#2">Test table sorting: click column header toggles ascending/descending</test>
+      <test ac_ref="AC#2">Test table formatting: large numbers use 1.2M notation, costs use USD currency format</test>
+      <test ac_ref="AC#1, AC#2">Test percentage calculation utility: (count / total) * 100, rounds to 2 decimals</test>
+      <test ac_ref="AC#1, AC#2">Test percentage calculation edge case: total=0 → returns 0% (no division by zero)</test>
+      <test ac_ref="AC#1, AC#2">Test DateRangeSelector presets: "Last 7 days", "Last 30 days" update URL params</test>
+      <test ac_ref="AC#1, AC#2">Test useTokenBreakdown hook: successful API call returns data, loading state, error handling with retry</test>
+      <test ac_ref="AC#1, AC#2">Test useTokenBreakdown hook: API error shows error message with retry button</test>
+    </ideas>
+  </tests>
+</story-context>

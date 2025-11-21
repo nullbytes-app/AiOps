@@ -1,0 +1,319 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>1</epicId>
+    <storyId>0.1</storyId>
+    <title>User Interviews and Persona Validation</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-17</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/stories/0-1-user-interviews-and-persona-validation.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a product team member</asA>
+    <iWant>to conduct user interviews and validate our preliminary personas</iWant>
+    <soThat>we build features users actually need and have validated user insights to guide development</soThat>
+    <tasks>
+- Task 1: Interview Preparation (AC: #1)
+  - Subtask 1.1: Recruit 5-8 operations team members across all 5 RBAC roles
+  - Subtask 1.2: Schedule 1-hour interview slots
+  - Subtask 1.3: Create interview script with 20-25 open-ended questions
+  - Subtask 1.4: Review interview script with one team member
+  - Subtask 1.5: Prepare consent form for interview recording
+  - Subtask 1.6: Set up recording tool
+
+- Task 2: Conduct Interviews (AC: #1)
+  - Subtask 2.1: Conduct interviews following 80/20 listen-to-talk ratio
+  - Subtask 2.2: Record interviews (with consent)
+  - Subtask 2.3: Take notes during each interview
+  - Subtask 2.4: Send thank-you emails within 24 hours
+  - Subtask 2.5: Transcribe interview recordings
+
+- Task 3: Synthesize Findings (AC: #2)
+  - Subtask 3.1: Create docs/user-research/interview-findings.md
+  - Subtask 3.2: Conduct affinity mapping exercise
+  - Subtask 3.3: Identify top 5 pain points
+  - Subtask 3.4: Extract and categorize feature requests
+  - Subtask 3.5: Document usage patterns and mobile requirements
+  - Subtask 3.6: Create quotes library
+
+- Task 4: Validate Personas (AC: #3)
+  - Subtask 4.1: Prepare persona presentation deck
+  - Subtask 4.2: Send personas to participants for self-identification
+  - Subtask 4.3: Collect self-identification responses
+  - Subtask 4.4: Calculate match rate (target: 80%+)
+  - Subtask 4.5: Document mismatches and gaps
+  - Subtask 4.6: Identify patterns requiring new/refined personas if validation fails
+
+- Task 5: Refine Personas (AC: #4)
+  - Subtask 5.1: Update docs/user-research/personas.md
+  - Subtask 5.2: Add real quotes to each persona
+  - Subtask 5.3: Refine goals and pain points
+  - Subtask 5.4: Add validated usage scenarios
+  - Subtask 5.5: Assign priority level to each persona
+  - Subtask 5.6: Add stock photos or illustrations
+
+- Task 6: Triangulate with Stakeholders (AC: #5)
+  - Subtask 6.1: Schedule session with 2-3 team leaders
+  - Subtask 6.2: Present refined personas
+  - Subtask 6.3: Ask stakeholders to map real team members to personas
+  - Subtask 6.4: Collect feedback on accuracy, completeness, actionability
+  - Subtask 6.5: Document stakeholder validation results
+  - Subtask 6.6: Make final adjustments
+
+- Task 7: Create Feature Prioritization Matrix (AC: #6)
+  - Subtask 7.1: Create docs/user-research/feature-prioritization.md
+  - Subtask 7.2: List all features mentioned in interviews
+  - Subtask 7.3: Score each feature: User Impact
+  - Subtask 7.4: Score each feature: Implementation Effort
+  - Subtask 7.5: Categorize: Must-Have, Nice-to-Have, Future, Non-Goals
+  - Subtask 7.6: Align prioritization with PRD functional requirements
+
+- Task 8: Package and Present Research (AC: #7)
+  - Subtask 8.1: Organize all documents in docs/user-research/
+  - Subtask 8.2: Create README.md explaining folder contents
+  - Subtask 8.3: Create affinity map visual
+  - Subtask 8.4: Prepare 30-minute presentation
+  - Subtask 8.5: Present findings to team
+  - Subtask 8.6: Incorporate team feedback
+
+- Task 9: Integrate Personas into Figma (AC: #7)
+  - Subtask 9.1: Add persona cards to Figma design system
+  - Subtask 9.2: Link personas to relevant page designs
+  - Subtask 9.3: Use personas to validate design decisions
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC1: User Interview Execution (5-8 interviews)
+- Conduct 5-8 structured interviews with operations team members (1 hour each)
+- Interview participants represent all 5 RBAC roles (super_admin, tenant_admin, operator, developer, viewer)
+- Interview script prepared with open-ended questions covering: Background, Behavioral, Pain Points, Goals, Mobile Usage
+- All interviews recorded (with consent)
+- Interview notes documented for each session with participant context, pain points, feature requests, usage patterns, sentiment
+
+AC2: Interview Findings Synthesis
+- docs/user-research/interview-findings.md created with: Executive Summary, Pain Points Analysis, Feature Prioritization, Usage Patterns, Mobile Requirements, Sentiment Analysis
+- Affinity Mapping Exercise completed
+- Quote Library created
+
+AC3: Persona Validation (Self-Identification Method)
+- Present 5 preliminary personas to interview participants
+- Ask participants: "Which persona best describes you?"
+- Document persona matches and mismatches
+- Validation criteria: At least 80% of participants identify with one of 5 personas
+- If validation fails: Refine personas based on feedback
+
+AC4: Persona Refinement
+- Update 5 user personas in docs/user-research/personas.md with real quotes, refined goals, updated pain points, validated usage scenarios, priority levels
+- For each persona: Name, Role, Photo, Demographics, Goals, Pain Points, Behaviors, Usage Scenarios, Quote, Priority
+
+AC5: Triangulation with Stakeholder Feedback
+- Present refined personas to 2-3 team leaders
+- Ask stakeholders to map real team members to personas
+- Validation: Stakeholders can identify team members fitting personas
+- Document stakeholder feedback on accuracy, completeness, actionability
+
+AC6: Feature Prioritization Matrix
+- docs/user-research/feature-prioritization.md created with Feature Impact/Effort scoring
+- Must-Have Features: Critical for daily workflows (50%+ mentions)
+- Categorized: Must-Have, Nice-to-Have, Future Considerations, Non-Goals
+- Prioritization aligned with PRD functional requirements (FR1-FR10)
+
+AC7: Research Documentation Package
+- All documentation stored in docs/user-research/ folder: interview-script.md, interview-notes/, interview-findings.md, personas.md, feature-prioritization.md, affinity-map image, quotes-library.md
+- README.md created explaining folder contents
+- Interview participants receive thank-you emails
+- Interview recordings stored securely (GDPR compliant)
+- Findings presented to product team in 30-minute review session
+- Personas integrated into Figma design file
+- Feature prioritization informs Epic 3 story breakdown adjustments
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      **User Research Materials:**
+      - Interview Script: docs/user-research/interview-script.md (60-minute structured guide)
+      - Placeholder Personas: docs/user-research/placeholder-personas.md (5 personas mapping to RBAC roles)
+      - Interview Findings Template: docs/user-research-findings.md (to be created)
+
+      **Design & Architecture:**
+      - Design System: docs/design-system/design-system-overview.md (Liquid Glass design language)
+      - Design Tokens: docs/design-system/design-tokens.json (W3C standard)
+      - HTML Mockups: .superdesign/design_iterations/ai_ops_dashboard_1_4.html (latest design)
+
+      **Project Context:**
+      - Epic Breakdown: docs/epics-nextjs-ui-migration.md (complete story breakdown, Epic 1)
+      - PRD: docs/PRD.md (product requirements, Next.js UI replacing Streamlit)
+      - Story 0 (Phase 1): docs/sprint-artifacts/0-user-research-and-design-preparation.md (design system complete)
+
+      **Outputs to Create:**
+      - docs/user-research/interview-findings.md (synthesis of all interview data)
+      - docs/user-research/feature-prioritization.md (must-have vs nice-to-have)
+      - docs/user-research/affinity-map.png (visual clustering of themes)
+      - docs/user-research/quotes-library.md (notable quotes from interviews)
+      - Updated docs/user-research/personas.md (validated personas with real data)
+    </docs>
+
+    <code>
+      **No Code Implementation Required**
+
+      This story involves user research, interviews, and documentation—no coding tasks. However, understanding the existing Streamlit UI helps inform interview questions:
+
+      **Existing Streamlit Pages (Brownfield Context):**
+      - Dashboard: src/admin/pages/1_Dashboard.py
+      - Tenants: src/admin/pages/2_Tenants.py
+      - Agents: src/admin/pages/3_Agents.py
+      - LLM Providers: src/admin/pages/4_LLM_Providers.py
+      - MCP Servers: src/admin/pages/5_MCP_Servers.py
+      - Plugins: src/admin/pages/6_Plugins.py
+      - System Prompts: src/admin/pages/7_System_Prompts.py
+      - Tools: src/admin/pages/8_Add_Tool.py
+      - Queue Management: src/admin/pages/9_Operations.py
+      - Execution History: src/admin/pages/10_Execution_History.py
+      - Audit Logs: src/admin/pages/11_Audit_Logs.py
+      - Performance Metrics: src/admin/pages/12_Agent_Performance.py
+      - LLM Costs: src/admin/pages/13_LLM_Costs.py
+      - Workers: src/admin/pages/14_Workers.py
+
+      **Streamlit UI Context:**
+      Purpose: Understand current UI pain points and gather feedback on what users need improved
+    </code>
+
+    <dependencies>
+      **Required for Interviews:**
+      - Zoom/Google Meet for remote interviews
+      - Recording software (with participant consent)
+      - Note-taking tools (docs, spreadsheet)
+      - Calendar scheduling tool
+      - Thank-you email template
+
+      **Operations Team Availability:**
+      - Minimum 5 participants, ideally 8
+      - Must represent all 5 RBAC roles:
+        1. Super Admin (platform admin)
+        2. Tenant Admin (client admin)
+        3. Operator (daily operations)
+        4. Developer (agent configuration)
+        5. Viewer (read-only monitoring)
+
+      **Research Tools:**
+      - Affinity mapping tool (Miro, FigJam, or physical post-its)
+      - Spreadsheet for tracking interview completion
+      - Audio transcription service (optional, saves time)
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    **Scheduling Constraints:**
+    - Each interview: 1 hour (minimum 50 minutes interview + 10 min buffer)
+    - Total interview time: 5-8 hours spread across multiple days
+    - Participants must be available during business hours
+    - Recommend 2-week scheduling window for flexibility
+
+    **Participant Constraints:**
+    - Must have used Streamlit UI for at least 1 month (familiar with current system)
+    - Should represent diverse use cases (monitoring, configuration, operations)
+    - At least one representative from each RBAC role required
+    - Willing to be recorded (audio/video) with consent
+
+    **Research Constraints:**
+    - 80/20 listen-to-talk ratio (interviewer mostly listening)
+    - Open-ended questions only (avoid yes/no or leading questions)
+    - Must document pain points, feature requests, and usage patterns
+    - Goal: 80%+ persona match rate (participants identify with one of 5 personas)
+
+    **Validation Criteria:**
+    - Minimum 5 interviews required for valid data (ideally 8)
+    - Must identify top 5 pain points with supporting quotes
+    - Feature prioritization must align with PRD functional requirements (FR1-FR10)
+    - Personas validated through self-identification exercise (80%+ match)
+
+    **Non-Blocking Nature:**
+    - Development (Stories 1A-C, Story 2) can proceed in parallel
+    - This research informs UX polish (Story 6) and future enhancements
+    - Results feed into Epic 3 story adjustments if needed
+  </constraints>
+
+  <interfaces>
+    **Human Interfaces (Interview Participants):**
+    - Operations team members (5-8 people across 5 RBAC roles)
+    - Team leads for triangulation (2-3 stakeholders)
+    - Product owner (Ravi) for final validation
+
+    **Documentation Interfaces:**
+    - Interview script (input): docs/user-research/interview-script.md
+    - Placeholder personas (input): docs/user-research/placeholder-personas.md
+    - Interview findings (output): docs/user-research/interview-findings.md
+    - Feature prioritization (output): docs/user-research/feature-prioritization.md
+    - Validated personas (output): docs/user-research/personas.md
+
+    **Tool Interfaces:**
+    - Zoom/Meet recording
+    - Transcription service
+    - Affinity mapping tool (Miro/FigJam)
+    - Spreadsheet for analysis
+  </interfaces>
+
+  <tests>
+    <standards>
+      **Research Quality Standards:**
+      - Interview Quality: Structured 60-min format, 80/20 listen-to-talk ratio
+      - Data Validity: Minimum 5 participants, at least 1 per RBAC role
+      - Triangulation: Findings validated with 2-3 stakeholders
+      - Persona Validation: 80%+ self-identification match rate
+      - Documentation: All interviews documented with notes, recordings stored securely
+
+      **Deliverable Standards:**
+      - Interview Findings: Executive summary + detailed analysis (pain points, features, patterns)
+      - Feature Prioritization: Categorized as Must-Have, Nice-to-Have, Future, Non-Goals
+      - Personas: Refined with real quotes, validated goals, updated pain points, priority levels
+      - Affinity Map: Visual representation of clustered themes
+    </standards>
+
+    <locations>
+      **No Unit/Integration Tests Required** (this is a research story, not development)
+
+      **Quality Checks:**
+      - Review interview script with one team member before starting
+      - Pilot interview with one friendly participant to refine questions
+      - Mid-interview checkpoint: Review notes after 3 interviews, adjust approach if needed
+      - Final validation: Present findings to product team for feedback
+    </locations>
+
+    <ideas>
+      **Research Validation Ideas:**
+
+      1. **Self-Identification Exercise:**
+         - Present 5 personas to participants
+         - Ask: "Which persona best describes you?"
+         - Success: 80%+ participants identify with one persona
+         - If <80%: Refine personas based on mismatches
+
+      2. **Triangulation with Stakeholders:**
+         - Present refined personas to 2-3 team leaders
+         - Ask: "Can you map real team members to these personas?"
+         - Success: Stakeholders agree personas are accurate and actionable
+
+      3. **Feature Prioritization Alignment:**
+         - Map user-mentioned features to PRD FR1-FR10
+         - Ensure top features align with planned scope
+         - Success: No major gaps or unexpected high-priority requests
+
+      4. **Pain Point Frequency:**
+         - Track how many participants mention each pain point
+         - Success: Top 5 pain points mentioned by 50%+ participants
+         - Prioritize addressing top pain points in Epic 3 (UI Core)
+
+      5. **Usage Pattern Validation:**
+         - Identify most-used features (daily workflows)
+         - Ensure these are prominent in Story 2-6 implementations
+         - Success: Dashboard, agents, execution history = top 3 pages
+
+      6. **Mobile Requirements:**
+         - Ask about mobile usage frequency and use cases
+         - Success: Understand which features need mobile optimization
+         - Feed into responsive design priorities (Story 2)
+    </ideas>
+  </tests>
+</story-context>

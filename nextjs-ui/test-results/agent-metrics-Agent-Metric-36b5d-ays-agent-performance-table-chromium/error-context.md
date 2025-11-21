@@ -1,0 +1,128 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "Agent Metrics" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Monitor agent execution performance and costs
+      - button "Manually refresh data" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+        - text: Refresh
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - heading "Total Executions (24h)" [level=3] [ref=e16]
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: 1,234
+          - generic "No change" [ref=e19]:
+            - img [ref=e20]
+            - generic [ref=e21]: 0.0%
+        - paragraph [ref=e22]: vs. previous 24h
+      - generic [ref=e23]:
+        - heading "Success Rate" [level=3] [ref=e24]
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: 94.7%
+          - generic "Decreased by 1.3%" [ref=e27]:
+            - img [ref=e28]
+            - generic [ref=e31]: "-1.3%"
+        - paragraph [ref=e32]: vs. previous period
+      - generic [ref=e33]:
+        - heading "Avg Cost per Execution" [level=3] [ref=e34]
+        - paragraph [ref=e36]: $0.0319
+    - generic [ref=e37]:
+      - heading "Execution Timeline (Last 24 Hours)" [level=3] [ref=e38]
+      - generic [ref=e40]:
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - img "Failed legend icon" [ref=e44]
+            - text: Failed
+          - listitem [ref=e46]:
+            - img "Successful legend icon" [ref=e47]
+            - text: Successful
+        - application "Agent execution timeline showing success and failure trends over the last 24 hours" [ref=e49]:
+          - generic [ref=e54]:
+            - generic [ref=e56]: 08:04
+            - generic [ref=e58]: 09:04
+            - generic [ref=e60]: 10:04
+            - generic [ref=e62]: 11:04
+            - generic [ref=e64]: 12:04
+            - generic [ref=e66]: 13:04
+            - generic [ref=e68]: 14:04
+            - generic [ref=e70]: 15:04
+            - generic [ref=e72]: 16:04
+            - generic [ref=e74]: 17:04
+            - generic [ref=e76]: 18:04
+            - generic [ref=e78]: 19:04
+            - generic [ref=e80]: 20:04
+            - generic [ref=e82]: 21:04
+            - generic [ref=e84]: 22:04
+            - generic [ref=e86]: 23:04
+            - generic [ref=e88]: 00:04
+            - generic [ref=e90]: 01:04
+            - generic [ref=e92]: 02:04
+            - generic [ref=e94]: 03:04
+            - generic [ref=e96]: 04:04
+            - generic [ref=e98]: 05:04
+            - generic [ref=e100]: 06:04
+            - generic [ref=e102]: 07:04
+          - generic [ref=e104]:
+            - generic [ref=e106]: "0"
+            - generic [ref=e108]: "30"
+            - generic [ref=e110]: "60"
+            - generic [ref=e112]: "90"
+            - generic [ref=e114]: "120"
+    - generic [ref=e169]:
+      - generic [ref=e170]:
+        - heading "Agent Performance" [level=3] [ref=e171]
+        - generic [ref=e172]:
+          - img [ref=e173]
+          - textbox "Search agents by name" [ref=e178]:
+            - /placeholder: Search agents...
+      - table [ref=e180]:
+        - rowgroup [ref=e181]:
+          - row "Sort by agent name Sort by total runs Sort by success rate Sort by average latency Sort by total cost" [ref=e182]:
+            - cell "Sort by agent name" [ref=e183]:
+              - button "Sort by agent name" [ref=e184] [cursor=pointer]:
+                - text: Agent Name
+                - img [ref=e185]
+            - cell "Sort by total runs" [ref=e188]:
+              - button "Sort by total runs" [ref=e189] [cursor=pointer]:
+                - text: Total Runs
+                - img [ref=e190]
+            - cell "Sort by success rate" [ref=e193]:
+              - button "Sort by success rate" [ref=e194] [cursor=pointer]:
+                - text: Success Rate
+                - img [ref=e195]
+            - cell "Sort by average latency" [ref=e198]:
+              - button "Sort by average latency" [ref=e199] [cursor=pointer]:
+                - text: Avg Latency
+                - img [ref=e200]
+            - cell "Sort by total cost" [ref=e203]:
+              - button "Sort by total cost" [ref=e204] [cursor=pointer]:
+                - text: Total Cost
+                - img [ref=e205]
+        - rowgroup [ref=e208]:
+          - row "Ticket Enhancer 523 9620.0% 245ms $12.4500" [ref=e209]:
+            - cell "Ticket Enhancer" [ref=e210]
+            - cell "523" [ref=e211]
+            - cell "9620.0%" [ref=e212]
+            - cell "245ms" [ref=e213]
+            - cell "$12.4500" [ref=e214]
+          - row "Code Reviewer 412 9280.0% 312ms $18.2300" [ref=e215]:
+            - cell "Code Reviewer" [ref=e216]
+            - cell "412" [ref=e217]
+            - cell "9280.0%" [ref=e218]
+            - cell "312ms" [ref=e219]
+            - cell "$18.2300" [ref=e220]
+          - row "Documentation Generator 299 9410.0% 189ms $8.6700" [ref=e221]:
+            - cell "Documentation Generator" [ref=e222]
+            - cell "299" [ref=e223]
+            - cell "9410.0%" [ref=e224]
+            - cell "189ms" [ref=e225]
+            - cell "$8.6700" [ref=e226]
+    - paragraph [ref=e227]: "Data auto-refreshes every 30 seconds • Last updated: 7:04:13 AM"
+  - region "Notifications alt+T"
+  - alert [ref=e228]
+  - generic [ref=e229]: "0"
+```

@@ -1,0 +1,209 @@
+{
+  "$schema": "https://schemas.design-tokens.org/draft/v1",
+  "version": "1.0.0",
+  "description": "AI Agents Platform Design Tokens - Extracted from Liquid Glass Design System",
+  "lastUpdated": "2025-01-17",
+
+  "colors": {
+    "background": {
+      "gradient": {
+        "1": { "value": "#fff5f7", "type": "color", "description": "Soft pink gradient point" },
+        "2": { "value": "#f0f9ff", "type": "color", "description": "Light blue gradient point" },
+        "3": { "value": "#fefce8", "type": "color", "description": "Pale yellow gradient point" }
+      },
+      "alternate": {
+        "1": { "value": "#e0f2fe", "type": "color", "description": "Sky blue gradient point" },
+        "2": { "value": "#f0f9ff", "type": "color", "description": "Light blue gradient point" },
+        "3": { "value": "#fef3c7", "type": "color", "description": "Amber gradient point" }
+      }
+    },
+    "glass": {
+      "bg": { "value": "rgba(255, 255, 255, 0.75)", "type": "color", "description": "Glass card background with transparency" },
+      "border": { "value": "rgba(255, 255, 255, 1)", "type": "color", "description": "Glass card border - opaque white" },
+      "shadow": { "value": "rgba(0, 0, 0, 0.08)", "type": "color", "description": "Subtle shadow color" }
+    },
+    "accent": {
+      "blue": { "value": "#2563eb", "type": "color", "description": "Primary blue accent (WCAG AA compliant: 4.56:1 contrast with white)" },
+      "purple": { "value": "#8b5cf6", "type": "color", "description": "Purple accent for highlights" },
+      "green": { "value": "#10b981", "type": "color", "description": "Success/positive state green" },
+      "orange": { "value": "#f59e0b", "type": "color", "description": "Warning/attention orange" },
+      "cyan": { "value": "#00d4ff", "type": "color", "description": "Data flow particle cyan" },
+      "neural": { "value": "#8b7fff", "type": "color", "description": "Neural network node purple-blue" }
+    },
+    "text": {
+      "primary": { "value": "#1f2937", "type": "color", "description": "Primary text color - dark gray" },
+      "secondary": { "value": "#6b7280", "type": "color", "description": "Secondary text color - medium gray" }
+    }
+  },
+
+  "typography": {
+    "fontFamily": {
+      "primary": {
+        "value": "'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif",
+        "type": "fontFamily",
+        "description": "Primary font stack with Inter as preferred"
+      }
+    },
+    "fontWeight": {
+      "light": { "value": "300", "type": "fontWeight" },
+      "regular": { "value": "400", "type": "fontWeight" },
+      "medium": { "value": "500", "type": "fontWeight" },
+      "semibold": { "value": "600", "type": "fontWeight" },
+      "bold": { "value": "700", "type": "fontWeight" }
+    },
+    "fontSize": {
+      "h1": { "value": "2.5rem", "type": "dimension", "description": "40px - Dashboard title" },
+      "h2": { "value": "2rem", "type": "dimension", "description": "32px - Section headers" },
+      "h3": { "value": "1.5rem", "type": "dimension", "description": "24px - Card titles" },
+      "body": { "value": "1rem", "type": "dimension", "description": "16px - Body text" },
+      "caption": { "value": "0.875rem", "type": "dimension", "description": "14px - Captions and labels" },
+      "small": { "value": "0.75rem", "type": "dimension", "description": "12px - Small text" }
+    }
+  },
+
+  "spacing": {
+    "xs": { "value": "0.25rem", "type": "dimension", "description": "4px" },
+    "sm": { "value": "0.5rem", "type": "dimension", "description": "8px" },
+    "md": { "value": "1rem", "type": "dimension", "description": "16px" },
+    "lg": { "value": "1.5rem", "type": "dimension", "description": "24px" },
+    "xl": { "value": "2rem", "type": "dimension", "description": "32px" },
+    "2xl": { "value": "3rem", "type": "dimension", "description": "48px" },
+    "3xl": { "value": "4rem", "type": "dimension", "description": "64px" }
+  },
+
+  "borderRadius": {
+    "sm": { "value": "8px", "type": "dimension", "description": "Small radius" },
+    "md": { "value": "12px", "type": "dimension", "description": "Medium radius" },
+    "lg": { "value": "16px", "type": "dimension", "description": "Large radius" },
+    "xl": { "value": "24px", "type": "dimension", "description": "Extra large radius - glass cards" },
+    "full": { "value": "9999px", "type": "dimension", "description": "Fully rounded - circles" }
+  },
+
+  "effects": {
+    "blur": {
+      "glass": { "value": "32px", "type": "dimension", "description": "Backdrop blur for glassmorphism" },
+      "light": { "value": "16px", "type": "dimension", "description": "Light blur effect" },
+      "heavy": { "value": "40px", "type": "dimension", "description": "Heavy blur for neural network" }
+    },
+    "shadow": {
+      "sm": {
+        "value": "0 1px 3px rgba(0, 0, 0, 0.1)",
+        "type": "shadow",
+        "description": "Small shadow"
+      },
+      "md": {
+        "value": "0 8px 32px rgba(0, 0, 0, 0.08)",
+        "type": "shadow",
+        "description": "Medium shadow - default glass card"
+      },
+      "lg": {
+        "value": "0 16px 48px rgba(0, 0, 0, 0.12)",
+        "type": "shadow",
+        "description": "Large shadow - hover state"
+      },
+      "inset": {
+        "value": "inset 0 1px 0 rgba(255, 255, 255, 1)",
+        "type": "shadow",
+        "description": "Inset highlight for glass effect"
+      },
+      "glow": {
+        "value": "0 0 40px rgba(139, 92, 246, 0.4)",
+        "type": "shadow",
+        "description": "Purple glow effect"
+      }
+    }
+  },
+
+  "animation": {
+    "duration": {
+      "instant": { "value": "100ms", "type": "duration", "description": "Instant feedback" },
+      "fast": { "value": "150ms", "type": "duration", "description": "Fast transition" },
+      "base": { "value": "300ms", "type": "duration", "description": "Base transition" },
+      "moderate": { "value": "450ms", "type": "duration", "description": "Moderate transition - glass card" },
+      "slow": { "value": "800ms", "type": "duration", "description": "Slow entrance - elastic bounce" },
+      "verySlow": { "value": "6000ms", "type": "duration", "description": "Very slow ambient animation" }
+    },
+    "easing": {
+      "standard": {
+        "value": "cubic-bezier(0.4, 0.0, 0.2, 1)",
+        "type": "cubicBezier",
+        "description": "Standard easing - Material Design"
+      },
+      "elastic": {
+        "value": "cubic-bezier(0.68, -0.6, 0.32, 1.6)",
+        "type": "cubicBezier",
+        "description": "Elastic bounce effect"
+      },
+      "easeInOut": {
+        "value": "ease-in-out",
+        "type": "cubicBezier",
+        "description": "Ease in and out"
+      }
+    },
+    "keyframes": {
+      "elasticBounceIn": {
+        "description": "Entrance animation with elastic bounce",
+        "duration": "800ms",
+        "easing": "cubic-bezier(0.68, -0.6, 0.32, 1.6)"
+      },
+      "ambientSway": {
+        "description": "Gentle floating animation for cards",
+        "duration": "6000ms",
+        "easing": "ease-in-out",
+        "infinite": true
+      },
+      "meshGradientShift": {
+        "description": "Background gradient animation",
+        "duration": "20000ms",
+        "easing": "ease",
+        "infinite": true
+      },
+      "particleDrift": {
+        "description": "Particle system animation",
+        "duration": "variable",
+        "easing": "linear",
+        "infinite": true
+      },
+      "glowBreathe": {
+        "description": "Breathing glow effect",
+        "duration": "3000ms",
+        "easing": "ease-in-out",
+        "infinite": true
+      }
+    }
+  },
+
+  "breakpoints": {
+    "mobile": { "value": "0px", "type": "dimension", "description": "Mobile devices < 768px" },
+    "tablet": { "value": "768px", "type": "dimension", "description": "Tablets 768-1024px" },
+    "desktop": { "value": "1024px", "type": "dimension", "description": "Desktops 1024-1440px" },
+    "wide": { "value": "1440px", "type": "dimension", "description": "Wide screens > 1440px" }
+  },
+
+  "components": {
+    "glassCard": {
+      "background": { "$ref": "#/colors/glass/bg" },
+      "border": { "$ref": "#/colors/glass/border" },
+      "borderRadius": { "$ref": "#/borderRadius/xl" },
+      "backdropFilter": "blur(32px) saturate(180%) brightness(1.1)",
+      "shadow": [
+        { "$ref": "#/effects/shadow/md" },
+        { "$ref": "#/effects/shadow/inset" }
+      ],
+      "animation": [
+        "elasticBounceIn",
+        "ambientSway"
+      ],
+      "hover": {
+        "transform": "perspective(1000px) rotateX(2deg) translateZ(20px) translateY(-4px)",
+        "shadow": { "$ref": "#/effects/shadow/lg" }
+      }
+    },
+    "button": {
+      "borderRadius": { "$ref": "#/borderRadius/md" },
+      "padding": "0.5rem 1rem",
+      "fontWeight": { "$ref": "#/typography/fontWeight/medium" },
+      "transition": "all 150ms cubic-bezier(0.4, 0.0, 0.2, 1)"
+    }
+  }
+}

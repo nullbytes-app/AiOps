@@ -39,6 +39,7 @@ Multi-tenant AI enhancement platform for MSP technicians. This system receives w
 - 📘 [Architecture Decision Document](docs/architecture.md) - System design, technology stack, and technical decisions
 - 🚀 [Kubernetes Deployment Guide](docs/deployment.md) - Production deployment and scaling
 - 📋 [Tech Specification](docs/tech-spec-epic-1.md) - Detailed technical requirements and specifications
+- 🎨 [Next.js UI Deployment Guide](docs/nextjs-ui-deployment-guide.md) - Production-ready Next.js frontend deployment (Docker, nginx, troubleshooting)
 - 🖥️ [Admin UI Guide](docs/admin-ui-guide.md) - Comprehensive Streamlit admin interface documentation (setup, deployment, features, troubleshooting)
 - 🔑 [BYOK (Bring Your Own Key) Setup Guide](docs/byok-setup-guide.md) - Enable tenants to use their own OpenAI/Anthropic API keys (Story 8.13)
 
@@ -51,11 +52,17 @@ Multi-tenant AI enhancement platform for MSP technicians. This system receives w
 # Local development with Docker (recommended)
 docker-compose up -d
 
-# Run Streamlit Admin UI locally
-streamlit run src/admin/app.py
+# Access Next.js UI (production frontend)
+open http://localhost  # via nginx reverse proxy
 
-# View application documentation
-curl http://localhost:8000/docs
+# Access Streamlit Admin UI (legacy)
+open http://localhost:8501
+
+# View API documentation
+open http://localhost:8000/docs
+
+# Run validation tests
+./scripts/validate-ui-backend-integration.sh
 
 # Run tests locally
 pytest tests/ --cov=src --cov-report=html
@@ -2531,6 +2538,7 @@ Potential improvements for later phases:
 - [Architecture Decision Document](docs/architecture.md) - System design, technology choices, and patterns
 - [Product Requirements Document](docs/PRD.md) - Product vision, goals, and user stories
 - [Epic Breakdown](docs/epics.md) - Detailed epic and story planning
+- **[API Documentation](docs/api-docs.html)** - Auto-generated REST API reference from OpenAPI 3.0 spec (95 endpoints). Also available interactively at `/docs` (Swagger UI) when running the API. Docs auto-update when API changes.
 
 ## Contributing
 

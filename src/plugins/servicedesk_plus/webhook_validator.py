@@ -15,7 +15,7 @@ import hashlib
 import json
 import re
 from datetime import datetime, timezone
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 
 def compute_hmac_signature(secret: str, payload_bytes: bytes) -> str:
@@ -47,6 +47,39 @@ def compute_hmac_signature(secret: str, payload_bytes: bytes) -> str:
         msg=payload_bytes,
         digestmod=hashlib.sha256,
     ).hexdigest()
+
+
+def parse_signature_header(signature_header: str) -> Tuple[str, str]:
+    """
+    Parse X-ServiceDesk-Signature header to extract method and signature.
+
+    Args:
+        signature_header: Header value in format "method=signature"
+                         (e.g., "sha256=abc123...")
+
+    Returns:
+        Tuple of (method, signature)
+
+    Raises:
+        ValueError: If header format is invalid or method is not sha256
+
+    Example:
+        >>> parse_signature_header("sha256=abc123def")
+        ('sha256', 'abc123def')
+    """
+    if "=" not in signature_header:
+        raise ValueError(
+            f"Invalid signature header format: {signature_header}. "
+            "Expected format: 'sha256=<signature>'"
+        )
+
+    method, signature = signature_header.split("=", 1)
+
+    # Only sha256 is supported (future-proof for other algorithms)
+    if method != "sha256":
+        raise ValueError(f"Unsupported signature method: {method}. Only 'sha256' is supported.")
+
+    return method, signature
 
 
 def secure_compare(sig1: str, sig2: str) -> bool:

@@ -1,0 +1,1109 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>5</storyId>
+    <title>Operations & Tools Pages</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-19</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/5-operations-and-tools-pages.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>operator and platform administrator</asA>
+    <iWant>operations and tools pages for queue management, execution history, audit logs, plugins, prompts, and tool imports</iWant>
+    <soThat>I can manage daily operations, monitor system health, configure advanced features, and maintain compliance through comprehensive audit trails</soThat>
+    <tasks>
+1. Implement Queue Management Page (/operations) with real-time polling (3-second interval for status, 10-second for charts)
+2. Implement Execution History Page (/execution-history) with advanced filtering (date range, status, agent, tenant) and CSV export
+3. Implement Audit Logs Page (/audit-logs) with dual tabs (Auth Events + General Audit) and jsondiffpatch diff modal
+4. Implement Plugins Page (/plugins) with webhook/polling configuration, test connection, and sync logs
+5. Implement System Prompts Page (/prompts) with CodeMirror/Monaco editor and variable substitution preview
+6. Implement Add Tool Page (/tools) with OpenAPI spec upload, validation, preview, and import configuration
+7. Implement shared UX patterns: form validation (Zod + React Hook Form), optimistic UI updates, toast notifications, loading states, empty states
+8. Write comprehensive test suite: Component tests (Jest + RTL, >80% coverage), E2E tests (Playwright), Accessibility tests (Axe-core, WCAG 2.1 AA)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC-1: Queue Management Page (/operations)
+- Queue Status Dashboard with 4 glassmorphic metric cards (Queue Depth, Processing Rate, Avg Wait Time, Failed Tasks)
+- Pause/Resume Controls (tenant_admin + operator only) with confirmation dialog
+- Queue Depth Chart (Recharts LineChart, last 60 minutes, 10-second refresh)
+- Task List Table with columns (Task ID, Agent Name, Status badge, Queued At, Priority, Actions)
+- Cancel task action (operator+ only, pending/processing tasks only)
+- Real-time updates via React Query polling (3-second interval)
+
+AC-2: Execution History Page (/execution-history)
+- Advanced Filters: Date range picker, Status filter (multi-select), Agent filter, Tenant filter (super_admin only), Search box (debounced 500ms)
+- Execution Table with sortable columns (Started At, Duration), pagination (50/page), row click opens modal
+- Execution Detail Modal with 3 tabs (Input/Output/Metadata), syntax-highlighted JSON (@uiw/react-json-view)
+- CSV Export button (max 10,000 rows, papaparse library, filename: executions-{date}.csv)
+
+AC-3: Audit Logs Page (/audit-logs)
+- Tab Navigation: "Auth Events" and "General Audit" with 24-hour counts
+- Auth Audit Table: User Email, Event Type badge, Success icon, IP Address, User Agent, Timestamp
+- General Audit Table: User Email, Tenant, Action badge, Entity Type, Entity ID (clickable link), Timestamp, "View Changes" button
+- Audit Diff Modal: jsondiffpatch side-by-side view with color coding (red=removed, green=added, yellow=modified)
+- Permissions: super_admin + tenant_admin only (others redirect to dashboard)
+
+AC-4: Plugins Page (/plugins)
+- Plugin List Table: Name, Type badge (Webhook/Polling), Status toggle, Last Sync, Sync Frequency, Actions
+- Plugin Detail Page with 3 tabs: Configuration (PluginForm with conditional fields), Logs (last 50 syncs, 30-second refresh), Test Connection
+- Add Plugin Form with type-based conditional rendering (Webhook: endpoint URL + HMAC secret, Polling: interval + API endpoint + auth)
+- Delete Confirmation modal with warning message
+
+AC-5: System Prompts Page (/prompts)
+- Prompt List as card grid (2 columns desktop, 1 mobile) displaying name, description, variable count, last updated
+- Prompt Editor with split-pane layout (60% editor, 40% preview)
+- CodeMirror/Monaco editor with Jinja2/Handlebars syntax highlighting, line numbers, variable autocomplete on {{
+- Preview Pane with test data inputs (JSON editor) and rendered output with substituted variables
+
+AC-6: Add Tool Page (/tools)
+- OpenAPI Upload Section: Drag-and-drop zone accepting .json/.yaml/.yml files (max 5MB), multiple file upload support
+- Spec Validation: Parse with js-yaml/JSON.parse, validate against OpenAPI 3.0 schema (Ajv), display errors with line numbers
+- Tool Preview Table: HTTP Method badge, Path, Operation ID, Summary, Parameters Count, expandable rows for details, select checkboxes
+- Import Configuration Form: Tool name prefix, Base URL, Auth type dropdown (None/API Key/Bearer/Basic), Auth config fields
+
+AC-7: Forms, Validation & UX Patterns (Shared)
+- Form Validation: Zod schemas with React Hook Form zodResolver, inline error messages, field-level validation on blur
+- Optimistic UI Updates: Immediate UI changes for queue pause/resume, task cancellation, plugin activation, rollback on error
+- Toast Notifications: Success/error toasts (top-right desktop, top-center mobile), auto-dismiss 5 seconds (errors persist)
+- Loading States: Skeleton rows for tables, spinner + text for buttons, NProgress bar for navigation
+- Empty States: Relevant illustrations + primary action buttons for all empty pages
+
+AC-8: Testing & Quality
+- Component Tests (Jest + RTL): All major components tested (QueueManagement, ExecutionHistory, AuditLogs, PluginForm, PromptEditor, ToolImport), MSW mocks for API, >80% coverage
+- Integration Tests (Playwright E2E): 6 critical flows tested (queue pause/resume, execution filtering, audit diff, plugin test connection, prompt editing, tool import)
+- Accessibility: ARIA attributes for tables, focus trap in modals, keyboard navigation (Tab, ESC), color contrast >4.5:1, screen reader announcements
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <techSpec source="nextjs-ui-migration-tech-spec-v2.md">
+        <storyDetails>
+          <goal>Build operations and tools pages</goal>
+          <timeline>Week 6 - 1 week</timeline>
+          <tasks>
+            - Build Queue Management page (pause/resume, queue depth)
+            - Build Execution History page (list with filters, detail view)
+            - Build Audit Logs page (auth + general audit logs)
+            - Build Plugins page (plugin list, config forms, test connection)
+            - Build System Prompts page (template editor, variable substitution)
+            - Build Add Tool page (OpenAPI spec upload, validation)
+            - Implement agent testing sandbox UI
+            - Write page tests
+          </tasks>
+          <deliverables>
+            - nextjs-ui/src/app/(dashboard)/operations/page.tsx
+            - nextjs-ui/src/app/(dashboard)/execution-history/page.tsx
+            - nextjs-ui/src/app/(dashboard)/audit-logs/page.tsx
+            - nextjs-ui/src/app/(dashboard)/plugins/page.tsx
+            - nextjs-ui/src/app/(dashboard)/prompts/page.tsx
+            - nextjs-ui/src/app/(dashboard)/tools/page.tsx
+            - nextjs-ui/src/app/(dashboard)/agents/[id]/test/page.tsx
+          </deliverables>
+        </storyDetails>
+        <designSystem name="Liquid Glass">
+          <description>
+            Modern glassmorphism design with Apple-inspired aesthetics.
+            Users reacted positively to Mockup #3 (7/8 preferred light theme with neural network).
+          </description>
+          <features>
+            - Backdrop-filter with fallbacks for older browsers
+            - Glassmorphic cards with rgba(255, 255, 255, 0.75) background
+            - Soft shadows and rounded corners
+            - Dark mode support with theme toggle
+            - Reduced motion mode (respects prefers-reduced-motion)
+            - Neural network background component
+            - Responsive design (4 breakpoints: mobile, tablet, desktop, wide)
+          </features>
+          <designTokens>
+            Colors: glass-bg-light, glass-bg-dark, glass-border, primary, secondary, accent
+            Typography: H1-H6, body, caption, code
+            Spacing: 4px, 8px, 16px, 24px, 32px, 48px, 64px
+            Shadows: 2xs, xs, sm, md, lg, xl, 2xl
+            Radius: 0.625rem (10px)
+            Animations: fast(200ms), normal(300ms), slow(500ms)
+          </designTokens>
+        </designSystem>
+        <performanceBudget>
+          <targets>
+            - Page Load Time: &lt; 2 seconds (First Contentful Paint, p95)
+            - API Response Time: &lt; 500ms (p95)
+            - Animation FPS: 60fps on desktop, 30fps on mobile
+            - Bundle Size: &lt; 300KB gzipped (initial load)
+            - Lighthouse Score: 90+ (Performance, Accessibility, Best Practices, SEO)
+          </targets>
+          <monitoring>
+            - Next.js Speed Insights
+            - Web Vitals tracking (LCP, FID, CLS)
+            - Sentry performance monitoring
+          </monitoring>
+        </performanceBudget>
+        <testingStrategy>
+          <componentTests>
+            Framework: Jest 29.7.0 + React Testing Library 16.0.1
+            Coverage: 80%+ line coverage for components
+            Mocking: MSW 2.6.5 for API mocking
+            Scope: All major components (QueueManagement, ExecutionHistory, AuditLogs, PluginForm, PromptEditor, ToolImport)
+          </componentTests>
+          <e2eTests>
+            Framework: Playwright 1.48.2
+            Scope: 6 critical flows (queue pause/resume, execution filtering, audit diff, plugin test connection, prompt editing, tool import)
+          </e2eTests>
+          <accessibilityTests>
+            Requirements: WCAG 2.1 AA compliance
+            Tools: axe-core, Lighthouse accessibility audit
+            Features: ARIA attributes, focus trap in modals, keyboard navigation (Tab, ESC), color contrast &gt;4.5:1, screen reader announcements
+          </accessibilityTests>
+        </testingStrategy>
+      </techSpec>
+      <architecture source="architecture.md">
+        <rbac>
+          <roles>
+            <role name="super_admin">
+              <description>Platform Admin (DevOps Engineer / Platform Owner)</description>
+              <permissions>
+                - Monitor system health
+                - Manage all tenants
+                - Configure platform
+                - Full access to all pages
+                - View audit logs
+              </permissions>
+              <persona>Alex Chen - Desktop usage, 8am-6pm daily</persona>
+            </role>
+            <role name="tenant_admin">
+              <description>Tenant Admin (MSP Operations Manager)</description>
+              <permissions>
+                - Configure agents
+                - Monitor costs
+                - Manage team access
+                - View tenant-specific audit logs
+                - Manage plugins and prompts
+              </permissions>
+              <persona>Jordan Martinez - Desktop + Tablet, throughout workday</persona>
+            </role>
+            <role name="operator">
+              <description>Operator (L1/L2 Support Technician)</description>
+              <permissions>
+                - View dashboards
+                - Pause/resume queue during incidents
+                - Review logs
+                - View execution history
+                - Cancel tasks (pending/processing only)
+              </permissions>
+              <persona>Sam Patel - Desktop + Mobile, on-call 24/7</persona>
+            </role>
+            <role name="developer">
+              <description>Developer (Integration Developer / Solutions Engineer)</description>
+              <permissions>
+                - Test agents
+                - Debug executions
+                - Configure plugins
+                - Import tools
+                - Edit system prompts
+              </permissions>
+              <persona>Taylor Kim - Desktop, development hours</persona>
+            </role>
+            <role name="viewer">
+              <description>Viewer (Executive / Stakeholder)</description>
+              <permissions>
+                - View dashboards
+                - View cost reports
+                - View performance metrics
+                - Read-only access
+              </permissions>
+              <persona>Morgan Lee - Mobile + Desktop, periodic check-ins</persona>
+            </role>
+          </roles>
+          <implementation>
+            - JWT tokens contain user_id and tenant_id
+            - Roles fetched on-demand (not stored in JWT)
+            - RBAC middleware enforces permissions (403 if insufficient)
+            - Horizontal privilege escalation prevented (RLS)
+            - Vertical privilege escalation prevented (RBAC checks)
+          </implementation>
+        </rbac>
+        <backend>
+          <framework>FastAPI 0.104+</framework>
+          <database>
+            <type>PostgreSQL 17</type>
+            <features>
+              - Row-level security (RLS) for multi-tenancy
+              - Full-text search
+              - JSON support
+              - Async operations via psycopg3
+            </features>
+            <orm>SQLAlchemy 2.0+ with async support</orm>
+            <migrations>Alembic for database migrations</migrations>
+          </database>
+          <messageQueue>
+            <broker>Redis 7.x</broker>
+            <taskQueue>Celery 5.x</taskQueue>
+            <usage>
+              - Async task processing
+              - Queue management (pause/resume operations)
+              - Caching layer
+              - Real-time metrics
+            </usage>
+          </messageQueue>
+          <apiVersioning>
+            <pattern>/api/v1/*</pattern>
+            <rationale>Explicit versioning for backward compatibility</rationale>
+          </apiVersioning>
+          <logging>
+            <library>Loguru</library>
+            <features>
+              - JSON output for production
+              - Auto-configured
+              - Log rotation
+              - Colorized dev output
+            </features>
+          </logging>
+        </backend>
+      </architecture>
+      <epicBreakdown source="epics-nextjs-ui-migration.md">
+        <epic3>
+          <title>Operations &amp; Tools Pages</title>
+          <stories>
+            <story id="5" title="Operations &amp; Tools Pages">
+              <scope>
+                Implement 6 pages for operations, history, audit, plugins, prompts, and tool management.
+                Focus on real-time updates, advanced filtering, and role-based access control.
+              </scope>
+              <technicalConsiderations>
+                - Real-time polling (3-second for status, 10-second for charts)
+                - Optimistic UI updates for better UX
+                - Form validation with Zod + React Hook Form
+                - CSV export for execution history (max 10,000 rows)
+                - jsondiffpatch for audit log diffs
+                - OpenAPI spec validation for tool imports
+                - Variable substitution preview for prompts
+              </technicalConsiderations>
+              <dependencies>
+                - Story 1: Auth &amp; RBAC foundation required
+                - Story 2: Layout and UI primitives required
+                - Backend API endpoints must be implemented
+              </dependencies>
+            </story>
+          </stories>
+        </epic3>
+      </epicBreakdown>
+      <userResearch source="user-research-findings.md">
+        <mostUsedFeatures>
+          1. Dashboard (8/8 users use multiple times per day)
+          2. Execution History (7/8 users use multiple times per day)
+          3. Agent Management (6/8 users use weekly)
+          4. Operations/Queue Management (5/8 users use during incidents)
+          5. LLM Costs (4/8 users review weekly)
+        </mostUsedFeatures>
+        <leastUsedFeatures>
+          - Plugin Management (2/8 users)
+          - Add Tool (1/8 users)
+          - System Prompt Editor (1/8 users)
+        </leastUsedFeatures>
+        <painPoints>
+          - Streamlit lacks real-time updates
+          - No RBAC (all users have full access)
+          - Mobile experience terrible
+          - Slow to respond during incidents
+          - No sandbox environment for testing
+          - Hard to trace errors
+        </painPoints>
+      </userResearch>
+    </docs>
+    <code>
+      <existingApis>
+        <api file="src/api/executions.py">
+          <endpoint name="get_execution_details" method="GET" path="/api/v1/executions/{id}">
+            Returns detailed execution information for a single execution.
+            Used by: Execution History detail modal.
+          </endpoint>
+          <note>
+            List endpoint with filters needs to be implemented for Execution History page.
+            Filters needed: date range, status, agent_id, tenant_id, search query.
+          </note>
+        </api>
+        <api file="src/api/plugins_routes.py">
+          <endpoint name="list_plugins" method="GET" path="/api/v1/plugins">
+            Returns list of all plugins for the current tenant.
+          </endpoint>
+          <endpoint name="get_plugin_details" method="GET" path="/api/v1/plugins/{id}">
+            Returns detailed plugin configuration and sync logs.
+          </endpoint>
+          <endpoint name="test_plugin_connection" method="POST" path="/api/v1/plugins/{id}/test">
+            Tests plugin connectivity and returns validation results.
+          </endpoint>
+          <note>
+            Additional CRUD endpoints (create, update, delete) need verification.
+            Sync logs retrieval endpoint may need to be added.
+          </note>
+        </api>
+        <api file="src/api/prompts.py">
+          <endpoint name="list_prompt_templates" method="GET" path="/api/v1/prompts">
+            Returns list of system prompt templates.
+          </endpoint>
+          <endpoint name="create_prompt_template" method="POST" path="/api/v1/prompts">
+            Creates new system prompt template.
+          </endpoint>
+          <endpoint name="update_prompt_template" method="PUT" path="/api/v1/prompts/{id}">
+            Updates existing prompt template (creates new version).
+          </endpoint>
+          <endpoint name="delete_prompt_template" method="DELETE" path="/api/v1/prompts/{id}">
+            Soft-deletes prompt template.
+          </endpoint>
+          <endpoint name="test_prompt" method="POST" path="/api/v1/prompts/test">
+            Tests prompt with sample variables for preview.
+          </endpoint>
+          <endpoint name="get_prompt_versions" method="GET" path="/api/v1/prompts/{id}/versions">
+            Returns version history for a prompt.
+          </endpoint>
+          <endpoint name="revert_prompt_version" method="POST" path="/api/v1/prompts/{id}/versions/{version}/revert">
+            Reverts prompt to a previous version.
+          </endpoint>
+        </api>
+        <api file="src/api/openapi_tools.py">
+          <endpoint name="parse_spec" method="POST" path="/api/v1/tools/parse">
+            Parses and validates OpenAPI spec file.
+            Returns: List of operations with metadata.
+          </endpoint>
+          <endpoint name="create_tool" method="POST" path="/api/v1/tools">
+            Creates OpenAPI tool from validated spec.
+          </endpoint>
+          <endpoint name="list_tools" method="GET" path="/api/v1/tools">
+            Returns list of imported tools.
+          </endpoint>
+          <endpoint name="get_tool" method="GET" path="/api/v1/tools/{id}">
+            Returns tool details.
+          </endpoint>
+        </api>
+        <api file="src/services/queue_service.py">
+          <service name="QueueService">
+            <method name="push_to_queue">Push task to Redis queue</method>
+            <method name="pop_from_queue">Pop task from Redis queue (blocking)</method>
+            <method name="peek_queue">View queue contents without removing</method>
+            <method name="get_queue_depth">Get current queue size</method>
+          </service>
+          <note>
+            REST API endpoints needed for Queue Management page:
+            - GET /api/v1/queue/status - Get queue metrics (depth, processing rate, avg wait time, failed tasks)
+            - POST /api/v1/queue/pause - Pause queue processing
+            - POST /api/v1/queue/resume - Resume queue processing
+            - GET /api/v1/queue/tasks - List tasks with pagination and filters
+            - DELETE /api/v1/queue/tasks/{id} - Cancel pending/processing task
+            - GET /api/v1/queue/metrics - Historical queue depth metrics
+          </note>
+        </api>
+      </existingApis>
+      <databaseModels file="src/database/models.py">
+        <model name="EnhancementHistory">
+          Stores execution history for ticket enhancements.
+          Fields: id, tenant_id, ticket_id, status, input_data, output_data, error_message, started_at, completed_at, duration_ms.
+          Usage: Execution History page data source.
+        </model>
+        <model name="AuthAuditLog">
+          Stores authentication events (login, logout, failed attempts).
+          Fields: id, user_id, tenant_id, event_type, success, ip_address, user_agent, timestamp.
+          Usage: Audit Logs page - Auth Events tab.
+        </model>
+        <model name="AuditLog">
+          Stores general CRUD audit trail.
+          Fields: id, user_id, tenant_id, action, entity_type, entity_id, changes_json, timestamp.
+          Usage: Audit Logs page - General Audit tab.
+        </model>
+        <model name="AgentPromptTemplate">
+          Stores system prompt templates.
+          Fields: id, tenant_id, name, description, template_text, variables, created_at, updated_at.
+          Usage: System Prompts page.
+        </model>
+        <model name="AgentPromptVersion">
+          Stores version history for prompts.
+          Fields: id, template_id, version_number, template_text, created_by, created_at.
+          Usage: System Prompts page - version history.
+        </model>
+        <model name="OpenAPITool">
+          Stores imported OpenAPI tools.
+          Fields: id, tenant_id, name, description, spec_json, base_url, auth_config, created_at.
+          Usage: Add Tool page.
+        </model>
+        <model name="Agent">
+          Stores agent configurations.
+          Fields: id, tenant_id, name, description, tools[], prompts[], created_at, updated_at.
+          Relationship: Many-to-many with OpenAPITool via AgentTool.
+        </model>
+      </databaseModels>
+      <middleware>
+        <middleware file="src/middleware/audit_log.py">
+          <class name="AuditLogMiddleware">
+            Automatically logs all CRUD operations to AuditLog table.
+            Captures: user_id, tenant_id, HTTP method, path, request/response data, changes.
+            Used by: Audit Logs page to display general audit trail.
+          </class>
+        </middleware>
+      </middleware>
+      <apisToImplement>
+        <api name="Queue Management API">
+          <endpoint method="GET" path="/api/v1/queue/status">
+            Returns: { depth, processing_rate, avg_wait_time, failed_tasks_24h, is_paused }
+          </endpoint>
+          <endpoint method="POST" path="/api/v1/queue/pause">
+            Requires: tenant_admin or operator role
+            Returns: { success, message }
+          </endpoint>
+          <endpoint method="POST" path="/api/v1/queue/resume">
+            Requires: tenant_admin or operator role
+            Returns: { success, message }
+          </endpoint>
+          <endpoint method="GET" path="/api/v1/queue/tasks">
+            Query params: page, limit, status_filter
+            Returns: { tasks: [], total, page, pages }
+          </endpoint>
+          <endpoint method="DELETE" path="/api/v1/queue/tasks/{task_id}">
+            Requires: operator role or higher
+            Returns: { success, message }
+          </endpoint>
+          <endpoint method="GET" path="/api/v1/queue/metrics">
+            Query params: start_time, end_time (for chart data)
+            Returns: { timestamps: [], depths: [] }
+          </endpoint>
+        </api>
+        <api name="Execution History API">
+          <endpoint method="GET" path="/api/v1/executions">
+            Query params: page, limit, date_from, date_to, status, agent_id, tenant_id (super_admin only), search
+            Returns: { executions: [], total, page, pages }
+          </endpoint>
+          <endpoint method="GET" path="/api/v1/executions/export">
+            Query params: same as list endpoint + format=csv
+            Returns: CSV file (max 10,000 rows)
+          </endpoint>
+        </api>
+        <api name="Audit Logs API">
+          <endpoint method="GET" path="/api/v1/audit/auth">
+            Requires: super_admin or tenant_admin role
+            Query params: page, limit, date_from, date_to, user_id, event_type
+            Returns: { logs: [], total, page, pages }
+          </endpoint>
+          <endpoint method="GET" path="/api/v1/audit/general">
+            Requires: super_admin or tenant_admin role
+            Query params: page, limit, date_from, date_to, user_id, action, entity_type
+            Returns: { logs: [], total, page, pages }
+          </endpoint>
+          <endpoint method="GET" path="/api/v1/audit/general/{id}/diff">
+            Returns: { before: {}, after: {}, changes: {} }
+            Frontend uses jsondiffpatch to visualize.
+          </endpoint>
+        </api>
+      </apisToImplement>
+    </code>
+    <dependencies>
+      <frontend>
+        <framework name="Next.js" version="14.2.15">
+          React framework with App Router for SSR and RSC support.
+        </framework>
+        <language name="TypeScript" version="5.6.3">
+          Type-safe JavaScript for better developer experience.
+        </language>
+        <styling name="Tailwind CSS" version="3.4.14">
+          Utility-first CSS framework for Liquid Glass design.
+          Plugins: @tailwindcss/typography@0.5.15
+        </styling>
+        <ui name="Headless UI" version="2.2.0">
+          Unstyled accessible UI components (modals, dropdowns, tabs).
+        </ui>
+        <icons name="lucide-react" version="0.456.0">
+          Icon library for consistent iconography.
+        </icons>
+        <forms>
+          <library name="react-hook-form" version="7.54.0">
+            Performant form library with easy validation integration.
+          </library>
+          <validation name="zod" version="3.23.8">
+            TypeScript-first schema validation for forms.
+          </validation>
+        </forms>
+        <dataFetching name="@tanstack/react-query" version="5.62.2">
+          Async state management, caching, and real-time polling (3s/10s intervals).
+        </dataFetching>
+        <tables>
+          <library name="@tanstack/react-table" version="latest">
+            Headless table library for sortable, filterable tables.
+            Used by: All list pages (Queue, Execution History, Audit Logs, Plugins).
+          </library>
+        </tables>
+        <charts name="recharts" version="2.13.3">
+          React charting library for queue depth metrics visualization.
+        </charts>
+        <codeEditor>
+          <option name="CodeMirror" version="latest">
+            Code editor for System Prompts page (Jinja2/Handlebars syntax highlighting).
+          </option>
+          <option name="Monaco Editor" version="latest">
+            Alternative: VS Code's editor for advanced features.
+          </option>
+        </codeEditor>
+        <utilities>
+          <library name="date-fns" version="4.1.0">
+            Date manipulation and formatting.
+          </library>
+          <library name="axios" version="1.7.8">
+            HTTP client for API calls.
+          </library>
+          <library name="framer-motion" version="11.11.17">
+            Animation library for smooth transitions.
+          </library>
+          <library name="@uiw/react-json-view" version="latest">
+            JSON viewer for execution detail modal.
+          </library>
+          <library name="jsondiffpatch" version="latest">
+            JSON diff visualization for audit logs.
+          </library>
+          <library name="papaparse" version="latest">
+            CSV parser/generator for execution history export.
+          </library>
+          <library name="js-yaml" version="latest">
+            YAML parser for OpenAPI spec upload.
+          </library>
+          <library name="ajv" version="latest">
+            JSON schema validator for OpenAPI spec validation.
+          </library>
+        </utilities>
+        <testing>
+          <unit>
+            <framework name="Jest" version="29.7.0">
+              JavaScript testing framework.
+            </framework>
+            <library name="@testing-library/react" version="16.0.1">
+              React component testing utilities.
+            </library>
+            <library name="@testing-library/user-event" version="latest">
+              User interaction simulation for tests.
+            </library>
+            <mocking name="msw" version="2.6.5">
+              Mock Service Worker for API mocking in tests.
+            </mocking>
+          </unit>
+          <e2e>
+            <framework name="playwright" version="1.48.2">
+              End-to-end testing framework for critical flows.
+            </framework>
+          </e2e>
+          <accessibility>
+            <tool name="axe-core" version="latest">
+              Accessibility testing library.
+            </tool>
+            <tool name="@axe-core/playwright" version="latest">
+              Playwright integration for accessibility tests.
+            </tool>
+          </accessibility>
+        </testing>
+      </frontend>
+      <backend>
+        <framework name="FastAPI" version="0.104+">
+          Modern async web framework with automatic OpenAPI docs.
+        </framework>
+        <database>
+          <db name="PostgreSQL" version="17">
+            Primary database with RLS for multi-tenancy.
+          </db>
+          <orm name="SQLAlchemy" version="2.0+">
+            Async ORM for database operations.
+          </orm>
+          <migrations name="Alembic" version="latest">
+            Database migration tool.
+          </migrations>
+        </database>
+        <queue>
+          <broker name="Redis" version="7.x">
+            Message broker and caching layer.
+          </broker>
+          <taskQueue name="Celery" version="5.x">
+            Distributed task queue for async processing.
+          </taskQueue>
+        </queue>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <performance>
+      <constraint>Page load time must be &lt; 2 seconds (p95)</constraint>
+      <constraint>API response time must be &lt; 500ms (p95)</constraint>
+      <constraint>Real-time polling intervals: 3 seconds for status, 10 seconds for charts</constraint>
+      <constraint>Bundle size must be &lt; 300KB gzipped</constraint>
+      <constraint>60fps animations on desktop, 30fps on mobile</constraint>
+    </performance>
+    <accessibility>
+      <constraint>WCAG 2.1 AA compliance required</constraint>
+      <constraint>Color contrast ratio &gt; 4.5:1</constraint>
+      <constraint>Keyboard navigation support (Tab, Shift+Tab, ESC, Enter)</constraint>
+      <constraint>Focus trap in modals</constraint>
+      <constraint>ARIA attributes for all interactive elements</constraint>
+      <constraint>Screen reader announcements for dynamic updates</constraint>
+    </accessibility>
+    <security>
+      <constraint>RBAC enforcement: super_admin, tenant_admin, operator, developer, viewer</constraint>
+      <constraint>Audit logs page restricted to super_admin and tenant_admin only</constraint>
+      <constraint>Queue pause/resume restricted to tenant_admin and operator only</constraint>
+      <constraint>Task cancellation restricted to operator role or higher</constraint>
+      <constraint>Horizontal privilege escalation prevented (tenant isolation via RLS)</constraint>
+      <constraint>Vertical privilege escalation prevented (RBAC middleware checks)</constraint>
+      <constraint>Rate limiting on all API endpoints</constraint>
+    </security>
+    <ux>
+      <constraint>Empty states must have relevant illustrations + primary action buttons</constraint>
+      <constraint>Loading states: skeleton rows for tables, spinners for buttons, NProgress for navigation</constraint>
+      <constraint>Toast notifications: auto-dismiss 5s (success), persist (errors)</constraint>
+      <constraint>Confirmation dialogs required for destructive actions (delete, cancel task)</constraint>
+      <constraint>Optimistic UI updates for queue pause/resume, task cancellation</constraint>
+      <constraint>Mobile-responsive design (all pages must work on mobile)</constraint>
+      <constraint>Dark mode support with user preference toggle</constraint>
+      <constraint>Reduced motion mode support (respects prefers-reduced-motion)</constraint>
+    </ux>
+    <testing>
+      <constraint>Component test coverage &gt; 80%</constraint>
+      <constraint>All major components must have tests (QueueManagement, ExecutionHistory, AuditLogs, PluginForm, PromptEditor, ToolImport)</constraint>
+      <constraint>6 E2E tests required for critical flows</constraint>
+      <constraint>Accessibility tests with axe-core for all pages</constraint>
+    </testing>
+    <data>
+      <constraint>CSV export max 10,000 rows</constraint>
+      <constraint>Table pagination: 50 rows per page</constraint>
+      <constraint>Search debounce: 500ms</constraint>
+      <constraint>Date range picker for filters</constraint>
+      <constraint>Multi-select filters for status, agent, tenant</constraint>
+    </data>
+  </constraints>
+  <interfaces>
+    <pageRoutes>
+      <route path="/operations" component="QueueManagementPage">
+        Queue Status Dashboard with pause/resume controls, queue depth chart, and task list.
+      </route>
+      <route path="/execution-history" component="ExecutionHistoryPage">
+        Execution list with advanced filters, detail modal, and CSV export.
+      </route>
+      <route path="/audit-logs" component="AuditLogsPage">
+        Dual tabs: Auth Events + General Audit with diff modal.
+      </route>
+      <route path="/plugins" component="PluginsListPage">
+        Plugin list table with status toggles and actions.
+      </route>
+      <route path="/plugins/[id]" component="PluginDetailPage">
+        Plugin configuration, sync logs, and test connection.
+      </route>
+      <route path="/prompts" component="SystemPromptsPage">
+        Prompt list as card grid.
+      </route>
+      <route path="/prompts/[id]/edit" component="PromptEditorPage">
+        Split-pane editor with preview and variable substitution.
+      </route>
+      <route path="/tools" component="AddToolPage">
+        OpenAPI spec upload, validation, preview, and import.
+      </route>
+    </pageRoutes>
+    <apiEndpoints>
+      <endpoint method="GET" path="/api/v1/queue/status">
+        Response: { depth: number, processing_rate: number, avg_wait_time: number, failed_tasks_24h: number, is_paused: boolean }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/queue/pause">
+        Request: { reason?: string }
+        Response: { success: boolean, message: string }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/queue/resume">
+        Response: { success: boolean, message: string }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/queue/tasks">
+        Query: page, limit, status
+        Response: { tasks: Task[], total: number, page: number, pages: number }
+      </endpoint>
+      <endpoint method="DELETE" path="/api/v1/queue/tasks/{id}">
+        Response: { success: boolean, message: string }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/queue/metrics">
+        Query: start_time, end_time
+        Response: { timestamps: string[], depths: number[] }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/executions">
+        Query: page, limit, date_from, date_to, status, agent_id, tenant_id, search
+        Response: { executions: Execution[], total: number, page: number, pages: number }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/executions/{id}">
+        Response: { id, agent_id, agent_name, status, input, output, metadata, started_at, completed_at, duration_ms, error }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/executions/export">
+        Query: same as list + format=csv
+        Response: CSV file
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/audit/auth">
+        Query: page, limit, date_from, date_to, user_id, event_type
+        Response: { logs: AuthAuditLog[], total, page, pages }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/audit/general">
+        Query: page, limit, date_from, date_to, user_id, action, entity_type
+        Response: { logs: AuditLog[], total, page, pages }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/audit/general/{id}/diff">
+        Response: { before: object, after: object, changes: object }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/plugins">
+        Response: { plugins: Plugin[] }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/plugins/{id}">
+        Response: { plugin: Plugin, sync_logs: SyncLog[] }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/plugins/{id}/test">
+        Response: { success: boolean, message: string, details: object }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/prompts">
+        Response: { prompts: PromptTemplate[] }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/prompts">
+        Request: { name, description, template_text, variables }
+        Response: { prompt: PromptTemplate }
+      </endpoint>
+      <endpoint method="PUT" path="/api/v1/prompts/{id}">
+        Request: { template_text, description }
+        Response: { prompt: PromptTemplate, version: PromptVersion }
+      </endpoint>
+      <endpoint method="DELETE" path="/api/v1/prompts/{id}">
+        Response: { success: boolean }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/prompts/test">
+        Request: { template_text, test_data: object }
+        Response: { rendered_output: string }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/prompts/{id}/versions">
+        Response: { versions: PromptVersion[] }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/tools/parse">
+        Request: multipart/form-data with spec file
+        Response: { operations: Operation[], valid: boolean, errors: string[] }
+      </endpoint>
+      <endpoint method="POST" path="/api/v1/tools">
+        Request: { name, spec_json, base_url, auth_type, auth_config, selected_operations }
+        Response: { tool: OpenAPITool }
+      </endpoint>
+      <endpoint method="GET" path="/api/v1/tools">
+        Response: { tools: OpenAPITool[] }
+      </endpoint>
+    </apiEndpoints>
+    <typeDefinitions>
+      <type name="Task">
+        { id: string, agent_name: string, status: 'pending' | 'processing' | 'completed' | 'failed', queued_at: string, priority: number }
+      </type>
+      <type name="Execution">
+        { id: string, agent_id: string, agent_name: string, tenant_id: string, status: string, started_at: string, completed_at: string, duration_ms: number }
+      </type>
+      <type name="AuthAuditLog">
+        { id: string, user_email: string, event_type: string, success: boolean, ip_address: string, user_agent: string, timestamp: string }
+      </type>
+      <type name="AuditLog">
+        { id: string, user_email: string, tenant_name: string, action: string, entity_type: string, entity_id: string, changes: object, timestamp: string }
+      </type>
+      <type name="Plugin">
+        { id: string, name: string, type: 'webhook' | 'polling', status: 'active' | 'inactive', last_sync: string, sync_frequency: string, config: object }
+      </type>
+      <type name="PromptTemplate">
+        { id: string, name: string, description: string, template_text: string, variables: string[], created_at: string, updated_at: string }
+      </type>
+      <type name="OpenAPITool">
+        { id: string, name: string, description: string, base_url: string, auth_type: string, operations_count: number, created_at: string }
+      </type>
+    </typeDefinitions>
+  </interfaces>
+  <tests>
+    <standards>
+      <coverageTargets>
+        <target type="unit">
+          Component coverage: &gt;80% line coverage
+          Utilities/hooks coverage: &gt;90% line coverage
+          Test all major components: QueueManagement, ExecutionHistory, AuditLogs, PluginForm, PromptEditor, ToolImport
+        </target>
+        <target type="e2e">
+          6 critical user flows must be tested:
+          1. Queue pause/resume with confirmation
+          2. Execution history filtering and CSV export
+          3. Audit log diff modal visualization
+          4. Plugin test connection workflow
+          5. Prompt editing with variable substitution preview
+          6. Tool import from OpenAPI spec with validation
+        </target>
+        <target type="accessibility">
+          WCAG 2.1 AA compliance required
+          All pages must pass axe-core automated tests
+          Manual keyboard navigation testing for all interactive elements
+          Screen reader testing for dynamic content updates
+        </target>
+      </coverageTargets>
+      <testingFrameworks>
+        <unit>
+          Framework: Jest 29.7.0 + React Testing Library 16.0.1
+          Mocking: MSW 2.6.5 for API mocking
+          Assertions: @testing-library/jest-dom for DOM assertions
+          User events: @testing-library/user-event for interactions
+        </unit>
+        <e2e>
+          Framework: Playwright 1.48.2
+          Browsers: Chromium, Firefox, WebKit (all 3)
+          Viewports: Desktop (1920x1080), Tablet (768x1024), Mobile (375x667)
+        </e2e>
+        <accessibility>
+          Tool: axe-core + @axe-core/playwright
+          Standard: WCAG 2.1 AA
+          Manual: Keyboard navigation, screen reader testing
+        </accessibility>
+      </testingFrameworks>
+      <testPatterns>
+        <pattern name="Component Tests">
+          1. Arrange: Set up component props, mock API responses with MSW
+          2. Act: Render component, simulate user interactions
+          3. Assert: Verify rendered output, state changes, API calls
+          4. Cover: Happy path, edge cases (empty state, error state, loading state), failure scenarios
+        </pattern>
+        <pattern name="E2E Tests">
+          1. Setup: Authenticate user, seed test data
+          2. Navigate: Go to page under test
+          3. Interact: Perform user actions (click, type, submit)
+          4. Assert: Verify UI updates, data changes, side effects
+          5. Cleanup: Reset test data, logout
+        </pattern>
+        <pattern name="Accessibility Tests">
+          1. Automated: Run axe-core on all pages
+          2. Keyboard: Tab through all interactive elements, verify focus indicators
+          3. Screen reader: Test with VoiceOver (Mac) or NVDA (Windows)
+          4. Color contrast: Verify all text has &gt;4.5:1 contrast ratio
+        </pattern>
+      </testPatterns>
+    </standards>
+    <locations>
+      <componentTests>
+        <location path="nextjs-ui/src/components/operations/__tests__/">
+          QueueManagement.test.tsx
+          QueueStatusCard.test.tsx
+          QueueDepthChart.test.tsx
+          TaskList.test.tsx
+        </location>
+        <location path="nextjs-ui/src/components/execution-history/__tests__/">
+          ExecutionHistoryPage.test.tsx
+          ExecutionFilters.test.tsx
+          ExecutionTable.test.tsx
+          ExecutionDetailModal.test.tsx
+        </location>
+        <location path="nextjs-ui/src/components/audit-logs/__tests__/">
+          AuditLogsPage.test.tsx
+          AuthAuditTable.test.tsx
+          GeneralAuditTable.test.tsx
+          AuditDiffModal.test.tsx
+        </location>
+        <location path="nextjs-ui/src/components/plugins/__tests__/">
+          PluginsPage.test.tsx
+          PluginDetailPage.test.tsx
+          PluginForm.test.tsx
+          TestConnectionButton.test.tsx
+        </location>
+        <location path="nextjs-ui/src/components/prompts/__tests__/">
+          PromptsPage.test.tsx
+          PromptEditor.test.tsx
+          PromptPreview.test.tsx
+          VariableSubstitution.test.tsx
+        </location>
+        <location path="nextjs-ui/src/components/tools/__tests__/">
+          AddToolPage.test.tsx
+          OpenAPIUpload.test.tsx
+          SpecValidator.test.tsx
+          ToolPreview.test.tsx
+          ImportConfiguration.test.tsx
+        </location>
+        <location path="nextjs-ui/src/hooks/__tests__/">
+          useQueueStatus.test.tsx
+          useExecutions.test.tsx
+          useAuditLogs.test.tsx
+          usePlugins.test.tsx
+          usePrompts.test.tsx
+          useToolImport.test.tsx
+        </location>
+      </componentTests>
+      <e2eTests>
+        <location path="nextjs-ui/e2e/">
+          queue-management.spec.ts
+          execution-history.spec.ts
+          audit-logs.spec.ts
+          plugin-workflow.spec.ts
+          prompt-editing.spec.ts
+          tool-import.spec.ts
+        </location>
+      </e2eTests>
+      <accessibilityTests>
+        <location path="nextjs-ui/e2e/a11y/">
+          operations.a11y.spec.ts
+          execution-history.a11y.spec.ts
+          audit-logs.a11y.spec.ts
+          plugins.a11y.spec.ts
+          prompts.a11y.spec.ts
+          tools.a11y.spec.ts
+        </location>
+      </accessibilityTests>
+      <mswHandlers>
+        <location path="nextjs-ui/src/mocks/handlers/">
+          queueHandlers.ts (mock queue API responses)
+          executionHandlers.ts (mock execution API responses)
+          auditHandlers.ts (mock audit log API responses)
+          pluginHandlers.ts (mock plugin API responses)
+          promptHandlers.ts (mock prompt API responses)
+          toolHandlers.ts (mock tool API responses)
+        </location>
+      </mswHandlers>
+    </locations>
+    <ideas>
+      <componentTestIdeas>
+        <component name="QueueManagement">
+          <test>Queue status cards display correct metrics (depth, processing rate, avg wait time, failed tasks)</test>
+          <test>Pause button shows confirmation dialog before pausing queue</test>
+          <test>Resume button immediately resumes queue (no confirmation)</test>
+          <test>Queue depth chart renders with correct data points</test>
+          <test>Task list displays tasks with correct status badges</test>
+          <test>Cancel task button only shown for pending/processing tasks</test>
+          <test>Operator role can cancel tasks, viewer cannot</test>
+          <test>Empty state shown when queue is empty</test>
+          <test>Loading skeleton shown while fetching data</test>
+          <test>Error toast shown when API call fails</test>
+          <test>Real-time polling updates data every 3 seconds</test>
+        </component>
+        <component name="ExecutionHistory">
+          <test>Execution table displays all columns correctly</test>
+          <test>Date range picker filters executions by date</test>
+          <test>Status filter supports multiple selections</test>
+          <test>Agent filter dropdown populated from agents list</test>
+          <test>Search box debounces input (500ms)</test>
+          <test>Clicking row opens execution detail modal</test>
+          <test>Modal has 3 tabs: Input, Output, Metadata</test>
+          <test>JSON viewer syntax highlights JSON data</test>
+          <test>CSV export button downloads file with correct data</test>
+          <test>CSV export limited to 10,000 rows</test>
+          <test>Pagination works correctly (50 rows per page)</test>
+          <test>Sortable columns update table when clicked</test>
+        </component>
+        <component name="AuditLogs">
+          <test>Auth Events tab shows auth audit logs</test>
+          <test>General Audit tab shows CRUD audit logs</test>
+          <test>Tab badges show 24-hour counts</test>
+          <test>View Changes button opens diff modal</test>
+          <test>Diff modal displays jsondiffpatch visualization</test>
+          <test>Color coding: red=removed, green=added, yellow=modified</test>
+          <test>Page restricted to super_admin and tenant_admin only</test>
+          <test>Viewer role redirected to dashboard</test>
+          <test>Filters work for user, event type, action, entity type</test>
+        </component>
+        <component name="PluginForm">
+          <test>Form validates required fields with Zod</test>
+          <test>Type dropdown conditionally renders fields (Webhook vs Polling)</test>
+          <test>Webhook shows endpoint URL + HMAC secret fields</test>
+          <test>Polling shows interval + API endpoint + auth fields</test>
+          <test>Test connection button triggers API call</test>
+          <test>Success/error message shown after test</test>
+          <test>Sync logs refresh every 30 seconds</test>
+          <test>Delete confirmation modal prevents accidental deletion</test>
+        </component>
+        <component name="PromptEditor">
+          <test>Split-pane layout: 60% editor, 40% preview</test>
+          <test>CodeMirror/Monaco editor has line numbers</test>
+          <test>Syntax highlighting for Jinja2/Handlebars</test>
+          <test>Variable autocomplete triggers on '{{' input</test>
+          <test>Preview pane accepts test data JSON input</test>
+          <test>Rendered output shows substituted variables</test>
+          <test>Save creates new version in version history</test>
+          <test>Version history shows all previous versions</test>
+          <test>Revert button restores previous version</test>
+        </component>
+        <component name="ToolImport">
+          <test>Drag-and-drop zone accepts .json/.yaml/.yml files</test>
+          <test>File size validation (max 5MB)</test>
+          <test>Multiple file upload support</test>
+          <test>Spec validation with Ajv shows errors with line numbers</test>
+          <test>Tool preview table displays operations with expandable rows</test>
+          <test>Select checkboxes allow choosing operations to import</test>
+          <test>Import configuration form captures name, base URL, auth</test>
+          <test>Auth type dropdown shows None/API Key/Bearer/Basic</test>
+          <test>Conditional auth config fields based on auth type</test>
+          <test>Import button creates tool in database</test>
+        </component>
+      </componentTestIdeas>
+      <e2eTestIdeas>
+        <flow name="Queue Pause/Resume">
+          1. Login as operator
+          2. Navigate to /operations
+          3. Verify queue status displays
+          4. Click Pause button
+          5. Confirm in dialog
+          6. Verify queue paused (is_paused=true)
+          7. Click Resume button
+          8. Verify queue resumed (is_paused=false)
+        </flow>
+        <flow name="Execution Filtering and Export">
+          1. Login as any role
+          2. Navigate to /execution-history
+          3. Select date range (last 7 days)
+          4. Select status filter (failed)
+          5. Verify table filtered correctly
+          6. Click CSV Export button
+          7. Verify file downloaded with filtered data
+        </flow>
+        <flow name="Audit Diff Visualization">
+          1. Login as tenant_admin
+          2. Navigate to /audit-logs
+          3. Switch to General Audit tab
+          4. Find entry with changes
+          5. Click View Changes button
+          6. Verify diff modal opens
+          7. Verify jsondiffpatch visualization shows before/after
+          8. Close modal
+        </flow>
+        <flow name="Plugin Test Connection">
+          1. Login as tenant_admin
+          2. Navigate to /plugins
+          3. Click on plugin to view details
+          4. Switch to Test Connection tab
+          5. Click Test button
+          6. Verify success/error message displayed
+          7. Verify test results shown with details
+        </flow>
+        <flow name="Prompt Editing with Preview">
+          1. Login as developer
+          2. Navigate to /prompts
+          3. Click on prompt to edit
+          4. Modify template text
+          5. Enter test data in preview pane
+          6. Verify rendered output updates
+          7. Save changes
+          8. Verify new version created
+        </flow>
+        <flow name="Tool Import from OpenAPI">
+          1. Login as developer
+          2. Navigate to /tools
+          3. Upload OpenAPI spec file
+          4. Verify spec validation passes
+          5. Select operations to import
+          6. Configure name, base URL, auth
+          7. Click Import button
+          8. Verify tool created successfully
+          9. Navigate to agent page
+          10. Verify tool available for assignment
+        </flow>
+      </e2eTestIdeas>
+      <accessibilityTestIdeas>
+        <test>All pages pass axe-core automated scan (no violations)</test>
+        <test>Keyboard navigation: Tab through all interactive elements in logical order</test>
+        <test>Focus indicators visible on all focusable elements</test>
+        <test>ESC key closes modals and dropdowns</test>
+        <test>Enter key submits forms and activates buttons</test>
+        <test>ARIA labels present on all tables, buttons, inputs</test>
+        <test>ARIA live regions announce dynamic updates (toast, table refresh)</test>
+        <test>Color contrast &gt;4.5:1 for all text (verify with Chrome DevTools)</test>
+        <test>Screen reader announces page title on navigation</test>
+        <test>Form validation errors announced by screen reader</test>
+        <test>Loading states announced by screen reader</test>
+        <test>Modal focus trap prevents tabbing outside modal</test>
+      </accessibilityTestIdeas>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,281 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>2</epicId>
+    <storyId>1C</storyId>
+    <title>API Endpoints & Middleware</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/stories/1c-api-endpoints-and-middleware.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>frontend developer</asA>
+    <iWant>RESTful API endpoints for authentication and protected routes</iWant>
+    <soThat>users can register, log in, refresh tokens, and access protected resources</soThat>
+    <tasks>
+### Tasks/Subtasks
+
+**Task 1: Create Authentication API Endpoints (src/api/auth.py)**
+- Subtask 1.1: Implement POST /api/auth/register endpoint with email validation
+- Subtask 1.2: Implement POST /api/auth/token (login) endpoint with OAuth2PasswordRequestForm
+- Subtask 1.3: Implement POST /api/auth/refresh endpoint for token renewal
+- Subtask 1.4: Implement POST /api/auth/logout endpoint with token revocation
+
+**Task 2: Create Protected User Endpoints (src/api/users.py)**
+- Subtask 2.1: Implement GET /api/users/me endpoint with user profile + roles
+- Subtask 2.2: Implement PUT /api/users/me/password endpoint with password change validation
+
+**Task 3: Implement Dependency Injection (src/api/dependencies.py)**
+- Subtask 3.1: Create oauth2_scheme for token extraction
+- Subtask 3.2: Create get_current_user dependency with JWT verification
+- Subtask 3.3: Create get_current_active_user dependency with active status check
+- Subtask 3.4: Create require_role dependency for RBAC enforcement
+
+**Task 4: Add Rate Limiting Middleware (src/middleware/rate_limit.py)**
+- Subtask 4.1: Configure slowapi Limiter with default 1000/hour limit
+- Subtask 4.2: Apply 100/minute limit to /token endpoint
+- Subtask 4.3: Apply 10/minute limit to /register endpoint
+- Subtask 4.4: Add RateLimitExceeded exception handler with Retry-After header
+
+**Task 5: Add Audit Logging Middleware (src/middleware/audit_log.py)**
+- Subtask 5.1: Create AuditLogMiddleware to intercept /api/auth/* requests
+- Subtask 5.2: Extract request metadata (IP, user-agent, event type)
+- Subtask 5.3: Log to auth_audit_log table asynchronously
+- Subtask 5.4: Map endpoints to event types (registration, login, token_refresh, logout)
+
+**Task 6: Configure CORS & Exception Handlers (src/main.py, src/api/exception_handlers.py)**
+- Subtask 6.1: Add CORS middleware with origins from environment
+- Subtask 6.2: Create exception handler for RequestValidationError (422 responses)
+- Subtask 6.3: Create exception handler for JWTError (401 with WWW-Authenticate header)
+- Subtask 6.4: Create exception handler for RateLimitExceeded (429 with Retry-After)
+
+**Task 7: Integration Testing (tests/integration/)**
+- Subtask 7.1: Write tests for all auth endpoints (register, login, refresh, logout)
+- Subtask 7.2: Write tests for protected routes (/users/me, password change)
+- Subtask 7.3: Write tests for rate limiting behavior
+- Subtask 7.4: Write tests for audit logging verification
+- Subtask 7.5: Achieve 90%+ test coverage for src/api/* and src/middleware/*
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+1. ✅ Authentication Endpoints Implemented - POST /api/auth/register, /token, /refresh, /logout with proper validation
+2. ✅ Protected Endpoints Implemented - GET /api/users/me, PUT /api/users/me/password with JWT protection
+3. ✅ Dependency Injection for Authentication - oauth2_scheme, get_current_user, get_current_active_user, require_role
+4. ✅ Rate Limiting Middleware - 100/min for /token, 10/min for /register, 1000/hour default
+5. ✅ Audit Logging Middleware - Logs all /api/auth/* events to auth_audit_log table
+6. ✅ CORS Middleware Configuration - Origins from environment, credentials allowed
+7. ✅ Exception Handlers - Structured JSON responses with proper status codes and headers
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/epics-nextjs-ui-migration.md</path>
+        <title>Epic 2: Authentication &amp; Authorization Foundation</title>
+        <section>Story 1C Definition</section>
+        <snippet>Goal: Implement secure authentication with JWT and role-based access control. Story 1C implements FastAPI REST API layer exposing auth services with OAuth2-compliant endpoints, dependency injection, validation, rate limiting, and audit logging.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>Decision Architecture - Technology Stack</title>
+        <section>FastAPI + OAuth2 + JWT Security Pattern</section>
+        <snippet>FastAPI with OAuth2PasswordBearer for JWT authentication. Pydantic for request/response validation. Production server: Gunicorn + Uvicorn workers. All endpoints use dependency injection for authentication.</snippet>
+      </doc>
+      <doc>
+        <path>docs/tech-spec-epic-2.md</path>
+        <title>Technical Specification - Epic 2</title>
+        <section>API Security Implementation</section>
+        <snippet>OAuth2 Password Flow with JWT tokens (7-day access, 30-day refresh). Rate limiting: 100 req/min for login, 10 req/min for registration. Audit logging for all auth events. RBAC with tenant-scoped roles.</snippet>
+      </doc>
+      <doc>
+        <path>FastAPI Official Documentation (Context7)</path>
+        <title>OAuth2 with Password (and hashing), Bearer with JWT tokens</title>
+        <section>Security Tutorial</section>
+        <snippet>Use OAuth2PasswordBearer and OAuth2PasswordRequestForm. Create get_current_user dependency with JWT verification. Include WWW-Authenticate: Bearer header in 401 responses. Token validation with python-jose library.</snippet>
+      </doc>
+      <doc>
+        <path>Pydantic Documentation (Context7)</path>
+        <title>Data Validation with BaseModel</title>
+        <section>Field Validators and Email Validation</section>
+        <snippet>Use EmailStr for email validation. @field_validator for custom password strength checks. model_config with from_attributes=True for ORM model serialization. Automatic type coercion and validation.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/services/auth_service.py</path>
+        <kind>service</kind>
+        <symbol>AuthService</symbol>
+        <lines>1-300</lines>
+        <reason>Complete authentication service from Story 1B with all methods needed for endpoints: hash_password, verify_password, create_access_token, create_refresh_token, verify_token, revoke_token, authenticate_user, handle_failed_login</reason>
+      </artifact>
+      <artifact>
+        <path>src/services/user_service.py</path>
+        <kind>service</kind>
+        <symbol>UserService</symbol>
+        <lines>1-200</lines>
+        <reason>User management service from Story 1B with methods: get_user_by_id, get_user_by_email, create_user, update_user, get_user_role_for_tenant - needed for dependency injection</reason>
+      </artifact>
+      <artifact>
+        <path>src/database/models.py</path>
+        <kind>models</kind>
+        <symbol>User, UserTenantRole, AuthAuditLog, RoleEnum</symbol>
+        <lines>120-250</lines>
+        <reason>Database models from Story 1A: User (with auth fields), UserTenantRole (for RBAC), AuthAuditLog (for audit logging), RoleEnum (admin/operator/viewer)</reason>
+      </artifact>
+      <artifact>
+        <path>src/config.py</path>
+        <kind>config</kind>
+        <symbol>Settings</symbol>
+        <lines>1-100</lines>
+        <reason>Application configuration with Pydantic BaseSettings - need to add CORS_ORIGINS setting for middleware configuration</reason>
+      </artifact>
+      <artifact>
+        <path>src/main.py</path>
+        <kind>app</kind>
+        <symbol>app</symbol>
+        <lines>1-50</lines>
+        <reason>FastAPI application entry point - need to register routers (auth, users) and add middleware (CORS, rate limiting, audit logging)</reason>
+      </artifact>
+      <artifact>
+        <path>tests/conftest.py</path>
+        <kind>test-fixture</kind>
+        <symbol>db_session, client</symbol>
+        <lines>1-150</lines>
+        <reason>Test fixtures for database session and async HTTP client - will be used for integration tests</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_auth_service.py</path>
+        <kind>test</kind>
+        <symbol>TestAuthService</symbol>
+        <lines>1-500</lines>
+        <reason>Existing auth service tests (54 tests passing) - reference for testing patterns with async fixtures, mocking, and assertion styles</reason>
+      </artifact>
+      <artifact>
+        <path>tests/unit/test_user_service.py</path>
+        <kind>test</kind>
+        <symbol>TestUserService</symbol>
+        <lines>1-300</lines>
+        <reason>Existing user service tests - reference for database interaction testing patterns</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <python>
+        <package name="fastapi" version=">=0.104.0" usage="Web framework, OAuth2PasswordBearer, OAuth2PasswordRequestForm, Depends, Security, HTTPException"/>
+        <package name="pydantic" version=">=2.5.0" usage="BaseModel for request/response schemas, EmailStr for email validation, field validators"/>
+        <package name="pydantic-settings" version=">=2.1.0" usage="BaseSettings for configuration management"/>
+        <package name="python-jose" version=">=3.3.0" usage="JWT token creation and verification (jose.jwt module)"/>
+        <package name="passlib" version=">=1.7.4" usage="Password hashing with bcrypt (already used in AuthService)"/>
+        <package name="uvicorn" version=">=0.24.0" usage="ASGI server for development"/>
+        <package name="slowapi" version="NOT INSTALLED" usage="REQUIRED: Rate limiting middleware - needs to be added to pyproject.toml"/>
+        <package name="httpx" version=">=0.25.2" usage="Async HTTP client for integration testing"/>
+        <package name="pytest" version=">=7.4.3" usage="Testing framework"/>
+        <package name="pytest-asyncio" version=">=0.21.1" usage="Async test support"/>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>All endpoints MUST use Pydantic models for request/response validation - no raw dict responses</constraint>
+    <constraint>All 401 Unauthorized responses MUST include WWW-Authenticate: Bearer header for OAuth2 compliance</constraint>
+    <constraint>Password changes MUST revoke all existing user tokens to force re-login across all devices</constraint>
+    <constraint>Rate limiting MUST be IP-based using slowapi library (100/min login, 10/min register, 1000/hour default)</constraint>
+    <constraint>Audit logging MUST be asynchronous to avoid blocking request processing</constraint>
+    <constraint>CORS origins MUST be loaded from environment variable, never hardcoded</constraint>
+    <constraint>All database operations MUST use async SQLAlchemy session from get_db dependency</constraint>
+    <constraint>Error messages for authentication failures MUST be generic to prevent user enumeration attacks</constraint>
+    <constraint>Token validation MUST check Redis blacklist before accepting token (implemented in AuthService.verify_token)</constraint>
+    <constraint>All type hints MUST be provided on function signatures for Mypy static type checking</constraint>
+    <constraint>Code formatting MUST follow Black (100 char line length) and Ruff linting rules</constraint>
+    <constraint>Test coverage MUST be >= 90% for src/api/* and src/middleware/* directories</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>POST /api/auth/register</name>
+      <kind>REST endpoint</kind>
+      <signature>async def register(request: RegisterRequest, db: AsyncSession = Depends(get_db)) -> UserResponse</signature>
+      <path>src/api/auth.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>POST /api/auth/token</name>
+      <kind>REST endpoint</kind>
+      <signature>async def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: AsyncSession = Depends(get_db)) -> TokenResponse</signature>
+      <path>src/api/auth.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>POST /api/auth/refresh</name>
+      <kind>REST endpoint</kind>
+      <signature>async def refresh_token(request: RefreshRequest, db: AsyncSession = Depends(get_db)) -> TokenResponse</signature>
+      <path>src/api/auth.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>POST /api/auth/logout</name>
+      <kind>REST endpoint</kind>
+      <signature>async def logout(current_user: Annotated[User, Depends(get_current_active_user)], request: LogoutRequest) -> None</signature>
+      <path>src/api/auth.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>GET /api/users/me</name>
+      <kind>REST endpoint</kind>
+      <signature>async def get_current_user_profile(current_user: Annotated[User, Depends(get_current_active_user)]) -> UserDetailResponse</signature>
+      <path>src/api/users.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>PUT /api/users/me/password</name>
+      <kind>REST endpoint</kind>
+      <signature>async def change_password(current_user: Annotated[User, Depends(get_current_active_user)], request: ChangePasswordRequest) -> None</signature>
+      <path>src/api/users.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>oauth2_scheme</name>
+      <kind>FastAPI Security Dependency</kind>
+      <signature>OAuth2PasswordBearer(tokenUrl="/api/auth/token")</signature>
+      <path>src/api/dependencies.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>get_current_user</name>
+      <kind>Dependency Injection Function</kind>
+      <signature>async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession) -> User</signature>
+      <path>src/api/dependencies.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>get_current_active_user</name>
+      <kind>Dependency Injection Function</kind>
+      <signature>async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]) -> User</signature>
+      <path>src/api/dependencies.py (to be created)</path>
+    </interface>
+    <interface>
+      <name>require_role</name>
+      <kind>Dependency Injection Function</kind>
+      <signature>async def require_role(current_user: User, required_role: RoleEnum, tenant_id: str) -> User</signature>
+      <path>src/api/dependencies.py (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+All tests use pytest with pytest-asyncio for async support. Integration tests use httpx.AsyncClient for HTTP requests. Database tests use async SQLAlchemy fixtures from tests/conftest.py. Mock Redis using fakeredis for unit tests. Follow AAA pattern (Arrange, Act, Assert). Use descriptive test names like test_login_success, test_login_invalid_credentials. Mark tests with @pytest.mark.asyncio. Target 90%+ coverage measured with pytest-cov. Security-critical paths (auth, rate limiting, audit logging) require 100% coverage.
+    </standards>
+    <locations>
+      <location>tests/integration/test_auth_endpoints.py (to be created)</location>
+      <location>tests/integration/test_protected_routes.py (to be created)</location>
+      <location>tests/unit/test_rate_limiting.py (to be created)</location>
+      <location>tests/unit/test_audit_middleware.py (to be created)</location>
+    </locations>
+    <ideas>
+      <idea ac="1">Test POST /register with valid data returns 201, test duplicate email returns 400, test weak password returns 422, test email format validation</idea>
+      <idea ac="1">Test POST /token with valid credentials returns tokens, test invalid credentials returns 401 with WWW-Authenticate header, test locked account returns 401</idea>
+      <idea ac="1">Test POST /refresh with valid refresh token returns new access token, test invalid/expired refresh token returns 401, test revoked token returns 401</idea>
+      <idea ac="1">Test POST /logout revokes both tokens and returns 204, verify tokens unusable after logout</idea>
+      <idea ac="2">Test GET /users/me with valid token returns user profile + roles, test invalid token returns 401, test no token returns 401</idea>
+      <idea ac="2">Test PUT /users/me/password with correct current password succeeds, test wrong current password returns 400, test weak new password returns 422, verify old tokens revoked after password change</idea>
+      <idea ac="3">Test oauth2_scheme extracts token from Authorization header, test get_current_user verifies JWT and fetches user, test get_current_active_user checks is_active flag</idea>
+      <idea ac="4">Test rate limiting: 101 requests to /token returns 429 on last request, verify Retry-After header present, test different endpoints have different limits</idea>
+      <idea ac="5">Test audit logging: verify login success/failure logged to auth_audit_log table, verify IP and user-agent captured, verify event types correct (login, registration, logout)</idea>
+      <idea ac="6">Test CORS: verify CORS headers present on responses, verify origins restricted to environment setting</idea>
+      <idea ac="7">Test exception handlers: RequestValidationError returns 422 with field details, JWTError returns 401 with WWW-Authenticate, ValueError returns 400</idea>
+    </ideas>
+  </tests>
+</story-context>

@@ -1,0 +1,331 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>nextjs-ui-migration-epic</epicId>
+    <storyId>nextjs-story-14-agent-performance-trend</storyId>
+    <title>Agent Performance Dashboard - Execution Trend Chart</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-21</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-14-agent-performance-trend.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer or admin</asA>
+    <iWant>to see execution count and duration trends over time for a selected agent</iWant>
+    <soThat>I can spot performance degradation, optimize slow operations, and identify execution patterns</soThat>
+    <tasks>
+### Phase 1: Foundation (1.5 hours)
+1. Create utility functions (30 min)
+   - Create `lib/utils/chart.ts`
+   - Implement `formatChartTimestamp()` (hourly/daily formatting)
+   - Implement `formatTooltipTimestamp()` (full date/time)
+   - Implement `autoSelectGranularity()` (&lt; 7 days = hourly, &gt;= 7 days = daily)
+   - Implement `transformTrendData()` (ms → seconds conversion)
+   - Write unit tests for all utilities
+
+2. Create React Query hook (30 min)
+   - Create `hooks/useAgentTrends.ts`
+   - Implement query with agentId, startDate, endDate, granularity params
+   - Configure query key for proper caching
+   - Add error handling and retry logic
+   - Set staleTime to 60s (trends don't change rapidly)
+   - Test with mock API responses
+
+3. Extend TypeScript types (15 min)
+   - Add `TrendGranularity` type to `types/agent-performance.ts`
+   - Add `AgentTrendDataPoint` interface
+   - Add `AgentTrendsDTO` interface
+   - Ensure type safety in hook and components
+
+4. Create GranularityToggle component (15 min)
+   - Use shadcn/ui Tabs component
+   - Add "Hourly" and "Daily" options
+   - Handle onChange callback
+   - Style with current design system
+
+### Phase 2: Chart Implementation (2 hours)
+5. Create ExecutionTrendChart component (1 hour)
+   - Set up Recharts ComposedChart
+   - Configure dual Y-axes (left: count, right: time)
+   - Add Bar chart for execution count (blue)
+   - Add Line chart for avg execution time (green)
+   - Configure X-axis with timestamp formatting
+   - Add CartesianGrid for visual clarity
+   - Responsive container (400px height on desktop)
+
+6. Implement custom tooltip (30 min)
+   - Create tooltip showing formatted timestamp, execution count, average time
+   - Style with background, border, shadow
+   - Test tooltip display on hover
+
+7. Implement legend with show/hide (30 min)
+   - Use Recharts Legend component
+   - Add click handler to toggle series visibility
+   - Maintain hiddenSeries state (Set&lt;string&gt;)
+   - Prevent hiding both series (at least one must be visible)
+   - Update legend style (cursor: pointer)
+
+### Phase 3: Integration &amp; Polish (1.5 hours)
+8. Add loading and error states (30 min)
+   - Loading: Skeleton matching chart dimensions (400px height)
+   - Error: Message + Retry button
+   - Empty state: Message + suggestion
+
+9. Add auto-granularity selection (15 min)
+   - Implement `autoSelectGranularity()` in parent page
+   - Pass `defaultGranularity` prop to chart
+   - Update granularity when date range changes
+
+10. Integrate into parent page (30 min)
+    - Add ExecutionTrendChart below AgentMetricsCards
+    - Pass agentId, startDate, endDate, defaultGranularity props
+    - Ensure state flows correctly from parent
+    - Test granularity auto-selection
+
+11. Responsive design and polish (15 min)
+    - Test on mobile, tablet, desktop
+    - Adjust chart height for mobile (300px)
+    - Rotate X-axis labels on mobile (-45 degrees)
+    - Ensure legend wraps on small screens
+    - Verify accessibility (ARIA labels, keyboard nav)
+</tasks>
+  </story>
+
+  <acceptanceCriteria>
+**AC-1: Dual-Axis Chart Display**
+- ComposedChart with left Y-axis (execution count bars - blue) and right Y-axis (avg execution time line - green)
+- X-axis shows date/time with appropriate granularity
+- Chart legend shows "Execution Count" and "Avg Execution Time"
+- Hover tooltip displays timestamp, execution count, average time (formatted)
+
+**AC-2: Granularity Toggle**
+- Toggle with "Hourly" (default for &lt; 7 days) and "Daily" (default for &gt;= 7 days) options
+- Selection updates chart immediately
+
+**AC-3: Show/Hide Data Series**
+- Clicking legend items toggles bar/line chart visibility
+- At least one series must remain visible
+- Toggle state persists during session
+
+**AC-4: Responsive Layout**
+- Desktop (&gt;= 1024px): 400px height, full width
+- Tablet (768-1023px): 350px height, scrollable if needed
+- Mobile (&lt; 768px): 300px height, rotated x-axis labels
+
+**AC-5: Auto-Granularity Selection**
+- Date range &lt; 7 days: auto-select "Hourly"
+- Date range &gt;= 7 days: auto-select "Daily"
+
+**AC-6: Loading &amp; Error States**
+- Loading: Skeleton placeholder matching chart dimensions
+- Error: "Failed to load execution trends" with retry button
+- Stale data warning if cached data shown after error
+
+**AC-7: Empty State**
+- Message: "No execution data available for the selected date range"
+- Suggestion: "Try selecting a different date range or agent"
+- Chart placeholder with empty axes
+
+**AC-8: Performance**
+- Chart loads in &lt; 2 seconds with 1000+ data points
+- Hover, zoom, toggle interactions remain responsive
+- Data aggregated server-side (not client-side)
+</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact>
+        <path>docs/epics-nextjs-feature-parity-completion.md</path>
+        <title>Epic 1: Analytics &amp; Monitoring Dashboards</title>
+        <section>Story 1.6: Agent Performance - Execution Trend Chart</section>
+        <snippet>Dual-axis chart (execution count bars + average time line) with hourly/daily granularity toggle. Enables tracking performance trends, spotting degradation, and capacity planning insights.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration</title>
+        <section>Architecture - Recharts for data visualization</section>
+        <snippet>Use Recharts library for all data visualization. ComposedChart supports multiple chart types (Bar + Line) in single chart. Follow 2025 best practices: responsive design, accessibility (WCAG 2.1 AA), TypeScript strict mode.</snippet>
+      </artifact>
+      <artifact>
+        <path>docs/sprint-artifacts/nextjs-story-13-agent-performance-metrics.md</path>
+        <title>Story 13: Agent Performance Metrics Overview</title>
+        <section>Patterns to Reuse</section>
+        <snippet>Parent page exists at /dashboard/agent-performance with AgentSelector, DateRangeSelector. Reuse formatExecutionTime() and formatCount() utilities. TanStack Query v5 patterns (staleTime 60s, refetchInterval 60s). Empty state, error state with retry, loading skeleton patterns.</snippet>
+      </artifact>
+    </docs>
+
+    <code>
+      <artifact>
+        <path>nextjs-ui/package.json</path>
+        <kind>dependencies</kind>
+        <symbol>recharts</symbol>
+        <lines>47</lines>
+        <reason>Recharts v3.3.0 already installed - required for ComposedChart component</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/package.json</path>
+        <kind>dependencies</kind>
+        <symbol>date-fns</symbol>
+        <lines>34</lines>
+        <reason>date-fns v3.6.0 installed - use for timestamp formatting (formatChartTimestamp, formatTooltipTimestamp)</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/package.json</path>
+        <kind>dependencies</kind>
+        <symbol>@tanstack/react-query</symbol>
+        <lines>25</lines>
+        <reason>TanStack Query v5.62.2 for useAgentTrends hook (staleTime 60s, retry 3, query key caching)</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/app/dashboard/agent-performance</path>
+        <kind>page</kind>
+        <symbol>N/A - Story 14 creates new components in this directory</symbol>
+        <lines>N/A</lines>
+        <reason>Parent page from Story 13 exists. Story 14 adds ExecutionTrendChart component below AgentMetricsCards. Reuse AgentSelector, DateRangeSelector state from parent.</reason>
+      </artifact>
+    </code>
+
+    <dependencies>
+      <node>
+        <package name="recharts" version="^3.3.0" />
+        <package name="date-fns" version="^3.6.0" />
+        <package name="@tanstack/react-query" version="^5.62.2" />
+        <package name="react" version="^18.3.1" />
+        <package name="next" version="14.2.15" />
+        <package name="lucide-react" version="^0.462.0" />
+        <package name="tailwind-merge" version="^2.6.0" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+**Architecture Constraints:**
+1. **File Size:** All files MUST be ≤500 lines. Extract sub-components if ExecutionTrendChart exceeds limit.
+2. **TypeScript Strict Mode:** Zero `any` types. Explicit types for all props, state, returns.
+3. **Component Structure:** Extract GranularityToggle, custom tooltip as separate components for reusability.
+4. **Parent State:** AgentSelector and DateRangeSelector state managed by parent page (Story 13). Do NOT duplicate state.
+5. **Recharts Version:** Use Recharts v3 API (ComposedChart, Bar, Line, dual YAxis). Check docs for v3 breaking changes.
+
+**Code Quality Constraints:**
+6. **No ESLint Errors:** Zero warnings/errors. Run `npm run lint` before commit.
+7. **Testing:** ≥90% code coverage for new utilities, hooks, components. Unit tests + integration tests.
+8. **Accessibility:** WCAG 2.1 AA compliance. ARIA labels for chart, keyboard navigation, focus management.
+9. **Performance:** Chart renders &lt; 2s with 1000 data points. Use React.memo for chart components, useMemo for data transformations.
+
+**Patterns from Story 13:**
+10. **Error Handling:** TanStack Query error states with retry button. Stale data warning pattern.
+11. **Loading States:** Skeleton placeholder matching chart dimensions (400px height).
+12. **Empty States:** User-friendly message + suggestion ("Try selecting different date range").
+</constraints>
+
+  <interfaces>
+**Backend API:**
+- **Endpoint:** GET /api/agents/{id}/trends
+- **Query Params:** start_date (YYYY-MM-DD), end_date (YYYY-MM-DD), granularity ("hourly" | "daily")
+- **Response 200:** AgentTrendsDTO with data_points array (timestamp, execution_count, avg_execution_time_ms, p50_execution_time_ms, p95_execution_time_ms)
+- **Response 404:** Agent not found error
+
+**TypeScript Interfaces:**
+```typescript
+export type TrendGranularity = 'hourly' | 'daily';
+
+export interface AgentTrendDataPoint {
+  timestamp: string; // ISO 8601
+  execution_count: number;
+  avg_execution_time_ms: number;
+  p50_execution_time_ms: number;
+  p95_execution_time_ms: number;
+}
+
+export interface AgentTrendsDTO {
+  agent_id: string;
+  agent_name: string;
+  granularity: TrendGranularity;
+  date_range: { start: string; end: string };
+  data_points: AgentTrendDataPoint[];
+  summary: {
+    total_data_points: number;
+    peak_execution_count: number;
+    peak_timestamp: string;
+    avg_execution_time_overall_ms: number;
+  };
+}
+```
+
+**Component Props:**
+```typescript
+interface ExecutionTrendChartProps {
+  agentId: string | null;
+  startDate: string;
+  endDate: string;
+  defaultGranularity: 'hourly' | 'daily';
+}
+
+interface GranularityToggleProps {
+  value: TrendGranularity;
+  onChange: (value: TrendGranularity) =&gt; void;
+}
+```
+</interfaces>
+
+  <tests>
+    <standards>
+**Testing Framework:** Jest + React Testing Library + Playwright (E2E)
+**Coverage Target:** ≥90% for new code (utilities, hooks, components)
+**Patterns from Story 13:**
+- Unit tests for all utility functions (formatChartTimestamp, autoSelectGranularity, transformTrendData)
+- React Query hook tests with mock API responses (success, error, loading states)
+- Component tests for rendering, interactions (granularity toggle, legend clicks), empty/error states
+- Integration tests for parent page integration
+- E2E tests for full workflow (select agent → view trend chart → change granularity)
+**Best Practices:**
+- Mock TanStack Query with createWrapper pattern
+- Use `screen.getByRole()` for accessibility-first selectors
+- Test keyboard navigation (tab, enter, space)
+- Test responsive breakpoints (mobile, tablet, desktop)
+    </standards>
+
+    <locations>
+- Unit tests: `nextjs-ui/__tests__/lib/utils/chart.test.ts`
+- Hook tests: `nextjs-ui/__tests__/hooks/useAgentTrends.test.ts`
+- Component tests: `nextjs-ui/__tests__/components/agent-performance/ExecutionTrendChart.test.tsx`
+- Component tests: `nextjs-ui/__tests__/components/agent-performance/GranularityToggle.test.tsx`
+- E2E tests: `nextjs-ui/e2e/agent-performance-trend.spec.ts`
+    </locations>
+
+    <ideas>
+**Unit Test Ideas (chart.ts utilities):**
+1. formatChartTimestamp: hourly shows "MMM d, ha" format, daily shows "MMM d" format
+2. formatTooltipTimestamp: shows full date/time "MMM d, yyyy h:mm a"
+3. autoSelectGranularity: returns "hourly" for &lt;7 days, "daily" for ≥7 days
+4. transformTrendData: converts avg_execution_time_ms to avg_execution_time_s (divide by 1000)
+
+**Hook Test Ideas (useAgentTrends.ts):**
+5. Query key includes agentId, startDate, endDate, granularity for proper cache invalidation
+6. Query disabled when agentId is null
+7. staleTime set to 60000ms (trends don't change rapidly)
+8. Retry 3 times on API failure
+9. Handles 404 error (agent not found) gracefully
+
+**Component Test Ideas (ExecutionTrendChart):**
+10. Renders loading skeleton while fetching data
+11. Renders error state with retry button when API fails
+12. Renders empty state when data_points array is empty
+13. Renders chart with Bar and Line components when data exists
+14. Clicking legend hides/shows series (execution count or avg time)
+15. Cannot hide both series (at least one must be visible)
+16. Granularity toggle changes query parameter and refetches data
+
+**Integration Test Ideas:**
+17. Parent page passes correct props (agentId, dateRange, defaultGranularity) to chart
+18. Auto-granularity selection based on date range duration
+19. Chart updates when parent changes agent selection
+20. Chart updates when parent changes date range
+
+**E2E Test Ideas:**
+21. Full workflow: select agent → wait for chart load → change granularity → verify chart updates
+22. Test responsive behavior: chart height adjusts on mobile (300px), tablet (350px), desktop (400px)
+23. Keyboard navigation: tab to granularity toggle, press Enter to change selection
+    </ideas>
+  </tests>
+</story-context>

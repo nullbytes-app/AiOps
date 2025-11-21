@@ -24,7 +24,7 @@ from src.utils.logger import AuditLogger
 from src.workers.celery_app import celery_app
 from src.schemas.job import EnhancementJob
 from src.database.models import EnhancementHistory
-from src.database.session import async_session_maker
+from src.database.session import get_async_session_maker
 from src.database.tenant_context import set_db_tenant_context
 
 # Audit logger for compliance logging
@@ -270,7 +270,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
             async def run_enhancement_pipeline():
                 nonlocal enhancement_id, context_gathered, llm_output
 
-                async with async_session_maker() as session:
+                async with get_async_session_maker()() as session:
                     # Set tenant context for RLS (Story 3.1)
                     # Must be called before any database queries on tenant-scoped tables
                     await set_db_tenant_context(session, job.tenant_id)
@@ -628,7 +628,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         # Update enhancement_history to failed
         if enhancement_id:
             async def mark_timeout():
-                async with async_session_maker() as session:
+                async with get_async_session_maker()() as session:
                     from sqlalchemy import select
                     stmt = select(EnhancementHistory).where(
                         EnhancementHistory.id == enhancement_id
@@ -680,7 +680,7 @@ def enhance_ticket(self: Task, job_data: Dict[str, Any]) -> Dict[str, Any]:
         # Update enhancement_history to failed
         if enhancement_id:
             async def mark_failed():
-                async with async_session_maker() as session:
+                async with get_async_session_maker()() as session:
                     from sqlalchemy import select
                     stmt = select(EnhancementHistory).where(
                         EnhancementHistory.id == enhancement_id
@@ -1131,7 +1131,7 @@ def reset_tenant_budgets(self: Task) -> Dict[str, Any]:
         async def _reset_budgets():
             nonlocal reset_count, success_count, failed_tenants
 
-            async with async_session_maker() as session:
+            async with get_async_session_maker()() as session:
                 # Find tenants whose budget period has expired
                 now = datetime.now(timezone.utc)
                 stmt = select(TenantConfig).where(
@@ -1295,7 +1295,7 @@ def expire_budget_overrides(self: Task) -> Dict[str, Any]:
         async def _expire_overrides():
             nonlocal expired_count, success_count, failed_overrides
 
-            async with async_session_maker() as session:
+            async with get_async_session_maker()() as session:
                 # Find overrides whose expiration time has passed
                 now = datetime.now(timezone.utc)
                 stmt = select(BudgetOverride).where(
@@ -1523,7 +1523,7 @@ def mcp_health_check_task(self: Task) -> Dict[str, Any]:
             """Run health checks without tracing (90% of calls)."""
             nonlocal checked_count, healthy_count, unhealthy_count, inactive_count
 
-            async with async_session_maker() as db:
+            async with get_async_session_maker()() as db:
                 # Query servers with status IN ('active', 'error')
                 # Exclude 'inactive' servers (circuit breaker triggered)
                 stmt = select(MCPServer).where(
@@ -1573,7 +1573,7 @@ def mcp_health_check_task(self: Task) -> Dict[str, Any]:
             """Run health checks with OpenTelemetry tracing (10% of calls)."""
             nonlocal checked_count, healthy_count, unhealthy_count, inactive_count
 
-            async with async_session_maker() as db:
+            async with get_async_session_maker()() as db:
                 # Query servers with status IN ('active', 'error')
                 # Exclude 'inactive' servers (circuit breaker triggered)
                 stmt = select(MCPServer).where(
@@ -1733,7 +1733,7 @@ def cleanup_old_mcp_metrics_task(self: Task) -> Dict[str, Any]:
 
         async def _cleanup_old_metrics() -> int:
             """Delete metrics older than retention_days."""
-            async with async_session_maker() as db:
+            async with get_async_session_maker()() as db:
                 # Calculate cutoff timestamp (7 days ago from now)
                 cutoff = datetime.now(UTC) - timedelta(days=retention_days)
 

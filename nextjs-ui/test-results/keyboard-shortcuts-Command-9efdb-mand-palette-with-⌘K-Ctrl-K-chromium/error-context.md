@@ -1,0 +1,276 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - banner:
+      - generic:
+        - generic: AI
+        - heading [level=1]: AI Agents Platform
+      - generic:
+        - button:
+          - img
+        - generic:
+          - button:
+            - generic:
+              - img
+            - generic: User
+            - img
+    - generic:
+      - complementary:
+        - navigation:
+          - generic:
+            - heading [level=3]: Monitoring
+            - list:
+              - listitem:
+                - link:
+                  - /url: /dashboard
+                  - img
+                  - generic: Dashboard
+              - listitem:
+                - link:
+                  - /url: /dashboard/health
+                  - img
+                  - generic: System Health
+              - listitem:
+                - link:
+                  - /url: /dashboard/agents
+                  - img
+                  - generic: Agent Metrics
+              - listitem:
+                - link:
+                  - /url: /dashboard/tickets
+                  - img
+                  - generic: Ticket Processing
+          - generic:
+            - heading [level=3]: Configuration
+            - list:
+              - listitem:
+                - link:
+                  - /url: /dashboard/tenants
+                  - img
+                  - generic: Tenants
+              - listitem:
+                - link:
+                  - /url: /dashboard/agents-config
+                  - img
+                  - generic: Agents
+              - listitem:
+                - link:
+                  - /url: /dashboard/prompts
+                  - img
+                  - generic: Prompts
+              - listitem:
+                - link:
+                  - /url: /dashboard/tools
+                  - img
+                  - generic: Tools
+              - listitem:
+                - link:
+                  - /url: /dashboard/plugins
+                  - img
+                  - generic: Plugins
+              - listitem:
+                - link:
+                  - /url: /dashboard/mcp-servers
+                  - img
+                  - generic: MCP Servers
+              - listitem:
+                - link:
+                  - /url: /dashboard/workflows
+                  - img
+                  - generic: Workflows
+          - generic:
+            - heading [level=3]: Operations
+            - list:
+              - listitem:
+                - link:
+                  - /url: /dashboard/logs
+                  - img
+                  - generic: Logs
+              - listitem:
+                - link:
+                  - /url: /dashboard/audit
+                  - img
+                  - generic: Audit Trail
+              - listitem:
+                - link:
+                  - /url: /dashboard/settings
+                  - img
+                  - generic: Settings
+          - generic:
+            - heading [level=3]: Tools
+            - list:
+              - listitem:
+                - link:
+                  - /url: /dashboard/playground
+                  - img
+                  - generic: API Playground
+              - listitem:
+                - link:
+                  - /url: /dashboard/testing
+                  - img
+                  - generic: Testing
+      - main:
+        - generic:
+          - heading [level=2]: Dashboard
+          - generic:
+            - generic:
+              - generic: Active Agents
+              - generic: "12"
+              - generic: +2 from last week
+            - generic:
+              - generic: Executions Today
+              - generic: "48"
+              - generic: 32 successful
+            - generic:
+              - generic: Avg Response Time
+              - generic: 1.2s
+              - generic: "-0.3s from avg"
+            - generic:
+              - generic: Error Rate
+              - generic: 2.1%
+              - generic: Monitor closely
+          - generic:
+            - heading [level=3]: Recent Activity
+            - generic:
+              - generic:
+                - generic:
+                  - generic: Agent "Customer Support Bot" executed successfully
+                  - generic: 2 minutes ago
+                - generic: Success
+              - generic:
+                - generic:
+                  - generic: New prompt template created
+                  - generic: 15 minutes ago
+                - generic: Info
+    - contentinfo:
+      - generic:
+        - generic: © 2025 AI Agents Platform. All rights reserved.
+        - generic:
+          - generic: v1.0.0
+          - link:
+            - /url: /docs
+            - text: Documentation
+          - link:
+            - /url: /support
+            - text: Support
+  - region "Notifications alt+T"
+  - alert
+  - dialog "Global Command Menu":
+    - generic [ref=e1]:
+      - generic [ref=e2]: Global Command Menu
+      - generic [ref=e3]:
+        - combobox "Global Command Menu" [expanded] [active] [ref=e4]
+        - listbox "Suggestions" [ref=e5]:
+          - generic [ref=e6]:
+            - generic [ref=e7]: Pages
+            - group "Pages" [ref=e8]:
+              - generic [ref=e9]: Pages
+              - option "Dashboard Overview and metrics GThenD" [selected] [ref=e10] [cursor=pointer]:
+                - img [ref=e11]
+                - generic [ref=e14]:
+                  - generic [ref=e15]: Dashboard
+                  - generic [ref=e16]: Overview and metrics
+                - generic [ref=e17]: GThenD
+              - option "Agents Manage AI agents GThenA" [ref=e18] [cursor=pointer]:
+                - img [ref=e19]
+                - generic [ref=e22]:
+                  - generic [ref=e23]: Agents
+                  - generic [ref=e24]: Manage AI agents
+                - generic [ref=e25]: GThenA
+              - option "Executions View execution history GThenE" [ref=e26] [cursor=pointer]:
+                - img [ref=e27]
+                - generic [ref=e30]:
+                  - generic [ref=e31]: Executions
+                  - generic [ref=e32]: View execution history
+                - generic [ref=e33]: GThenE
+              - option "Queue Management Monitor job queue GThenQ" [ref=e34] [cursor=pointer]:
+                - img [ref=e35]
+                - generic [ref=e38]:
+                  - generic [ref=e39]: Queue Management
+                  - generic [ref=e40]: Monitor job queue
+                - generic [ref=e41]: GThenQ
+              - option "Tenants Manage tenants GThenT" [ref=e42] [cursor=pointer]:
+                - img [ref=e43]
+                - generic [ref=e47]:
+                  - generic [ref=e48]: Tenants
+                  - generic [ref=e49]: Manage tenants
+                - generic [ref=e50]: GThenT
+              - option "LLM Providers Configure LLM providers GThenP" [ref=e51] [cursor=pointer]:
+                - img [ref=e52]
+                - generic [ref=e54]:
+                  - generic [ref=e55]: LLM Providers
+                  - generic [ref=e56]: Configure LLM providers
+                - generic [ref=e57]: GThenP
+              - option "Plugins Manage plugins" [ref=e58] [cursor=pointer]:
+                - img [ref=e59]
+                - generic [ref=e61]:
+                  - generic [ref=e62]: Plugins
+                  - generic [ref=e63]: Manage plugins
+              - option "System Prompts Edit system prompts" [ref=e64] [cursor=pointer]:
+                - img [ref=e65]
+                - generic [ref=e70]:
+                  - generic [ref=e71]: System Prompts
+                  - generic [ref=e72]: Edit system prompts
+              - option "Tools Manage agent tools" [ref=e73] [cursor=pointer]:
+                - img [ref=e74]
+                - generic [ref=e76]:
+                  - generic [ref=e77]: Tools
+                  - generic [ref=e78]: Manage agent tools
+              - option "Settings Application settings GThenS" [ref=e79] [cursor=pointer]:
+                - img [ref=e80]
+                - generic [ref=e83]:
+                  - generic [ref=e84]: Settings
+                  - generic [ref=e85]: Application settings
+                - generic [ref=e86]: GThenS
+            - generic [ref=e87]: Actions
+            - group "Actions" [ref=e88]:
+              - generic [ref=e89]: Actions
+              - option "Create Agent Create a new AI agent C(onAgentsPage)" [ref=e90] [cursor=pointer]:
+                - img [ref=e91]
+                - generic [ref=e92]:
+                  - generic [ref=e93]: Create Agent
+                  - generic [ref=e94]: Create a new AI agent
+                - generic [ref=e95]: C(onAgentsPage)
+              - option "Refresh Data Reload current page data R(onSomePages)" [ref=e96] [cursor=pointer]:
+                - img [ref=e97]
+                - generic [ref=e102]:
+                  - generic [ref=e103]: Refresh Data
+                  - generic [ref=e104]: Reload current page data
+                - generic [ref=e105]: R(onSomePages)
+              - option "Export to CSV Download data as CSV X(onSomePages)" [ref=e106] [cursor=pointer]:
+                - img [ref=e107]
+                - generic [ref=e110]:
+                  - generic [ref=e111]: Export to CSV
+                  - generic [ref=e112]: Download data as CSV
+                - generic [ref=e113]: X(onSomePages)
+            - generic [ref=e114]: Settings
+            - group "Settings" [ref=e115]:
+              - generic [ref=e116]: Settings
+              - option "Toggle Theme Switch to dark mode ⌘⇧D" [ref=e117] [cursor=pointer]:
+                - img [ref=e118]
+                - generic [ref=e120]:
+                  - generic [ref=e121]: Toggle Theme
+                  - generic [ref=e122]: Switch to dark mode
+                - generic [ref=e123]: ⌘⇧D
+              - option "Focus Search Focus global search input /" [ref=e124] [cursor=pointer]:
+                - img [ref=e125]
+                - generic [ref=e128]:
+                  - generic [ref=e129]: Focus Search
+                  - generic [ref=e130]: Focus global search input
+                - generic [ref=e131]: /
+            - generic [ref=e132]: Help
+            - group "Help" [ref=e133]:
+              - generic [ref=e134]: Help
+              - option "Keyboard Shortcuts View all keyboard shortcuts ?" [ref=e135] [cursor=pointer]:
+                - img [ref=e136]
+                - generic [ref=e139]:
+                  - generic [ref=e140]: Keyboard Shortcuts
+                  - generic [ref=e141]: View all keyboard shortcuts
+                - generic [ref=e142]: "?"
+        - generic [ref=e144]:
+          - generic [ref=e145]: ↑↓ to navigate
+          - generic [ref=e146]: ↵ to select
+          - generic [ref=e147]: esc to close
+```

@@ -1,0 +1,196 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>nextjs-ui-migration-epic</epicId>
+    <storyId>15</storyId>
+    <title>Agent Performance Dashboard - Error Analysis Table</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-21</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-15-agent-performance-errors.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer</asA>
+    <iWant>to see a breakdown of errors by type and frequency</iWant>
+    <soThat>I can prioritize bug fixes</soThat>
+    <tasks>
+      - Task 1: Set up component structure and API integration (AC #7)
+      - Task 2: Implement table with sorting and pagination (AC #1, #2)
+      - Task 3: Add severity indicators and badges (AC #3)
+      - Task 4: Implement search and filter (AC #2)
+      - Task 5: Create error detail modal (AC #4)
+      - Task 6: Implement CSV export (AC #5)
+      - Task 7: Add loading, empty, and error states (AC #6)
+      - Task 8: Accessibility and keyboard navigation (AC #8)
+      - Task 9: Testing and validation (All ACs)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1. Error analysis table displays: error type/message (truncated 80 chars), occurrences count, first/last seen timestamps, affected executions count, severity indicator
+    2. Table features: sort by column (asc/desc), search/filter by error message (debounced), click row for details modal, pagination (20/page), CSV export button
+    3. Severity badges: low (&lt;5 gray), medium (5-20 yellow), high (&gt;20 red)
+    4. Error detail modal: full error message, stack trace (monospace), metadata (type, timestamps, occurrences), clickable execution IDs, close button + ESC key
+    5. CSV export: all columns, formatted timestamps, full error messages, filename agent-{id}-errors-{date}.csv
+    6. Loading/empty/error states: skeleton table, "No errors found", "Failed to load" with retry
+    7. API integration: GET /api/agents/{id}/error-analysis with date range params, auto-refresh on dependency change
+    8. Accessibility: keyboard navigation (Tab/Enter), ARIA labels, screen reader support, focus management
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc path="docs/nextjs-ui-migration-tech-spec-v2.md" title="Next.js UI Migration Technical Specification" section="Technology Stack">
+        Details Next.js 14 App Router, TanStack Query v5, shadcn/ui components, TypeScript strict mode. Specifies table component should use TanStack Table for sorting/pagination.
+      </doc>
+      <doc path="docs/epics-nextjs-feature-parity-completion.md" title="Feature Parity Epic" section="Story 1.7 - Agent Performance Error Analysis">
+        Error analysis table requirements: 8 ACs covering table display, sorting, search, severity badges, modal details, CSV export, loading states, accessibility. Mentions TanStack Table, papaparse for CSV.
+      </doc>
+      <doc path="docs/architecture.md" title="System Architecture" section="Tech Stack - Admin UI">
+        Confirms Next.js 14, shadcn/ui, TanStack Query for data fetching, RBAC enforcement pattern. Agent performance requires developer/admin roles.
+      </doc>
+    </docs>
+    <code>
+      <artifact path="nextjs-ui/app/dashboard/agent-performance/page.tsx" kind="page" symbol="AgentPerformancePage" lines="1-100" reason="Parent page that provides agent selector, date range controls, RBAC enforcement pattern. Error analysis component will integrate here.">
+        Shows 'use client', useState/useEffect for agent selection, date range state management, RBAC check (developer/admin only), auto-refresh 60s pattern.
+      </artifact>
+      <artifact path="nextjs-ui/components/costs/TokenBreakdownTable.tsx" kind="component" symbol="TokenBreakdownTable" lines="1-80" reason="Reference implementation for sortable table with TanStack Table patterns, tri-state sorting, loading skeleton, formatters.">
+        Demonstrates column sorting (asc/desc/null), SortIcon component, LoadingSkeleton pattern, formatLargeNumber/formatCurrency/formatPercentage utilities. Model for error table implementation.
+      </artifact>
+      <artifact path="nextjs-ui/lib/api/agents.ts" kind="api-client" symbol="agents API" lines="1-123" reason="Agent API client patterns using apiClient wrapper. Shows GET /api/v1/agents/{id} pattern to follow for error analysis endpoint.">
+        Defines Agent type, getAgent/getAgents functions with typed responses. Pattern: GET /api/v1/agents/{id}/error-analysis will follow same structure.
+      </artifact>
+      <artifact path="nextjs-ui/components/ui/Table.tsx" kind="component" symbol="shadcn Table" reason="Base shadcn/ui Table component for consistent styling across all tables.">
+        Provides Table, TableHeader, TableBody, TableRow, TableHead, TableCell primitives with Tailwind classes for consistent design.
+      </artifact>
+    </code>
+    <dependencies>
+      <frontend>
+        <package name="next" version="14.2.15" reason="App Router, Server Components, Client Components" />
+        <package name="react" version="18.3.1" reason="Component framework" />
+        <package name="@tanstack/react-query" version="5.x" reason="Data fetching, caching, auto-refresh for API calls" />
+        <package name="@tanstack/react-table" version="8.x" reason="Table sorting, pagination, filtering (via shadcn/ui)" />
+        <package name="papaparse" version="latest" reason="CSV export functionality (AC #5)" />
+        <package name="lucide-react" version="latest" reason="Icons (sort arrows, search, export, close)" />
+        <package name="tailwindcss" version="3.x" reason="Styling via shadcn/ui design system" />
+      </frontend>
+      <backend>
+        <note>Backend API endpoint GET /api/agents/{id}/error-analysis must exist or be created. Returns ErrorAnalysisDTO[] with error_type, error_message, occurrences, first_seen, last_seen, affected_executions, sample_stack_trace, execution_ids.</note>
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    1. File Size: All files must be ≤500 lines (project constraint C1 from Story 14 learnings)
+    2. TypeScript Strict: No `any` types, explicit interfaces for all data structures
+    3. RBAC: developer/admin only (enforced in parent page, inherited by component)
+    4. Accessibility: WCAG 2.1 AA compliance (keyboard nav, ARIA labels, screen reader support)
+    5. Testing: ≥90% AC coverage, unit tests for utils, component tests for UI, integration tests for workflows
+    6. Build: Must pass `npm run build` with 0 TypeScript errors before code review
+    7. Component Split: Follow Story 14 pattern - separate files for table, modal, badge, hook (≤500 lines each)
+    8. Formatting: Black/Prettier compliant, no linting errors
+    9. 2025 Best Practices: TanStack Query v5 patterns (staleTime, retry), Next.js 14 App Router conventions
+    10. Error Handling: Graceful degradation, loading states, error boundaries with retry
+  </constraints>
+  <interfaces>
+    <interface name="ErrorAnalysisDTO" kind="API Response Type">
+      <signature>
+        interface ErrorAnalysisDTO {
+          error_type: string;
+          error_message: string;
+          occurrences: number;
+          first_seen: string; // ISO 8601 timestamp
+          last_seen: string;  // ISO 8601 timestamp
+          affected_executions: number;
+          sample_stack_trace?: string;
+          execution_ids: string[];
+        }
+      </signature>
+      <path>nextjs-ui/types/agent-performance.ts (to be created)</path>
+    </interface>
+    <interface name="GET /api/agents/{id}/error-analysis" kind="REST API Endpoint">
+      <signature>
+        GET /api/agents/{id}/error-analysis?start_date={ISO8601}&amp;end_date={ISO8601}
+        Response: { errors: ErrorAnalysisDTO[] }
+      </signature>
+      <path>Backend FastAPI endpoint (may need creation if not exists)</path>
+    </interface>
+    <interface name="ErrorAnalysisTable Props" kind="React Component Interface">
+      <signature>
+        interface ErrorAnalysisTableProps {
+          agentId: string;
+          startDate: Date;
+          endDate: Date;
+        }
+      </signature>
+      <path>nextjs-ui/app/dashboard/agent-performance/components/ErrorAnalysisTable.tsx</path>
+    </interface>
+    <interface name="SeverityBadge Props" kind="React Component Interface">
+      <signature>
+        interface SeverityBadgeProps {
+          occurrences: number;
+          className?: string;
+        }
+        // Severity: low (&lt;5), medium (5-20), high (&gt;20)
+      </signature>
+      <path>nextjs-ui/components/agent-performance/SeverityBadge.tsx</path>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+      Jest + React Testing Library for component tests. Unit tests for utility functions (getSeverityLevel, exportErrorsToCSV). Integration tests for modal workflows. Target: ≥90% AC coverage, Story 14 achieved 98.6% (70/71 tests). All test files must be ≤500 lines. Use @testing-library/react for component rendering, fireEvent/userEvent for interactions, waitFor for async. Mock TanStack Query with QueryClientProvider wrapper.
+    </standards>
+    <locations>
+      nextjs-ui/app/dashboard/agent-performance/components/__tests__/
+      nextjs-ui/components/agent-performance/__tests__/
+      nextjs-ui/lib/utils/__tests__/
+      nextjs-ui/lib/api/__tests__/
+    </locations>
+    <ideas>
+      <test id="AC1" criteria="Error analysis table displays correctly">
+        - Test table renders with correct columns (error type, message, occurrences, first/last seen, affected executions, severity)
+        - Test error message truncation to 80 chars with ellipsis
+        - Test timestamp formatting (ISO 8601 → human readable)
+      </test>
+      <test id="AC2" criteria="Table features work">
+        - Test column sorting (click header toggles asc/desc/null)
+        - Test search filter (debounced 300ms, case-insensitive substring match)
+        - Test row click opens modal
+        - Test pagination (20 per page, prev/next buttons, page numbers)
+        - Test CSV export downloads file with correct name format
+      </test>
+      <test id="AC3" criteria="Severity badges display correctly">
+        - Test getSeverityLevel function: 3 occurrences → 'low', 10 → 'medium', 25 → 'high'
+        - Test badge color classes: low (gray), medium (yellow), high (red)
+      </test>
+      <test id="AC4" criteria="Error detail modal">
+        - Test modal opens with full error message (not truncated)
+        - Test stack trace rendering in monospace
+        - Test metadata table display
+        - Test execution ID links clickable
+        - Test close functionality (X button, ESC key, overlay click)
+      </test>
+      <test id="AC5" criteria="CSV export">
+        - Test exportErrorsToCSV generates correct CSV structure
+        - Test filename format: agent-{id}-errors-{date}.csv
+        - Test full error messages included (not truncated)
+        - Test timestamp formatting in CSV
+      </test>
+      <test id="AC6" criteria="Loading/empty/error states">
+        - Test skeleton table renders during loading
+        - Test empty state message when no errors
+        - Test error state with retry button functionality
+      </test>
+      <test id="AC7" criteria="API integration">
+        - Test useAgentErrorAnalysis hook fetches data
+        - Test auto-refresh when agentId or dateRange changes
+        - Test loading state while fetching
+      </test>
+      <test id="AC8" criteria="Accessibility">
+        - Test keyboard navigation (Tab through table rows)
+        - Test Enter key opens modal
+        - Test ARIA labels on sort buttons
+        - Test screen reader text for row count
+      </test>
+    </ideas>
+  </tests>
+</story-context>

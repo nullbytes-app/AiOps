@@ -1,0 +1,70 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - heading "System Health" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Monitor the health status of all system components
+    - navigation [ref=e7]: Dashboard > System Health
+    - generic [ref=e8]:
+      - generic [ref=e9]:
+        - generic [ref=e10]:
+          - generic [ref=e11]:
+            - img [ref=e12]
+            - text: API Server
+          - generic [ref=e15]: Healthy
+        - generic [ref=e17]:
+          - generic [ref=e18]:
+            - generic [ref=e19]: Uptime
+            - generic [ref=e20]: 0h
+          - generic [ref=e21]:
+            - generic [ref=e22]: Response Time
+            - generic [ref=e23]: 12ms
+          - generic [ref=e24]: Updated 0 seconds ago
+      - generic [ref=e25]:
+        - generic [ref=e26]:
+          - generic [ref=e27]:
+            - img [ref=e28]
+            - text: Celery Workers
+          - generic [ref=e31]: Healthy
+        - generic [ref=e33]:
+          - generic [ref=e34]:
+            - generic [ref=e35]: Response Time
+            - generic [ref=e36]: 8ms
+          - generic [ref=e38]:
+            - generic [ref=e39]: Active Workers
+            - generic [ref=e40]: "5"
+          - generic [ref=e41]: Updated 0 seconds ago
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - img [ref=e45]
+            - text: PostgreSQL Database
+          - generic [ref=e49]: Healthy
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: Uptime
+            - generic [ref=e54]: 0h
+          - generic [ref=e55]:
+            - generic [ref=e56]: Response Time
+            - generic [ref=e57]: 15ms
+          - generic [ref=e58]: Updated 0 seconds ago
+      - generic [ref=e59]:
+        - generic [ref=e60]:
+          - generic [ref=e61]:
+            - img [ref=e62]
+            - text: Redis Cache
+          - generic [ref=e64]: Healthy
+        - generic [ref=e66]:
+          - generic [ref=e67]:
+            - generic [ref=e68]: Uptime
+            - generic [ref=e69]: 0h
+          - generic [ref=e70]:
+            - generic [ref=e71]: Response Time
+            - generic [ref=e72]: 5ms
+          - generic [ref=e73]: Updated 0 seconds ago
+    - generic [ref=e74]: "Auto-refreshes every 5 seconds • Last updated: 7:07:53 AM"
+  - region "Notifications alt+T"
+  - alert [ref=e75]
+```

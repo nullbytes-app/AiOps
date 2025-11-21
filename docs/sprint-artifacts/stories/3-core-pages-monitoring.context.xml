@@ -1,0 +1,439 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>3</storyId>
+    <title>Core Monitoring Pages</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/3-core-pages-monitoring.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>MSP operator</asA>
+    <iWant>real-time monitoring dashboards showing system health, agent execution metrics, and ticket processing status</iWant>
+    <soThat>I can proactively identify and resolve issues before they impact service delivery</soThat>
+    <tasks>
+      ### Task 1: Setup API Client &amp; Query Hooks (3 hours)
+      - Create lib/api/client.ts with axios instance
+      - Implement lib/api/health.ts with getStatus() function
+      - Implement lib/api/metrics.ts with getAgentMetrics() and getTicketMetrics()
+      - Create lib/hooks/useHealthStatus.ts with TanStack Query hook
+      - Create lib/hooks/useAgentMetrics.ts with data transformation
+      - Create lib/hooks/useTicketMetrics.ts
+      - Add TypeScript interfaces for all API responses
+
+      ### Task 2: Build Reusable Chart Components (4 hours)
+      - Install Recharts v3.3.0
+      - Create components/charts/LineChart.tsx with ResponsiveContainer
+      - Create components/charts/AreaChart.tsx with gradient fills
+      - Create components/charts/Sparkline.tsx for mini trend charts
+      - Implement components/dashboard/agents/QueueGauge.tsx using RadialBarChart
+      - Add dark mode support using CSS variables
+      - Write Storybook stories for each chart component
+
+      ### Task 3: Implement System Health Dashboard Page (5 hours)
+      - Create app/(dashboard)/health/page.tsx
+      - Create components/dashboard/health/HealthCard.tsx
+      - Implement HealthMetric.tsx for displaying metrics
+      - Add RefreshIndicator.tsx for background refresh state
+      - Implement auto-refresh logic using refetchInterval: 5000
+      - Add loading skeleton and error state with retry button
+      - Apply Liquid Glass styling to all cards
+
+      ### Task 4: Implement Agent Metrics Dashboard Page (6 hours)
+      - Create app/(dashboard)/agents/page.tsx
+      - Create KPICard.tsx for top 3 metrics
+      - Implement ExecutionChart.tsx with Recharts LineChart
+      - Create AgentTable.tsx with sortable columns and pagination
+      - Implement TrendIndicator.tsx component
+      - Add data transformation in useAgentMetrics hook
+      - Add mobile responsive layout
+
+      ### Task 5: Implement Ticket Processing Dashboard Page (5 hours)
+      - Create app/(dashboard)/tickets/page.tsx
+      - Implement QueueGauge.tsx with color-coded RadialBarChart
+      - Create ProcessingRateCard.tsx with sparkline
+      - Implement ErrorRateCard.tsx with conditional color coding
+      - Create RecentActivity.tsx table component
+      - Add auto-refresh logic (queue: 10s, activity: 15s)
+
+      ### Task 6: Update Navigation &amp; Add Icons (2 hours)
+      - Update components/dashboard/Sidebar.tsx to add "Monitoring" group
+      - Add 3 navigation items: System Health, Agent Metrics, Ticket Processing
+      - Implement active page highlighting in sidebar
+      - Add breadcrumbs component
+      - Update mobile bottom navigation
+
+      ### Task 7: Setup MSW Mocks for Testing (3 hours)
+      - Install MSW v2.6.5
+      - Create mocks/server.ts with MSW server setup
+      - Implement mocks/handlers/health.ts
+      - Implement mocks/handlers/metrics.ts
+      - Configure Jest to use MSW
+
+      ### Task 8: Write Component Tests (6 hours)
+      - Write HealthCard.test.tsx (status badges, auto-refresh, error handling)
+      - Write ExecutionChart.test.tsx (data transformation, chart rendering)
+      - Write AgentTable.test.tsx (sorting, pagination, search)
+      - Write QueueGauge.test.tsx (color logic)
+      - Achieve >80% coverage for dashboard components
+
+      ### Task 9: E2E Testing with Playwright (4 hours)
+      - Install Playwright
+      - Write e2e/health-dashboard.spec.ts
+      - Write e2e/agent-metrics.spec.ts
+      - Write e2e/ticket-processing.spec.ts
+      - Test mobile responsive layout
+
+      ### Task 10: Accessibility Audit &amp; Fixes (3 hours)
+      - Install axe-core
+      - Add ARIA labels to all charts
+      - Implement aria-live for status badges
+      - Ensure keyboard navigation for table sorting
+      - Fix color contrast issues
+
+      ### Task 11: Performance Optimization (2 hours)
+      - Run Lighthouse audit on all 3 pages
+      - Implement React.memo for chart components
+      - Optimize Recharts performance
+      - Verify no layout shift during data refresh
+      - Add error boundaries around charts
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    ### AC-1: System Health Dashboard (/dashboard/health)
+    - Page renders with 4 health status cards (API, Workers, PostgreSQL, Redis)
+    - Each card shows status badge, primary metric, secondary metrics, last updated timestamp
+    - Auto-refresh every 5 seconds using TanStack Query refetchInterval
+    - Empty state with retry button if no data
+    - Error handling with toast notification and stale data indicator
+
+    ### AC-2: Agent Execution Metrics Dashboard (/dashboard/agents)
+    - 3 KPI cards showing Total Executions, Success Rate, Average Cost
+    - Agent execution timeline chart (Recharts LineChart, 24h hourly buckets)
+    - Agent performance table (sortable, paginated, searchable)
+    - Auto-refresh every 30 seconds
+    - Mobile responsive (cards stack, chart scales, table scrolls)
+
+    ### AC-3: Ticket Processing Dashboard (/dashboard/tickets)
+    - Queue depth gauge (circular, color-coded by depth)
+    - Processing rate card with sparkline chart
+    - Error rate card with conditional color coding
+    - Recent ticket activity table (last 20 tickets)
+    - Auto-refresh (queue: 10s, activity: 15s)
+
+    ### AC-4: Data Fetching &amp; Performance
+    - All API calls use useQuery with proper queryKey structure
+    - staleTime configured (health: 4s, agents: 25s, tickets: 8s)
+    - refetchInterval configured per AC requirements
+    - Loading states show skeleton UI
+    - Error states display toast and show last data with stale indicator
+    - Page load <2s on 3G, chart render <500ms
+
+    ### AC-5: Navigation &amp; Layout
+    - Sidebar "Monitoring" group with 3 links (System Health, Agent Metrics, Ticket Processing)
+    - Active page highlighted in sidebar
+    - Page headers with H1 title, subtitle, breadcrumbs
+    - Liquid Glass styling applied to all cards
+
+    ### AC-6: Testing &amp; Quality
+    - Component tests (>80% coverage)
+    - Integration tests (E2E for navigation, data load, auto-refresh)
+    - Accessibility audit passes (zero axe violations)
+    - Lighthouse Performance score >90
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/PRD.md</path>
+        <title>AI Agents Product Requirements Document</title>
+        <section>Functional Requirements - Admin UI</section>
+        <snippet>FR027: Admin UI shall display real-time system status dashboard with key metrics (queue depth, success rate, active workers). FR031: Admin UI shall display worker health and resource utilization metrics.</snippet>
+      </doc>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration</title>
+        <section>Story 3: Core Pages - Monitoring</section>
+        <snippet>Build 4 monitoring pages (Dashboard, Agent Performance, LLM Costs, Workers) using Recharts for charts, TanStack Table for data tables, React Query for polling. All pages support dark mode, responsive design, and empty states.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics-nextjs-ui-migration.md</path>
+        <title>Epic 3: Next.js UI Core Implementation</title>
+        <section>Story 3: Core Monitoring Pages</section>
+        <snippet>Implement monitoring dashboards (System Health, Agent Metrics, Ticket Processing) with real-time polling, charts (Recharts), tables (TanStack Table), and role-based UI. Mobile responsive, dark mode, empty states required.</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Admin UI Framework</section>
+        <snippet>Originally Streamlit for rapid prototyping, now migrating to Next.js 14 with App Router. Stack: FastAPI backend, PostgreSQL 17, Redis 7.x, React Query for polling, Prometheus metrics.</snippet>
+      </doc>
+      <doc>
+        <path>docs/design-system/design-tokens.json</path>
+        <title>Liquid Glass Design System Tokens</title>
+        <section>Colors, Typography, Spacing</section>
+        <snippet>Success: hsl(142, 76%, 36%), Warning: hsl(48, 96%, 53%), Destructive: hsl(0, 84%, 60%). Typography: H1 text-3xl, H2 text-xl, body text-sm. Spacing: gap-6, p-6.</snippet>
+      </doc>
+      <doc>
+        <path>docs/user-research/personas.md</path>
+        <title>User Personas</title>
+        <section>Persona 3: Operator (Sam Patel)</section>
+        <snippet>L1/L2 Support Technician. Goals: View dashboards, pause queue during incidents, review logs. Pain Points: Mobile experience terrible, slow to respond. Usage: Desktop + Mobile, on-call 24/7.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>nextjs-ui/app/dashboard/page.tsx</path>
+        <kind>page</kind>
+        <symbol>DashboardPage</symbol>
+        <lines>1-85</lines>
+        <reason>Existing dashboard page with Liquid Glass cards showing placeholder data - pattern to follow for monitoring pages</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/ui/Card.tsx</path>
+        <kind>component</kind>
+        <symbol>Card</symbol>
+        <reason>Reusable glass-card component with padding variants and hover effects - use for all metric cards</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/dashboard/Sidebar.tsx</path>
+        <kind>component</kind>
+        <symbol>Sidebar</symbol>
+        <reason>Navigation component to update with Monitoring group and 3 new links</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/providers/ReactQueryProvider.tsx</path>
+        <kind>provider</kind>
+        <symbol>ReactQueryProvider</symbol>
+        <reason>TanStack Query provider setup - check default configuration for staleTime and refetchInterval</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/__tests__/components/ui/Card.test.tsx</path>
+        <kind>test</kind>
+        <symbol>Card tests</symbol>
+        <reason>Test pattern example using Jest + React Testing Library - follow for monitoring component tests</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/ui/Loading.tsx</path>
+        <kind>component</kind>
+        <symbol>Loading</symbol>
+        <reason>Loading component for skeleton states</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/ui/Badge.tsx</path>
+        <kind>component</kind>
+        <symbol>Badge</symbol>
+        <reason>Badge component for status indicators (healthy/degraded/down)</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package>next</package>
+        <version>14.2.15</version>
+        <reason>Next.js 14 App Router for server components and routing</reason>
+      </node>
+      <package>react</package>
+        <version>18.3.1</version>
+        <reason>React 18 with server components support</reason>
+      </node>
+      <package>@tanstack/react-query</package>
+        <version>5.62.2</version>
+        <reason>Data fetching with auto-refresh (refetchInterval) and caching</reason>
+      </node>
+      <package>recharts</package>
+        <version>3.3.0 (to install)</version>
+        <reason>Chart library for LineChart, AreaChart, RadialBarChart visualizations</reason>
+      </node>
+      <package>lucide-react</package>
+        <version>0.462.0</version>
+        <reason>Icon library for navigation icons (HeartPulse, Bot, Ticket)</reason>
+      </node>
+      <package>msw</package>
+        <version>2.6.5</version>
+        <reason>API mocking for tests - already installed</reason>
+      </node>
+      <package>jest</package>
+        <version>30.2.0</version>
+        <reason>Test framework - already configured</reason>
+      </node>
+      <package>@testing-library/react</package>
+        <version>16.3.0</version>
+        <reason>React component testing utilities - already installed</reason>
+      </node>
+      <package>@playwright/test</package>
+        <version>latest (to install)</version>
+        <reason>E2E testing framework for monitoring pages</reason>
+      </node>
+      <package>@axe-core/react</package>
+        <version>latest (to install)</version>
+        <reason>Accessibility testing during development</reason>
+      </node>
+      <package>axe-playwright</package>
+        <version>latest (to install)</version>
+        <reason>Accessibility testing in E2E tests</reason>
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    - Use Next.js 14 App Router (server components for initial page load, client components for interactivity)
+    - All API integration via TanStack Query v5 with refetchInterval for auto-refresh
+    - Charts must use Recharts v3.3.0 (ResponsiveContainer for fluid width)
+    - Follow Liquid Glass design system: glass-card class, design tokens from docs/design-system/design-tokens.json
+    - TypeScript strict mode enabled - all API responses must be typed
+    - Mobile-first responsive design: cards stack on <768px, tables scroll horizontally
+    - Dark mode support using CSS variables
+    - All interactive elements must be keyboard accessible
+    - ARIA labels required for charts and status updates
+    - Loading states use skeleton UI (no full-page spinners after mount)
+    - Error states show toast (Sonner) + display last data with "Stale" badge
+    - Auto-refresh must pause when tab inactive (refetchIntervalInBackground: false)
+    - Performance budget: Page load <2s on 3G, chart render <500ms, CLS <0.1
+    - Test coverage >80% for all dashboard components
+    - Follow existing patterns from Story 2 (nextjs-ui/app/dashboard/page.tsx)
+    - Use MSW for API mocking in tests (already configured)
+    - Icons from lucide-react (HeartPulse, Bot, Ticket, RefreshCw, AlertCircle)
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/health</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Response 200: {
+          api: { status: 'healthy' | 'degraded' | 'down', uptime: number, response_time_ms: number },
+          workers: { status: string, details: { active_workers: number, total_workers: number, cpu_usage_percent: number, memory_usage_mb: number } },
+          database: { status: string, response_time_ms: number, details: { connection_count: number, max_connections: number } },
+          redis: { status: string, details: { memory_usage_mb: number, max_memory_mb: number, hit_rate: number } },
+          timestamp: string
+        }
+      </signature>
+      <path>Backend API - Epic 1 (Story 1.2)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/metrics/agents</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Query: time_range ('24h' | '7d' | '30d')
+        Response 200: {
+          total_executions: number,
+          successful_executions: number,
+          failed_executions: number,
+          total_cost: number,
+          hourly_breakdown: Array&lt;{ hour: string, success_count: number, failure_count: number }&gt;,
+          agent_breakdown: Array&lt;{ agent_name: string, total_runs: number, success_rate: number, avg_latency_ms: number, total_cost: number }&gt;
+        }
+      </signature>
+      <path>Backend API - Epic 8 (Story 8.17)</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/metrics/queue</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Response 200: {
+          queue_depth: number,
+          processing_rate_per_hour: number,
+          error_rate_percentage: number,
+          hourly_processing_history: Array&lt;{ hour: string, processed: number }&gt;,
+          recent_tickets: Array&lt;{ ticket_id: string, status: 'success' | 'failed' | 'pending', processing_time_ms: number, timestamp: string }&gt;
+        }
+      </signature>
+      <path>Backend API - Epic 4 (Story 4.1)</path>
+    </interface>
+    <interface>
+      <name>useQuery hook pattern</name>
+      <kind>React hook signature</kind>
+      <signature>
+        useQuery({
+          queryKey: ['resource', 'action', params],
+          queryFn: () => apiFunction(params),
+          staleTime: number (ms),
+          refetchInterval: number (ms),
+          refetchIntervalInBackground: boolean,
+          retry: number,
+          select: (data) => transformed data
+        })
+      </signature>
+      <path>@tanstack/react-query v5 - Context7 documentation</path>
+    </interface>
+    <interface>
+      <name>ResponsiveContainer pattern</name>
+      <kind>Recharts component</kind>
+      <signature>
+        &lt;ResponsiveContainer width="100%" height={300}&gt;
+          &lt;LineChart data={data} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}&gt;
+            &lt;CartesianGrid strokeDasharray="3 3" /&gt;
+            &lt;XAxis dataKey="name" /&gt;
+            &lt;YAxis /&gt;
+            &lt;Tooltip /&gt;
+            &lt;Legend /&gt;
+            &lt;Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} /&gt;
+          &lt;/LineChart&gt;
+        &lt;/ResponsiveContainer&gt;
+      </signature>
+      <path>recharts v3.3.0 - Context7 documentation</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Test framework: Jest 30.2.0 with React Testing Library 16.3.0
+      Test location: nextjs-ui/__tests__/
+      Mocking: MSW 2.6.5 for API mocking (already configured)
+      Coverage target: >80% for dashboard components
+      Patterns from existing tests:
+      - Use render() from @testing-library/react
+      - Use screen.getBy* queries
+      - Mock TanStack Query with QueryClient wrapper
+      - Mock MSW handlers in mocks/handlers/
+      - Test accessibility with axe-core
+      - E2E with Playwright (to install)
+    </standards>
+    <locations>
+      nextjs-ui/__tests__/components/dashboard/health/
+      nextjs-ui/__tests__/components/dashboard/agents/
+      nextjs-ui/__tests__/components/dashboard/tickets/
+      nextjs-ui/__tests__/components/charts/
+      nextjs-ui/e2e/ (Playwright tests)
+    </locations>
+    <ideas>
+      <test id="AC-1">
+        - HealthCard.test.tsx: Test status badge colors (green/yellow/red), auto-refresh every 5s, error handling with retry
+        - Test skeleton loading state on initial mount
+        - Test stale indicator when data is old
+        - Test last updated timestamp updates
+      </test>
+      <test id="AC-2">
+        - ExecutionChart.test.tsx: Test chart renders with 24 hourly data points, tooltip shows on hover
+        - AgentTable.test.tsx: Test sorting by column, pagination (10 rows per page), search filter
+        - KPICard.test.tsx: Test percentage calculations, trend indicators (↑↓→)
+        - Test mobile responsive layout (cards stack, table scrolls)
+      </test>
+      <test id="AC-3">
+        - QueueGauge.test.tsx: Test color logic (green 0-50, yellow 51-100, red 101+)
+        - ProcessingRateCard.test.tsx: Test sparkline rendering
+        - RecentActivity.test.tsx: Test table rendering, click navigation to ticket details
+      </test>
+      <test id="AC-4">
+        - Test queryKey structure matches pattern
+        - Test refetchInterval triggers refetch after specified time
+        - Test refetchIntervalInBackground pauses when tab inactive
+        - Test error state shows toast and displays last data
+      </test>
+      <test id="AC-5">
+        - Test sidebar "Monitoring" group renders with 3 links
+        - Test active page highlighting
+        - Test breadcrumbs show: Dashboard > [Page Name]
+      </test>
+      <test id="AC-6">
+        - E2E test: Navigate to /dashboard/health → verify 4 cards render → verify auto-refresh
+        - E2E test: Navigate to /dashboard/agents → verify chart renders → test table sorting
+        - Accessibility test: Run axe audit → zero violations
+        - Performance test: Lighthouse audit → score >90
+      </test>
+    </ideas>
+  </tests>
+</story-context>

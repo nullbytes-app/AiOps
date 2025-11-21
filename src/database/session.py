@@ -7,16 +7,33 @@ technical specifications with max 20 connections per service.
 """
 
 from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import pool
 
-from src.config import settings
+from src import config
 from src.database.models import Base
 
 
 # Global async engine instance (lazy initialized)
 _async_engine = None
+
+
+def _get_settings():
+    """
+    Get settings, initializing if necessary.
+
+    This helper handles the case where settings is None during test collection
+    but environment variables have been set by pytest_configure.
+    """
+    if config.settings is None:
+        # Try to initialize settings (this works if env vars are set)
+        try:
+            config.settings = config.Settings()
+        except Exception:
+            pass  # If initialization fails, settings remains None
+    return config.settings
 
 
 def get_async_engine():
@@ -37,6 +54,16 @@ def get_async_engine():
     global _async_engine
 
     if _async_engine is None:
+        # Get settings (initializing if necessary for tests)
+        settings = _get_settings()
+
+        # Handle case when settings is None (during test initialization)
+        if settings is None:
+            raise RuntimeError(
+                "Settings not initialized. Please ensure environment variables are set "
+                "and settings module is properly loaded."
+            )
+
         if not settings.database_url:
             raise RuntimeError(
                 "Database URL not configured. Please set AI_AGENTS_DATABASE_URL "
@@ -54,14 +81,29 @@ def get_async_engine():
     return _async_engine
 
 
-# Create async session factory
-async_session_maker = async_sessionmaker(
-    get_async_engine(),
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autocommit=False,
-    autoflush=False,
-)
+# Global async session maker (lazy initialized)
+_async_session_maker = None
+
+
+def get_async_session_maker():
+    """
+    Get or create the global async session maker.
+
+    Returns:
+        async_sessionmaker: SQLAlchemy async session factory
+    """
+    global _async_session_maker
+
+    if _async_session_maker is None:
+        _async_session_maker = async_sessionmaker(
+            get_async_engine(),
+            class_=AsyncSession,
+            expire_on_commit=False,
+            autocommit=False,
+            autoflush=False,
+        )
+
+    return _async_session_maker
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
@@ -83,7 +125,57 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     Raises:
         Exception: If connection fails
     """
-    async with async_session_maker() as session:
+    session_maker = get_async_session_maker()
+    async with session_maker() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
+
+
+@asynccontextmanager
+async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
+    """
+    Context manager for database sessions in background tasks and webhooks.
+
+    Use this for non-FastAPI contexts where Depends() is not available:
+    - Webhook handlers (Jira, ServiceDesk Plus)
+    - Celery background tasks
+    - Scheduled jobs (APScheduler)
+    - CLI commands and scripts
+    - Direct async functions outside request handlers
+
+    This is identical to get_async_session() but with clearer naming for
+    non-request contexts. Both yield a session that auto-commits on success
+    and auto-rolls back on exceptions.
+
+    Usage (Webhook Handler):
+        async def handle_webhook(payload: dict):
+            async with get_db_session() as db:
+                tenant_service = TenantService(db, redis_client)
+                config = await tenant_service.get_tenant_config(tenant_id)
+                # ... process webhook
+
+    Usage (Celery Task):
+        @celery_app.task
+        async def process_enhancement(job_id: str):
+            async with get_db_session() as db:
+                job_service = JobService(db, redis_client)
+                await job_service.update_status(job_id, "processing")
+                # ... process job
+
+    Yields:
+        AsyncSession: Database session (auto-commits on success, auto-rolls back on error)
+
+    Raises:
+        Exception: If database operations fail
+    """
+    session_maker = get_async_session_maker()
+    async with session_maker() as session:
         try:
             yield session
             await session.commit()

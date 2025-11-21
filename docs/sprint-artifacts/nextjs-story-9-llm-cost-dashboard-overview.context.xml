@@ -1,0 +1,309 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>nextjs-ui-migration-epic</epicId>
+    <storyId>9</storyId>
+    <title>LLM Cost Dashboard - Overview Metrics</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-20</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-9-llm-cost-dashboard-overview.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>an operations manager</asA>
+    <iWant>to see real-time cost summary metrics</iWant>
+    <soThat>I can track spend and stay within budget</soThat>
+    <tasks>- Create nextjs-ui/app/dashboard/llm-costs/page.tsx (AC: #1)
+  - Implement page layout with metric cards grid
+  - Add RBAC check (admin/operator only)
+- Create custom hook useLLMCostSummary() with React Query (AC: #1, #2)
+  - Configure 60s refetch interval for auto-refresh
+  - Implement error handling and retry logic
+- Create CostMetricsCards component with loading states (AC: #1, #2)
+  - Implement loading skeleton for metric cards
+  - Add proper TypeScript types for CostSummaryDTO
+- Implement metric formatting utilities (AC: #2)
+  - Currency formatter ($1,234.56)
+  - Large number formatter (1.2K, 1.2M)
+  - Percentage change calculator and renderer
+- Add error boundary and error states (AC: #1)
+  - Show error message if API fails
+  - Provide retry button
+- Write unit tests for metrics display (AC: All)
+  - Test currency formatting
+  - Test large number formatting
+  - Test percentage change logic
+- Test RBAC (admin/operator only, redirect others) (AC: #1)
+  - Verify non-admin users redirected to dashboard
+  - Test role-based conditional rendering
+- Ensure responsive design (4 cols desktop, 2 cols tablet, 1 col mobile) (AC: #1)</tasks>
+  </story>
+
+  <acceptanceCriteria>**Given** I have admin or operator role
+**When** I navigate to /dashboard/llm-costs
+**Then** I see a dashboard with:
+- Today's spend (USD, formatted)
+- This week's spend (USD, 7-day rolling)
+- This month's spend (USD, month-to-date)
+- Top spending tenant (name + amount)
+- Top spending agent (name + amount)
+- All metrics update every 60 seconds (auto-refresh)
+- Loading states during fetch
+- Error states if API fails
+
+**And** metrics display with proper formatting:
+- Currency: $1,234.56 (2 decimal places)
+- Large numbers: 1.2K, 1.2M notation
+- Percentage change indicators (↑ 15% vs yesterday)</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration with Liquid Glass Design &amp; RBAC</title>
+        <section>Section 0.2 - Design System Preparation</section>
+        <snippet>Design tokens exported with glassmorphic styles (bg-light: rgba(255, 255, 255, 0.75), backdrop-filter: blur(32px)), responsive layouts for 4 breakpoints, spacing scale (4-128px), typography (H1-H6, body, caption), animation (fast:150ms, base:300ms, slow:500ms)</snippet>
+      </doc>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration</title>
+        <section>ADR-003: JWT roles on-demand</section>
+        <snippet>Lean JWT tokens, fetch role for tenant via /api/v1/users/me/role on-demand instead of embedding roles in JWT to prevent token bloat</snippet>
+      </doc>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration</title>
+        <section>ADR-004: API versioning strategy</section>
+        <snippet>All endpoints must be versioned as /api/v1/* for backward compatibility and future API evolution</snippet>
+      </doc>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration</title>
+        <section>ADR-005: React Query over SWR</section>
+        <snippet>Using @tanstack/react-query for better caching, devtools, mutation support, and refetchInterval patterns over SWR</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics-nextjs-feature-parity-completion.md</path>
+        <title>AI Agents Platform - Next.js UI Feature Parity &amp; Completion</title>
+        <section>Epic 1: Story 1.1 - LLM Cost Dashboard Overview Metrics</section>
+        <snippet>First story in Analytics &amp; Monitoring epic. API ready at GET /api/costs/summary. RBAC: admin + operator only. Use React Query 60s refetch interval, responsive 4/2/1 col grid, loading skeletons, error boundaries, currency formatting</snippet>
+      </doc>
+      <doc>
+        <path>docs/architecture.md</path>
+        <title>AI Agents - Decision Architecture</title>
+        <section>Frontend Stack (Admin UI Epic 6)</section>
+        <snippet>Streamlit 1.30+ for Python admin dashboard. For Next.js UI: FastAPI 0.104+, Pydantic 2.x validation, async patterns, PostgreSQL 17 with RLS for multi-tenant isolation</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>src/api/llm_costs.py</path>
+        <kind>FastAPI router</kind>
+        <symbol>get_cost_summary</symbol>
+        <lines>40-64</lines>
+        <reason>Backend API endpoint that returns CostSummaryDTO - the data source for this story's dashboard metrics</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/llm_cost.py</path>
+        <kind>Pydantic schema</kind>
+        <symbol>CostSummaryDTO</symbol>
+        <lines>187-202</lines>
+        <reason>TypeScript interface definition source - contains today_spend, week_spend, month_spend, total_spend_30d, top_tenant, top_agent fields that must be displayed in UI</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/llm_cost.py</path>
+        <kind>Pydantic schema</kind>
+        <symbol>TenantSpendDTO</symbol>
+        <lines>20-33</lines>
+        <reason>Nested DTO for top_tenant field - contains tenant_id, tenant_name, total_spend, rank</reason>
+      </artifact>
+      <artifact>
+        <path>src/schemas/llm_cost.py</path>
+        <kind>Pydantic schema</kind>
+        <symbol>AgentSpendDTO</symbol>
+        <lines>35-56</lines>
+        <reason>Nested DTO for top_agent field - contains agent_id, agent_name, execution_count, total_cost, avg_cost</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/package.json</path>
+        <kind>npm package manifest</kind>
+        <symbol>dependencies</symbol>
+        <lines>20-55</lines>
+        <reason>Project uses Next.js 14.2.15, React 18.3.1, @tanstack/react-query 5.62.2, recharts 3.3.0, axios 1.7.9, tailwindcss 3.4.14 - all relevant for this story</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/app/dashboard/agents/page.tsx</path>
+        <kind>Next.js page component</kind>
+        <symbol>AgentsPage</symbol>
+        <lines></lines>
+        <reason>Example existing dashboard page showing Next.js 14 App Router patterns, React Query usage, RBAC enforcement, and Liquid Glass design system implementation</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/middleware.ts</path>
+        <kind>Next.js middleware</kind>
+        <symbol>middleware</symbol>
+        <lines></lines>
+        <reason>RBAC middleware that enforces authentication and role-based access - already handles /dashboard/* routes including future /dashboard/llm-costs</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <ecosystem name="npm">
+        <package name="next" version="14.2.15" reason="App Router framework for page routing and SSR" />
+        <package name="react" version="18.3.1" reason="UI component library" />
+        <package name="react-dom" version="18.3.1" reason="React rendering" />
+        <package name="@tanstack/react-query" version="5.62.2" reason="Data fetching with auto-refresh via refetchInterval" />
+        <package name="axios" version="1.7.9" reason="HTTP client for API calls to /api/v1/costs/summary" />
+        <package name="recharts" version="3.3.0" reason="Chart library for future trend visualizations (not used in Story 1.1)" />
+        <package name="next-auth" version="4.24.13" reason="Authentication and session management for RBAC" />
+        <package name="tailwindcss" version="3.4.14" reason="CSS framework for Liquid Glass design system" />
+        <package name="clsx" version="2.1.1" reason="Conditional CSS class utility" />
+        <package name="lucide-react" version="0.462.0" reason="Icon library" />
+        <package name="framer-motion" version="11.11.17" reason="Animation library for micro-interactions" />
+        <package name="sonner" version="2.0.7" reason="Toast notifications for error handling" />
+      </ecosystem>
+      <ecosystem name="python">
+        <package name="fastapi" version="0.104+" reason="Backend API framework serving /api/v1/costs/summary" />
+        <package name="pydantic" version="2.x" reason="Data validation for CostSummaryDTO schema" />
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint id="C1" source="docs/nextjs-ui-migration-tech-spec-v2.md ADR-005">Use @tanstack/react-query v5 for all data fetching, not SWR or useEffect patterns</constraint>
+    <constraint id="C2" source="docs/nextjs-ui-migration-tech-spec-v2.md ADR-004">All API endpoints must use /api/v1/* versioned URLs (e.g., /api/v1/costs/summary, NOT /api/costs/summary)</constraint>
+    <constraint id="C3" source="docs/nextjs-ui-migration-tech-spec-v2.md ADR-003">Fetch user role on-demand via /api/v1/users/me/role, do NOT rely on JWT-embedded roles</constraint>
+    <constraint id="C4" source="nextjs-ui/middleware.ts">RBAC enforcement happens in middleware (server-side redirect), but also hide UI elements client-side based on role for better UX</constraint>
+    <constraint id="C5" source="docs/nextjs-ui-migration-tech-spec-v2.md Section 0.2">Apply Liquid Glass design system: backdrop-filter: blur(32px), rgba(255, 255, 255, 0.75) backgrounds, @supports progressive enhancement</constraint>
+    <constraint id="C6" source="docs/nextjs-ui-migration-tech-spec-v2.md Performance">Target &lt; 2s page load (p95), &lt; 500ms API response. Optimize with React Query caching and Next.js App Router streaming</constraint>
+    <constraint id="C7" source="Story Dev Notes">Auto-refresh every 60 seconds using refetchInterval: 60000 in React Query config</constraint>
+    <constraint id="C8" source="Story AC#1">Responsive grid: 4 cols desktop (lg:grid-cols-4), 2 cols tablet (md:grid-cols-2), 1 col mobile (grid-cols-1)</constraint>
+    <constraint id="C9" source="docs/nextjs-ui-migration-tech-spec-v2.md Reduced Motion">Respect prefers-reduced-motion CSS media query to disable animations for accessibility</constraint>
+    <constraint id="C10" source="Story Dev Notes">Use 'use client' directive for interactive components (CostMetricsCards), keep page.tsx as Server Component for initial data prefetch if needed</constraint>
+    <constraint id="C11" source="Context7 MCP Research - Next.js /vercel/next.js">Next.js 14 App Router: async Server Components by default, use fetch() with cache options, co-locate loading.tsx and error.tsx with page.tsx</constraint>
+    <constraint id="C12" source="Context7 MCP Research - TanStack Query v5">refetchInterval callback signature changed in v5: only receives Query object, NOT (data, query). Use refetchInterval: 60000 or refetchInterval: (query) =&gt; 60000</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/costs/summary</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Response: CostSummaryDTO {
+          today_spend: number;           // USD amount
+          week_spend: number;            // 7-day rolling sum
+          month_spend: number;           // Month-to-date sum
+          total_spend_30d: number;       // Last 30 days total
+          top_tenant: {
+            tenant_id: string;
+            tenant_name: string;
+            total_spend: number;
+            rank: number;
+          } | null;
+          top_agent: {
+            agent_id: string | null;
+            agent_name: string;
+            execution_count: number;
+            total_cost: number;
+            avg_cost: number;
+          } | null;
+        }
+        Headers: Authorization: Bearer &lt;JWT&gt;, X-Tenant-ID: &lt;UUID&gt;
+        Returns: 200 OK with JSON, 401 Unauthorized, 403 Forbidden (wrong role), 500 Internal Server Error
+      </signature>
+      <path>src/api/llm_costs.py:40-64</path>
+    </interface>
+    <interface>
+      <name>GET /api/v1/users/me/role</name>
+      <kind>REST endpoint</kind>
+      <signature>
+        Response: { role: "super_admin" | "tenant_admin" | "developer" | "operator" | "viewer" }
+        Headers: Authorization: Bearer &lt;JWT&gt;, X-Tenant-ID: &lt;UUID&gt;
+        Returns: 200 OK with JSON, 401 Unauthorized
+      </signature>
+      <path>ADR-003 in tech-spec-v2.md</path>
+    </interface>
+    <interface>
+      <name>NextAuth Session</name>
+      <kind>Client-side hook</kind>
+      <signature>
+        import { useSession } from 'next-auth/react';
+        const { data: session, status } = useSession();
+        session?.user?.email, session?.accessToken, status: "loading" | "authenticated" | "unauthenticated"
+      </signature>
+      <path>nextjs-ui/package.json:43 (next-auth ^4.24.13)</path>
+    </interface>
+    <interface>
+      <name>useLLMCostSummary (Custom Hook - to be created)</name>
+      <kind>React Query hook</kind>
+      <signature>
+        function useLLMCostSummary(): {
+          data: CostSummaryDTO | undefined;
+          isLoading: boolean;
+          isError: boolean;
+          error: Error | null;
+          refetch: () =&gt; void;
+        }
+        Config: { queryKey: ['costs', 'summary'], queryFn: fetchCostSummary, refetchInterval: 60000, retry: 3 }
+      </signature>
+      <path>Story Task #2 - Create custom hook</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>**Unit Tests (Jest + React Testing Library):**
+- Target 70% line coverage for UI components, 90% for utility functions
+- Test rendering, prop passing, user interactions, conditional rendering
+- Mock API calls with MSW (Mock Service Worker) at nextjs-ui/mocks/handlers.ts
+- Test files co-located with source: *.test.tsx or *.test.ts
+
+**Integration Tests:**
+- Test React Query hook integration with mock API responses
+- Verify RBAC redirects for unauthorized users (simulate middleware behavior)
+- Test error states (API failure, network timeout) and retry logic
+- Test auto-refresh behavior with fake timers (jest.useFakeTimers)
+
+**E2E Tests (Playwright):**
+- Critical flow: Login as operator → Navigate to /dashboard/llm-costs → Verify metrics display
+- Test responsive design on mobile (375px), tablet (768px), desktop (1440px) viewports
+- Test auto-refresh updates after 60s (use page.waitForTimeout or mock clock)
+
+**Accessibility Tests:**
+- Run axe-core via @axe-core/playwright on page load
+- Verify ARIA labels on metric cards, loading states, error messages
+- Test keyboard navigation (Tab, Enter, Escape)
+- Verify contrast ratios meet WCAG 2.1 AA standards
+
+**Testing Libraries:**
+- jest@30.2.0 (test runner)
+- @testing-library/react@16.3.0 (component testing)
+- @testing-library/jest-dom@6.9.1 (DOM matchers)
+- msw@2.6.5 (API mocking)
+- @playwright/test@1.56.1 (E2E testing)
+- @axe-core/playwright@4.11.0 (a11y testing)</standards>
+    <locations>
+      <location>nextjs-ui/src/app/dashboard/llm-costs/page.test.tsx</location>
+      <location>nextjs-ui/src/hooks/useLLMCostSummary.test.ts</location>
+      <location>nextjs-ui/src/components/costs/CostMetricsCards.test.tsx</location>
+      <location>nextjs-ui/src/lib/formatters.test.ts</location>
+      <location>nextjs-ui/tests/e2e/llm-costs-dashboard.spec.ts</location>
+      <location>nextjs-ui/mocks/handlers/costs.ts (MSW handler for GET /api/v1/costs/summary)</location>
+    </locations>
+    <ideas>
+      <idea ac="AC#1">Test metric cards render with correct labels and formatted values (Today: $1,234.56, Week: $12.3K, etc.)</idea>
+      <idea ac="AC#1">Test loading skeleton displays while data is fetching (isLoading=true)</idea>
+      <idea ac="AC#1">Test error state displays with retry button when API fails (isError=true)</idea>
+      <idea ac="AC#1">Test RBAC: admin/operator users see page, developer/viewer/unauthenticated users get redirected to /dashboard</idea>
+      <idea ac="AC#2">Test currency formatter: formatCurrency(1234.56) === "$1,234.56"</idea>
+      <idea ac="AC#2">Test large number formatter: formatNumber(1234) === "1.2K", formatNumber(1234567) === "1.2M"</idea>
+      <idea ac="AC#2">Test percentage change: todayVsYesterday &gt; 0 shows "↑ +15%", &lt; 0 shows "↓ -10%", === 0 shows "→ 0%"</idea>
+      <idea ac="AC#1">Test auto-refresh: Mock React Query refetchInterval, advance timers by 60s, verify API called twice</idea>
+      <idea ac="AC#1">Test responsive grid: desktop (4 cols), tablet (2 cols), mobile (1 col) via window.matchMedia or Playwright viewports</idea>
+      <idea ac="AC#1">Test top tenant/agent display: If null, show "No data" or empty state</idea>
+      <idea ac="Integration">Test API error handling: 401 triggers logout, 403 shows permission error, 500 shows retry with exponential backoff</idea>
+      <idea ac="Integration">Test React Query caching: First load fetches API, second load (within staleTime) uses cache</idea>
+      <idea ac="E2E">Test full user flow: Login → Click "LLM Costs" nav item → See metrics → Wait 60s → Verify metrics update</idea>
+      <idea ac="Accessibility">Test keyboard navigation: Tab through metric cards, focus visible, Enter on retry button</idea>
+      <idea ac="Accessibility">Test screen reader: ARIA labels announce "Today's spend: $1,234.56"</idea>
+    </ideas>
+  </tests>
+</story-context>

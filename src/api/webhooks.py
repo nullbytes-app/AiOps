@@ -49,6 +49,7 @@ router = APIRouter(prefix="/webhook", tags=["webhooks"])
     response_model=WebhookResponse,
 )
 async def receive_webhook(
+    request: Request,
     payload: WebhookPayload,
     db: AsyncSession = Depends(get_tenant_db),
     queue_service: QueueService = Depends(get_queue_service),
@@ -127,8 +128,12 @@ async def receive_webhook(
                 detail="Missing signature header",
             )
 
+        # Extract raw request body for signature validation
+        # This preserves the exact JSON format used by the client to compute the signature
+        raw_body = await request.body()
+
         is_valid = await plugin.validate_webhook(
-            payload=payload.dict(), signature=x_servicedesk_signature
+            payload=payload.dict(), signature=x_servicedesk_signature, raw_body=raw_body
         )
 
         if not is_valid:

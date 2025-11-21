@@ -56,6 +56,20 @@ class TriggerType(str, Enum):
     SCHEDULE = "schedule"
 
 
+class CognitiveArchitecture(str, Enum):
+    """
+    Cognitive architectures for agent execution.
+
+    REACT: Standard ReAct loop (Reason + Act). Best for tool use.
+    SINGLE_STEP: Zero-shot execution. Best for simple tasks.
+    PLAN_AND_SOLVE: Plan-and-Solve pattern. Best for complex, multi-step goals.
+    """
+
+    REACT = "react"
+    SINGLE_STEP = "single_step"
+    PLAN_AND_SOLVE = "plan_and_solve"
+
+
 class LLMConfig(BaseModel):
     """
     LLM provider configuration for agents.
@@ -298,6 +312,7 @@ class AgentCreate(BaseModel):
         triggers: List of triggers to create with agent
         tool_ids: List of OpenAPI tool IDs to assign
         mcp_tool_assignments: List of MCP tool assignments
+        cognitive_architecture: Cognitive architecture to use (default: react)
     """
 
     name: str = Field(..., min_length=3, max_length=255)
@@ -305,6 +320,10 @@ class AgentCreate(BaseModel):
     system_prompt: str = Field(..., min_length=10, max_length=32000)
     llm_config: LLMConfig
     status: AgentStatus = Field(default=AgentStatus.DRAFT)
+    cognitive_architecture: CognitiveArchitecture = Field(
+        default=CognitiveArchitecture.REACT,
+        description="Cognitive architecture for execution flow",
+    )
     created_by: Optional[str] = Field(None, max_length=255)
     triggers: list[AgentTriggerCreate] = Field(default_factory=list)
     tool_ids: list[str] = Field(
@@ -380,6 +399,7 @@ class AgentUpdate(BaseModel):
         status: Optional status update (validated for valid transitions)
         tool_ids: Optional list of OpenAPI tool IDs to assign
         mcp_tool_assignments: Optional list of MCP tool assignments
+        cognitive_architecture: Optional cognitive architecture update
     """
 
     name: Optional[str] = Field(None, min_length=3, max_length=255)
@@ -387,6 +407,7 @@ class AgentUpdate(BaseModel):
     system_prompt: Optional[str] = Field(None, min_length=10, max_length=32000)
     llm_config: Optional[LLMConfig] = None
     status: Optional[AgentStatus] = None
+    cognitive_architecture: Optional[CognitiveArchitecture] = None
     tool_ids: Optional[list[str]] = Field(
         None, max_length=20, description="OpenAPI tool IDs (from openapi_tools table)"
     )
@@ -456,6 +477,7 @@ class AgentResponse(BaseModel):
         triggers: List of trigger details
         tool_ids: List of assigned OpenAPI tool identifiers
         mcp_tool_assignments: List of MCP tool assignments
+        cognitive_architecture: Cognitive architecture used
     """
 
     @model_validator(mode="before")
@@ -481,6 +503,11 @@ class AgentResponse(BaseModel):
                 "created_at": data.created_at,
                 "updated_at": data.updated_at,
                 "created_by": data.created_by,
+                "cognitive_architecture": (
+                    data.cognitive_architecture
+                    if hasattr(data, "cognitive_architecture")
+                    else "react"
+                ),
             }
 
             # Serialize triggers relationship (list of AgentTrigger ORM objects -> list of dicts)
@@ -525,6 +552,7 @@ class AgentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     created_by: Optional[str]
+    cognitive_architecture: CognitiveArchitecture = Field(default=CognitiveArchitecture.REACT)
     triggers: list[dict[str, Any]] = Field(default_factory=list)
     tool_ids: list[str] = Field(default_factory=list)
     mcp_tool_assignments: list[MCPToolAssignment] = Field(
@@ -556,6 +584,7 @@ class AgentResponse(BaseModel):
                     "temperature": 0.7,
                     "max_tokens": 4096,
                 },
+                "cognitive_architecture": "react",
                 "created_at": "2025-11-05T19:00:00Z",
                 "updated_at": "2025-11-05T19:30:00Z",
                 "created_by": "admin@example.com",

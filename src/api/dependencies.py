@@ -4,20 +4,30 @@ FastAPI Dependencies for Request-Scoped Services.
 This module provides FastAPI dependency injection functions for:
 - Tenant identification and extraction
 - RLS-aware database sessions
-- Authentication and authorization
+- Authentication and authorization (Story 1C)
 
 Story: 3.1 - Implement Row-Level Security in PostgreSQL
-AC: 3
+Story: 1C - API Endpoints & Middleware
 """
 
-from typing import AsyncGenerator
+from typing import Annotated, AsyncGenerator
+from uuid import UUID
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, status
+from fastapi.security import OAuth2PasswordBearer
+from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
 from src.database.session import get_async_session
 from src.database.tenant_context import set_db_tenant_context
+from src.database.models import User, RoleEnum
+from src.services.auth_service import AuthService, verify_token
+from src.services.user_service import UserService
+
+
+# Story 1C: OAuth2 scheme for JWT token extraction
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token", scheme_name="JWT")
 
 
 async def get_tenant_id(request: Request) -> str:
@@ -61,10 +71,23 @@ async def get_tenant_id(request: Request) -> str:
     if not tenant_id:
         tenant_id = request.headers.get("X-Tenant-ID")
 
-    # Strategy 3: Extract from authentication context
-    # TODO: Implement auth token parsing when authentication is added
-    # if not tenant_id and hasattr(request.state, "user"):
-    #     tenant_id = request.state.user.tenant_id
+    # Strategy 3: Extract from JWT token (for authenticated session-based requests)
+    if not tenant_id:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                # Decode JWT without verification (just for tenant extraction)
+                # Full validation happens later in get_current_user if needed
+                payload = jwt.decode(
+                    token,
+                    settings.jwt_secret_key,
+                    algorithms=["HS256"]
+                )
+                tenant_id = payload.get("default_tenant_id")
+            except (JWTError, Exception):
+                # Token decoding failed, continue to fallback strategy
+                pass
 
     # Strategy 4: Fallback to DEFAULT_TENANT_ID from environment
     # Used for single-tenant deployments or development environments
@@ -74,13 +97,12 @@ async def get_tenant_id(request: Request) -> str:
     if not tenant_id:
         raise HTTPException(
             status_code=400,
-            detail="Missing tenant_id. Provide in request body or X-Tenant-ID header."
+            detail="Missing tenant_id. Provide in request body or X-Tenant-ID header.",
         )
 
     if not isinstance(tenant_id, str) or not tenant_id.strip():
         raise HTTPException(
-            status_code=400,
-            detail="Invalid tenant_id format. Must be non-empty string."
+            status_code=400, detail="Invalid tenant_id format. Must be non-empty string."
         )
 
     return tenant_id.strip()
@@ -179,20 +201,14 @@ async def get_tenant_uuid(
         tenant_uuid = result.scalar_one_or_none()
 
         if not tenant_uuid:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Tenant '{tenant_id}' not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Tenant '{tenant_id}' not found")
 
         return tenant_uuid
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to resolve tenant UUID: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Failed to resolve tenant UUID: {str(e)}")
 
 
 async def get_tenant_config_dep(
@@ -251,11 +267,214 @@ async def get_tenant_config_dep(
         # Tenant not found in database
         raise HTTPException(
             status_code=404,
-            detail=f"Tenant '{tenant_id}' not found. Please check tenant configuration."
+            detail=f"Tenant '{tenant_id}' not found. Please check tenant configuration.",
         )
     except Exception as e:
         # Other errors (encryption, database, etc.)
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to load tenant configuration: {str(e)}"
+            status_code=500, detail=f"Failed to load tenant configuration: {str(e)}"
         )
+
+
+# ==============================================================================
+# Story 1C: Authentication Dependencies
+# ==============================================================================
+
+
+async def get_auth_service() -> AuthService:
+    """
+    Dependency to get AuthService instance.
+
+    Returns:
+        AuthService: Authentication service instance with Redis client
+
+    Example:
+        @router.post("/login")
+        async def login(
+            auth_service: AuthService = Depends(get_auth_service)
+        ):
+            token = await auth_service.create_access_token(...)
+    """
+    from src.cache.redis_client import get_redis_client
+
+    redis_client = await get_redis_client()
+    return AuthService(redis_client=redis_client)
+
+
+async def get_user_service() -> UserService:
+    """
+    Dependency to get UserService instance.
+
+    Returns:
+        UserService: User management service instance
+
+    Example:
+        @router.get("/users")
+        async def list_users(
+            user_service: UserService = Depends(get_user_service)
+        ):
+            users = await user_service.list_users(db)
+    """
+    return UserService()
+
+
+async def get_current_user(
+    token: Annotated[str, Depends(oauth2_scheme)],
+    db: Annotated[AsyncSession, Depends(get_async_session)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+    user_service: Annotated[UserService, Depends(get_user_service)],
+) -> User:
+    """
+    Get current user from JWT token.
+
+    This dependency:
+    1. Extracts JWT token from Authorization header (via oauth2_scheme)
+    2. Verifies token signature, expiration, and blacklist status
+    3. Extracts user_id from 'sub' claim
+    4. Fetches user from database
+    5. Returns User model instance
+
+    Args:
+        token: JWT access token from Authorization header
+        db: Database session
+        auth_service: Authentication service
+        user_service: User service
+
+    Returns:
+        User: Authenticated user model instance
+
+    Raises:
+        HTTPException: 401 if token invalid, expired, or revoked
+        HTTPException: 401 if user not found
+
+    Security:
+        - Token signature verified with JWT_SECRET_KEY
+        - Token expiration checked
+        - Token blacklist checked (Redis)
+        - Returns generic error message to prevent information disclosure
+
+    Example:
+        @router.get("/protected")
+        async def protected_route(
+            current_user: User = Depends(get_current_user)
+        ):
+            return {"user_id": current_user.id}
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    try:
+        # Verify token (checks signature, expiration, and blacklist)
+        payload = await verify_token(auth_service.redis, token)
+
+        # Extract user_id from 'sub' claim
+        user_id_str: str = payload.get("sub")
+        if user_id_str is None:
+            raise credentials_exception
+
+        # Convert string to UUID
+        user_id = UUID(user_id_str)
+
+    except (JWTError, ValueError):
+        # JWTError: invalid token, expired, or signature mismatch
+        # ValueError: invalid UUID format
+        raise credentials_exception
+
+    # Fetch user from database
+    user = await user_service.get_user_by_id(user_id, db)
+    if user is None:
+        raise credentials_exception
+
+    return user
+
+
+async def get_current_active_user(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    """
+    Verify current user is active (not disabled/deleted).
+
+    This dependency:
+    1. Receives authenticated user from get_current_user
+    2. Checks is_active flag
+    3. Returns user if active, raises 400 if inactive
+
+    Args:
+        current_user: User from get_current_user dependency
+
+    Returns:
+        User: Active user model instance
+
+    Raises:
+        HTTPException: 400 if user account is inactive
+
+    Example:
+        @router.post("/create-post")
+        async def create_post(
+            current_user: User = Depends(get_current_active_user)
+        ):
+            # Only active users can create posts
+            pass
+    """
+    if not current_user.is_active:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user account")
+
+    return current_user
+
+
+async def require_role(
+    required_role: RoleEnum,
+    tenant_id: str,
+) -> callable:
+    """
+    Factory to create role-checking dependency.
+
+    This creates a dependency that verifies the user has the required role
+    for a specific tenant. Uses role hierarchy: admin > operator > viewer.
+
+    Args:
+        required_role: Minimum role required
+        tenant_id: Tenant context for role check
+
+    Returns:
+        Dependency function that checks role
+
+    Example:
+        @router.delete("/users/{user_id}")
+        async def delete_user(
+            user_id: UUID,
+            current_user: User = Depends(require_role(RoleEnum.ADMIN, "tenant-123"))
+        ):
+            # Only admins can delete users
+            pass
+
+    Security:
+        Role hierarchy enforced: admin (3) > operator (2) > viewer (1)
+    """
+
+    async def role_checker(
+        current_user: Annotated[User, Depends(get_current_active_user)],
+        db: Annotated[AsyncSession, Depends(get_async_session)],
+        user_service: Annotated[UserService, Depends(get_user_service)],
+    ) -> User:
+        """Check if user has required role for tenant."""
+        # Get user's role for this tenant
+        user_role = await user_service.get_user_role_for_tenant(current_user.id, tenant_id, db)
+
+        # Role hierarchy: admin (3) > operator (2) > viewer (1)
+        role_hierarchy = {RoleEnum.ADMIN: 3, RoleEnum.OPERATOR: 2, RoleEnum.VIEWER: 1}
+
+        # Check if user has sufficient permissions
+        user_level = role_hierarchy.get(user_role, 0) if user_role else 0
+        required_level = role_hierarchy[required_role]
+
+        if user_level < required_level:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Requires {required_role.value} role for tenant {tenant_id}",
+            )
+
+        return current_user
+
+    return role_checker

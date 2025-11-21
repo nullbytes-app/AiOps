@@ -1,0 +1,317 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>6</storyId>
+    <title>Polish & User Experience</title>
+    <status>draft</status>
+    <generatedAt>2025-01-19</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/6-polish-and-user-experience.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>platform user (across all roles: admin, operator, developer, viewer)</asA>
+    <iWant>a polished, accessible, and performant UI with keyboard shortcuts, command palette, enhanced notifications, loading states, error handling, and optimized bundle size</iWant>
+    <soThat>I can work efficiently, navigate quickly, receive clear feedback, and enjoy a professional, responsive experience that meets modern UX expectations</soThat>
+    <tasks>
+- Implement Command Palette (Cmd+K) with fuzzy search, recent searches, and navigation
+- Create keyboard shortcuts system (global + page-specific) with help modal
+- Add enhanced toast notifications with actionable buttons (undo/retry)
+- Implement skeleton loaders and optimistic UI updates
+- Build error boundary, offline detection, and recovery actions
+- Optimize bundle size (target 20% reduction to ~640KB)
+- Conduct accessibility audit and achieve WCAG 2.1 AA compliance
+- Write comprehensive tests (component, E2E, performance)
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC-1: Command Palette (Cmd+K Navigation)
+- Command palette opens with Cmd+K (Mac) / Ctrl+K (Windows/Linux)
+- Instant fuzzy search with < 16ms latency
+- Search scope: All 26 routes, actions, settings, help topics
+- Recent searches stored in localStorage
+- Virtualized results (render only visible 10 items)
+- Implementation: cmdk library (/pacocoursey/cmdk, 42 snippets, 94.6 score)
+
+AC-2: Keyboard Shortcuts System
+- Global shortcuts: Cmd+K (palette), Cmd+B (sidebar toggle), / (search), Cmd+Shift+D (theme), ? (help)
+- Page-specific shortcuts: g+d (dashboard), g+a (agents), c (create), r (refresh), x (export)
+- Help modal triggered by ? key with searchable shortcuts
+- Visual feedback: Kbd badges, hover tooltips, focus indicators
+- Implementation: react-hotkeys-hook (/johannesklauss/react-hotkeys-hook, 208 snippets, 86.9 score)
+
+AC-3: Enhanced Toast Notifications
+- Notification types: Success (4s), Error (persist), Warning (6s), Info (4s), Loading (manual)
+- Actionable buttons: Undo (5s window), Retry (for transient errors), View details
+- Contextual messages for CRUD operations, background jobs, errors with guidance
+- Notification grouping: Collapse similar notifications, max 3 visible
+- Positioning: top-right desktop, top-center mobile
+- Implementation: sonner (/emilkowalski/sonner, 67 snippets, 91.1 score)
+
+AC-4: Loading States & Skeleton Loaders
+- Skeleton patterns: Tables (10 rows), Cards, Forms, Charts with shimmer animation
+- Loading indicators: Button loading, NProgress bar, infinite scroll spinner
+- Optimistic UI updates: Immediate add/update/delete with rollback on error
+- Loading thresholds: < 300ms = none, 300ms-1s = spinner, > 1s = skeleton
+
+AC-5: Error Handling & Recovery
+- Global error boundary with stack trace (dev only), reload/report buttons
+- API error handling: Network errors (retry), 401 (redirect), 403 (request access), 404 (go back), 500 (retry)
+- Offline detection: Banner at top, disable network actions, auto-reconnect
+- Error recovery actions: Retry, undo, contact support, copy error
+
+AC-6: Bundle Size Optimization
+- Bundle analysis with @next/bundle-analyzer
+- Target: 20% reduction (800KB → 640KB)
+- Dynamic imports for heavy components: Recharts, CodeMirror, jsondiffpatch
+- Tree-shaking: Replace lodash with lodash-es, remove unused Tailwind classes
+- Performance metrics: Lighthouse > 90, FCP < 1.5s, LCP < 2.5s, TTI < 3.5s, CLS < 0.1
+
+AC-7: Accessibility Audit & Fixes
+- Automated testing: axe-core via @axe-core/playwright on all 26 routes
+- Keyboard navigation: Logical tab order, skip to main, focus indicators, no traps
+- Screen reader support: Landmarks, ARIA labels, live regions, descriptive links
+- Color contrast: > 4.5:1 for text, > 3:1 for interactive elements
+- Responsive design: 44x44px touch targets, 16px min font size, works 320px-1920px
+
+AC-8: Testing & Quality
+- Component tests: CommandPalette, ShortcutsModal, Skeleton, ErrorBoundary, useOnlineStatus (80%+ coverage)
+- E2E tests: command-palette, keyboard-shortcuts, toast-notifications, loading-states, error-recovery, accessibility
+- Performance tests: Lighthouse audit, bundle size check, page load speed, command palette latency
+- Manual testing checklist: All features work, accessibility, bundle size reduced, Lighthouse > 90
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- PRD References -->
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Non-Functional Requirements">
+        <snippet>NFR001: Performance - System shall complete operations with p95 latency under acceptable thresholds.
+        NFR003: Reliability - 99% success rate with graceful degradation.
+        NFR004: Security - Input validation, rate limiting, encryption at rest.
+        NFR005: Observability - Real-time visibility, audit logs, distributed tracing.</snippet>
+      </doc>
+
+      <!-- Architecture References -->
+      <doc path="docs/architecture.md" title="Decision Architecture" section="Technology Stack">
+        <snippet>Frontend: Next.js 14.2.15 with App Router, TypeScript 5.6.3 strict mode, TailwindCSS with design tokens.
+        Observability: Loguru for logging, Prometheus metrics, planned OpenTelemetry tracing.
+        Testing: Pytest + pytest-asyncio, Jest + RTL for frontend, Playwright for E2E.</snippet>
+      </doc>
+
+      <!-- Epic Reference -->
+      <doc path="docs/epics-nextjs-ui-migration.md" title="Next.js UI Migration Epic Breakdown" section="Story 6: Polish & User Experience">
+        <snippet>Delivers final 10% polish: Command Palette (Cmd+K), keyboard shortcuts, enhanced toasts with undo/retry,
+        skeleton loaders, error boundary, bundle optimization (20% reduction target), WCAG 2.1 AA compliance.
+        Libraries researched via Context7 MCP: cmdk (94.6 score, 42 snippets), react-hotkeys-hook (86.9 score, 208 snippets),
+        sonner (91.1 score, 67 snippets).</snippet>
+      </doc>
+
+      <!-- Design System -->
+      <doc path="docs/design-system/design-tokens.json" title="Design Tokens" section="Colors, Spacing, Typography">
+        <snippet>Glassmorphism design with backdrop-filter, dark mode support via next-themes.
+        Spacing scale: 4, 8, 16, 24, 32, 48, 64px. Animation: fast 150ms, base 300ms, slow 500ms.
+        Accessibility: WCAG 2.1 AA color contrast, reduced motion support.</snippet>
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Existing Components to Enhance -->
+      <artifact path="nextjs-ui/components/ui/Loading.tsx" kind="component" symbol="Loading" reason="Base spinner component - Story 6 adds skeleton loaders (tables, cards, forms) with shimmer animation"/>
+
+      <artifact path="nextjs-ui/components/ui/Toast.tsx" kind="component" symbol="toast" reason="Sonner wrapper - Story 6 enhances with undo/retry actionable buttons and optimistic UI patterns"/>
+
+      <artifact path="nextjs-ui/components/dashboard/Header.tsx" kind="component" symbol="Header" reason="Dashboard header - Story 6 adds command palette trigger button and integrates keyboard shortcuts"/>
+
+      <artifact path="nextjs-ui/components/dashboard/Sidebar.tsx" kind="component" symbol="Sidebar" reason="Dashboard sidebar - Story 6 adds Cmd+B toggle functionality and keyboard navigation"/>
+
+      <artifact path="nextjs-ui/app/layout.tsx" kind="layout" symbol="RootLayout" reason="Root layout - Story 6 adds CommandPalette provider and keyboard shortcuts provider"/>
+
+      <!-- Testing Infrastructure -->
+      <artifact path="nextjs-ui/e2e/accessibility.spec.ts" kind="test" symbol="Accessibility Audit" lines="1-220" reason="Comprehensive axe-core accessibility tests - Story 6 expands to all 26 routes"/>
+
+      <artifact path="nextjs-ui/__tests__/components/ui/Loading.test.tsx" kind="test" symbol="Loading component tests" reason="Test pattern for skeleton loaders - Story 6 adds SkeletonTable, SkeletonCard tests"/>
+
+      <artifact path="nextjs-ui/__tests__/components/ui/Toast.test.tsx" kind="test" symbol="Toast component tests" reason="Test pattern for enhanced toasts - Story 6 adds undo/retry action tests"/>
+
+      <!-- Configuration -->
+      <artifact path="nextjs-ui/next.config.mjs" kind="config" symbol="Next.js configuration" reason="Story 6 adds @next/bundle-analyzer and custom webpack splitChunks for bundle optimization"/>
+
+      <artifact path="nextjs-ui/package.json" kind="config" symbol="Dependencies" reason="Current: Next.js 14.2.15, sonner, @axe-core/playwright. Missing: cmdk, react-hotkeys-hook, @next/bundle-analyzer"/>
+    </code>
+
+    <dependencies>
+      <ecosystem name="npm">
+        <existing>
+          <package name="next" version="14.2.15" usage="App Router, SSR, RSC"/>
+          <package name="@tanstack/react-query" version="^5.62.2" usage="Data fetching, caching, optimistic updates"/>
+          <package name="sonner" version="^2.0.7" usage="Toast notifications (already integrated)"/>
+          <package name="@axe-core/playwright" version="^4.11.0" usage="Accessibility testing"/>
+          <package name="@headlessui/react" version="^2.2.9" usage="Unstyled accessible components"/>
+          <package name="framer-motion" version="^11.11.17" usage="Animations"/>
+          <package name="lucide-react" version="^0.462.0" usage="Icons"/>
+          <package name="next-themes" version="^0.4.6" usage="Dark mode"/>
+        </existing>
+        <toAdd>
+          <package name="cmdk" version="latest" usage="Command palette (Cmd+K) - lightweight, unstyled, 12KB bundle"/>
+          <package name="react-hotkeys-hook" version="latest" usage="Keyboard shortcuts system - declarative API with scopes"/>
+          <package name="@next/bundle-analyzer" version="latest" usage="Webpack bundle visualization for optimization"/>
+          <package name="nprogress" version="latest" usage="Top progress bar (optional - Vercel-style loading)"/>
+        </toAdd>
+      </ecosystem>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- MUST maintain existing glass-card design system (glassmorphism with backdrop-filter)
+- MUST follow existing component patterns (Toast.tsx wrapper style, Loading.tsx sizing pattern)
+- MUST use project-relative paths only (strip /Users/ravi/Documents/... prefix)
+- MUST integrate with existing TanStack Query for optimistic updates
+- MUST follow 2025 best practices from Context7 MCP research (cmdk, react-hotkeys-hook, sonner patterns)
+- MUST achieve 80%+ test coverage for new components (component tests)
+- MUST pass axe-core WCAG 2.1 AA audit on all 26 routes (E2E tests)
+- MUST reduce bundle size by 20% (800KB → 640KB target via dynamic imports)
+- MUST maintain existing test infrastructure (Jest + RTL, Playwright, MSW)
+- MUST NOT break existing functionality (128 passing tests must still pass)
+- Performance thresholds: Lighthouse > 90, FCP < 1.5s, LCP < 2.5s, TTI < 3.5s, CLS < 0.1
+- Command palette search latency: < 16ms (60 FPS)
+  </constraints>
+
+  <interfaces>
+    <!-- Command Palette API -->
+    <interface name="useCommandPalette Hook" kind="React Hook" path="nextjs-ui/lib/hooks/useCommandPalette.ts">
+      <signature>
+        function useCommandPalette(): {
+          isOpen: boolean;
+          setIsOpen: (open: boolean) => void;
+          search: string;
+          setSearch: (query: string) => void;
+          results: CommandItem[];
+        }
+      </signature>
+    </interface>
+
+    <!-- Keyboard Shortcuts API -->
+    <interface name="useKeyboardShortcuts Hook" kind="React Hook" path="nextjs-ui/lib/hooks/useKeyboardShortcuts.ts">
+      <signature>
+        function useKeyboardShortcuts(scope?: string): void;
+        // Registers global + page-specific shortcuts
+        // Global: Cmd+K (palette), Cmd+B (sidebar), / (search), Cmd+Shift+D (theme), ? (help)
+        // Page-specific: g+d (dashboard), g+a (agents), c (create), r (refresh), x (export)
+      </signature>
+    </interface>
+
+    <!-- Enhanced Toast API (extends existing Toast.tsx) -->
+    <interface name="toast.withAction" kind="Function" path="nextjs-ui/components/ui/Toast.tsx">
+      <signature>
+        toast.withAction(message: string, action: { label: string; onClick: () => void }): void;
+        // Usage: toast.withAction('Agent deleted', { label: 'Undo', onClick: undoDelete })
+      </signature>
+    </interface>
+
+    <!-- Skeleton Loader Components -->
+    <interface name="SkeletonTable Component" kind="React Component" path="nextjs-ui/components/loading/SkeletonTable.tsx">
+      <signature>
+        function SkeletonTable(props: { rows?: number; columns?: number }): JSX.Element;
+        // Renders shimmer skeleton for tables (default: 10 rows, 5 columns)
+      </signature>
+    </interface>
+
+    <!-- Error Boundary -->
+    <interface name="ErrorBoundary Component" kind="React Component" path="nextjs-ui/components/error-boundary/ErrorBoundary.tsx">
+      <signature>
+        function ErrorBoundary(props: { children: ReactNode }): JSX.Element;
+        // Catches React errors, shows fallback UI with reload/report buttons
+      </signature>
+    </interface>
+
+    <!-- Offline Detection Hook -->
+    <interface name="useOnlineStatus Hook" kind="React Hook" path="nextjs-ui/lib/hooks/useOnlineStatus.ts">
+      <signature>
+        function useOnlineStatus(): boolean;
+        // Returns true if online, false if offline (listens to online/offline events)
+      </signature>
+    </interface>
+  </interfaces>
+  <tests>
+    <standards>
+**Component Testing (Jest + React Testing Library v16.3):**
+- Framework: Jest 30.2.0 + @testing-library/react 16.3.0 + @testing-library/user-event 14.6.1
+- Conventions: Test files co-located with components (ComponentName.test.tsx) or in __tests__/ directory
+- Coverage target: 80%+ for new components (existing project has 99.76% on Story 5)
+- Patterns: Render component → Query elements → Simulate user interactions → Assert outcomes
+- MSW for API mocking (configured in jest.setup.js, public/mockServiceWorker.js)
+- Accessibility: Use @testing-library/jest-dom matchers (toBeInTheDocument, toHaveAccessibleName)
+
+**E2E Testing (Playwright 1.56.1):**
+- Framework: @playwright/test with browsers (Chromium, Firefox, WebKit)
+- Location: nextjs-ui/e2e/*.spec.ts
+- Helpers: e2e/helpers.ts (gotoAndWaitForReady, waitForDashboardHeader)
+- Accessibility: @axe-core/playwright 4.11.0 for WCAG 2.1 AA audits
+- Network: MSW for API mocking, throttling for performance tests
+- Patterns: Navigate → Wait for ready → Interact → Assert → Run axe scan
+
+**Performance Testing:**
+- Lighthouse CI in GitHub Actions (target: > 90 score)
+- Bundle size checks: @next/bundle-analyzer + size-limit package
+- Core Web Vitals: FCP < 1.5s, LCP < 2.5s, TTI < 3.5s, CLS < 0.1
+- Custom metrics: Command palette search latency < 16ms (60 FPS)
+    </standards>
+
+    <locations>
+**Component Tests:**
+- nextjs-ui/__tests__/components/command-palette/CommandPalette.test.tsx (TO CREATE)
+- nextjs-ui/__tests__/components/shortcuts/ShortcutsModal.test.tsx (TO CREATE)
+- nextjs-ui/components/ui/ConfirmDialog.test.tsx (EXISTING - reference pattern)
+- nextjs-ui/__tests__/components/ui/Loading.test.tsx (EXISTING - extend for Skeleton)
+- nextjs-ui/__tests__/components/ui/Toast.test.tsx (EXISTING - extend for actions)
+- nextjs-ui/__tests__/components/error-boundary/ErrorBoundary.test.tsx (TO CREATE)
+- nextjs-ui/__tests__/hooks/useOnlineStatus.test.ts (TO CREATE)
+- nextjs-ui/__tests__/hooks/useKeyboardShortcuts.test.ts (TO CREATE)
+
+**E2E Tests:**
+- nextjs-ui/e2e/command-palette.spec.ts (TO CREATE)
+- nextjs-ui/e2e/keyboard-shortcuts.spec.ts (TO CREATE)
+- nextjs-ui/e2e/toast-notifications.spec.ts (TO CREATE)
+- nextjs-ui/e2e/loading-states.spec.ts (TO CREATE)
+- nextjs-ui/e2e/error-recovery.spec.ts (TO CREATE)
+- nextjs-ui/e2e/accessibility.spec.ts (EXISTING - extend to all 26 routes)
+
+**Performance Tests:**
+- nextjs-ui/e2e/performance.spec.ts (TO CREATE - Lighthouse audit)
+- nextjs-ui/scripts/check-bundle-size.js (TO CREATE - validates 20% reduction)
+    </locations>
+
+    <ideas>
+**AC-1: Command Palette Tests**
+- Component: Open with Cmd+K shortcut, close with Escape, fuzzy search filters results, arrow navigation works, Enter navigates to selected item
+- E2E: Open palette → Type "agent" → Verify "Agents" page appears → Press Enter → Verify navigation to /dashboard/agents
+
+**AC-2: Keyboard Shortcuts Tests**
+- Component: Register shortcut, trigger with key combo, scoped shortcuts only fire on correct page, help modal displays all shortcuts
+- E2E: Press Cmd+B → Verify sidebar toggles, Press / → Verify search input focused, Press ? → Verify help modal opens
+
+**AC-3: Enhanced Toast Tests**
+- Component: Show toast with action button, click action → verify callback fires, auto-dismiss after duration, undo button reverts state
+- E2E: Delete agent → Verify toast with "Undo" → Click undo → Verify agent restored
+
+**AC-4: Loading States Tests**
+- Component: SkeletonTable renders 10 rows × 5 columns, shimmer animation runs, dimensions match actual table
+- E2E: Throttle network to 3G → Navigate to agents page → Verify skeleton appears → Wait for data → Verify table replaces skeleton
+
+**AC-5: Error Handling Tests**
+- Component: ErrorBoundary catches error, displays fallback UI, reset button clears error
+- E2E: Simulate API 500 error → Verify error toast with "Retry" → Click retry → Verify success
+
+**AC-6: Bundle Optimization Tests**
+- Unit: Verify dynamic imports used for Recharts, CodeMirror, jsondiffpatch
+- Script: Run bundle analyzer → Parse output → Verify total JS < 640KB (20% reduction from 800KB)
+
+**AC-7: Accessibility Tests**
+- E2E: Run axe-core on all 26 routes → Assert 0 critical/serious violations, verify keyboard nav (Tab order), screen reader landmarks, color contrast > 4.5:1
+
+**AC-8: Integration Tests**
+- E2E: Complete user flow → Open palette (Cmd+K) → Search "create agent" → Navigate → Create agent → Verify success toast → Verify undo action works
+    </ideas>
+  </tests>
+</story-context>

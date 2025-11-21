@@ -1,0 +1,585 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<story-context>
+  <metadata>
+    <story-key>1a-database-and-auth-foundation</story-key>
+    <story-title>Database & Auth Foundation</story-title>
+    <epic>Epic 2: Authentication & Authorization Foundation</epic>
+    <epic-number>2</epic-number>
+    <story-number>1A</story-number>
+    <generated-date>2025-01-17</generated-date>
+    <tenant-id>default</tenant-id>
+    <workflow>story-context</workflow>
+    <bmad-version>1.3.2</bmad-version>
+  </metadata>
+
+  <story-overview>
+    <purpose>
+      Create database models and migrations for users, roles, and audit logs to support
+      multi-tenant authentication and authorization with proper data isolation.
+    </purpose>
+
+    <user-story>
+      As a platform architect,
+      I want database models and migrations for users, roles, and audit logs,
+      So that we can store authentication data with proper multi-tenant isolation.
+    </user-story>
+
+    <acceptance-criteria>
+      <criterion id="AC1" critical="true">
+        Database Models Created:
+        - User model with fields: id (UUID), email (unique), password_hash, default_tenant_id,
+          failed_login_attempts, locked_until, password_expires_at, password_history (JSON),
+          created_at, updated_at
+        - UserTenantRole model with fields: id (UUID), user_id (FK), tenant_id (FK),
+          role (enum: super_admin, tenant_admin, operator, developer, viewer), created_at, updated_at
+        - AuthAuditLog model with fields: id (UUID), user_id (FK, nullable), event_type,
+          success (bool), ip_address, user_agent, created_at
+        - AuditLog model with fields: id (UUID), user_id (FK), tenant_id, action, entity_type,
+          entity_id, old_value (JSONB), new_value (JSONB), ip_address, user_agent, created_at
+        - All models use UUID primary keys
+        - All timestamps default to NOW()
+      </criterion>
+
+      <criterion id="AC2" critical="true">
+        Database Indexes Created:
+        - Index on users.email (unique)
+        - Index on user_tenant_roles (user_id, tenant_id) - composite unique
+        - Index on auth_audit_log (user_id, created_at)
+        - Index on audit_log (user_id, tenant_id, entity_type, created_at)
+      </criterion>
+
+      <criterion id="AC3" critical="true">
+        Alembic Migration Created:
+        - Migration file: alembic/versions/YYYYMMDD_add_auth_tables.py
+        - Upgrade creates all 4 tables with indexes
+        - Downgrade drops all 4 tables
+        - Migration runs successfully (tested with upgrade + rollback)
+      </criterion>
+
+      <criterion id="AC4" critical="false">
+        Admin User Seed Script:
+        - Script: scripts/create_admin_user.py
+        - Accepts environment variables: ADMIN_EMAIL, ADMIN_PASSWORD, DEFAULT_TENANT_ID
+        - Creates super_admin user with default tenant role
+        - Password hashed with bcrypt (10 rounds)
+        - Idempotent (checks if user exists before creating)
+      </criterion>
+
+      <criterion id="AC5" critical="false">
+        User Migration Script (Optional):
+        - Script: scripts/migrate_streamlit_users.py
+        - Reads existing K8s Ingress basic auth users (if any)
+        - Migrates to new User table with temporary passwords
+        - Sends password reset emails to all migrated users
+        - Logs all migrations to audit_log
+      </criterion>
+    </acceptance-criteria>
+
+    <additional-requirements>
+      <requirement>All models inherit from SQLAlchemy declarative_base</requirement>
+      <requirement>All models use AsyncPG for async database operations</requirement>
+      <requirement>Models follow existing project conventions (see src/database/models.py)</requirement>
+    </additional-requirements>
+  </story-overview>
+
+  <technical-specification>
+    <epic-tech-spec-reference>
+      Source: docs/tech-spec-epic-2.md
+
+      Key Technical Decisions:
+      - SQLAlchemy 2.0+ with async support
+      - PostgreSQL 17 for row-level security
+      - Alembic for database migrations
+      - UUID primary keys for all tables
+      - Bcrypt for password hashing (10 rounds)
+      - JWT tokens for authentication (roles fetched on-demand, NOT stored in JWT)
+
+      Security Requirements:
+      - Password hashing: bcrypt with 10 rounds (balance security vs performance)
+      - Row-Level Security (RLS) handled in application layer via tenant_id filtering
+      - Audit logging for all authentication events
+      - Account lockout after 5 failed login attempts (15 minute lockout)
+
+      Database Schema Patterns:
+      - All tables use UUID primary keys
+      - All timestamps use TIMESTAMP WITH TIME ZONE
+      - Multi-tenant isolation via tenant_id column + application-level filtering
+      - JSONB columns for flexible schema fields (enhancement_preferences, password_history)
+    </epic-tech-spec-reference>
+
+    <architecture-reference>
+      Source: docs/architecture.md
+
+      Existing Database Infrastructure:
+      - PostgreSQL 17 (latest stable)
+      - SQLAlchemy 2.0+ with async support
+      - Alembic for migrations (already configured)
+      - Connection pooling: Min 5, Max 20 per service
+      - SSL Mode: require (production), disable (local dev)
+
+      Existing Models Pattern:
+      Location: src/database/models.py
+      - Uses declarative_base from SQLAlchemy ORM
+      - Async operations via AsyncPG driver
+      - UUID primary keys with gen_random_uuid()
+      - Indexed columns for query optimization
+      - Row-level security policies for multi-tenancy
+
+      Existing Tables:
+      - tenant_configs: Multi-tenant configuration
+      - enhancement_history: Enhancement processing records
+      - ticket_history: Historical ticket data
+      - system_inventory: Infrastructure inventory
+
+      Naming Conventions:
+      - Tables: snake_case, plural nouns
+      - Columns: snake_case
+      - Indexes: idx_{table}_{column}
+      - Foreign keys: {table}_id
+      - Environment variables: AI_AGENTS_{NAME}
+    </architecture-reference>
+  </technical-specification>
+
+  <implementation-guidance>
+    <technical-notes>
+      <note priority="critical">
+        Extend existing src/database/models.py - DO NOT create a new file
+      </note>
+
+      <note priority="critical">
+        Use Alembic for migrations (already configured in project at alembic.ini)
+      </note>
+
+      <note priority="high">
+        Password hashing: bcrypt with 10 rounds (balance security vs performance)
+        - Use passlib library: CryptContext(schemes=["bcrypt"], deprecated="auto")
+        - Or use pwdlib with Argon2 for newer implementation (FastAPI 2025 recommendation)
+      </note>
+
+      <note priority="high">
+        JWT roles stored as enum in database:
+        Role = Enum('super_admin', 'tenant_admin', 'operator', 'developer', 'viewer')
+      </note>
+
+      <note priority="high">
+        Row-Level Security (RLS) handled in application layer via tenant_id filtering
+        - Database RLS policies are NOT used (see architecture.md for rationale)
+        - All queries must filter by tenant_id in application code
+      </note>
+
+      <note priority="medium">
+        User model should NOT store all tenant roles (see ADR 003 - roles fetched on-demand)
+        - JWT payload contains ONLY: sub, email, default_tenant_id, iat, exp
+        - Roles are fetched via separate API call: GET /api/v1/users/me/role?tenant_id=xxx
+      </note>
+
+      <note priority="medium">
+        Migration naming convention: YYYYMMDD_HHMMSS_description.py
+        Example: 20250117_143000_add_auth_tables.py
+      </note>
+    </technical-notes>
+
+    <latest-best-practices>
+      <practice source="web-research-2025">
+        <title>SQLAlchemy 2.0 Async Models with UUID Primary Keys</title>
+        <recommendation>
+          Use Python-side UUID generation with uuid4 for immediate ID assignment:
+
+          ```python
+          from uuid import UUID, uuid4
+          from sqlalchemy.ext.asyncio import AsyncAttrs
+          from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+          class Base(AsyncAttrs, DeclarativeBase):
+              pass
+
+          class User(Base):
+              __tablename__ = "users"
+              id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+          ```
+
+          Key Benefits:
+          - No database roundtrip for UUID generation
+          - Immediate UUID availability for related entities
+          - Compatible with SQLAlchemy's async features
+          - Type-safe with Mapped annotations
+        </recommendation>
+      </practice>
+
+      <practice source="web-research-2025">
+        <title>Alembic Async Migrations with PostgreSQL</title>
+        <recommendation>
+          Configure Alembic env.py for async migrations:
+
+          ```python
+          async def run_async_migrations():
+              connectable = create_async_engine(db_url, poolclass=NullPool)
+              async with connectable.connect() as connection:
+                  await connection.run_sync(do_run_migrations)
+              await connectable.dispose()
+          ```
+
+          Index Creation Best Practices:
+          - Create indexes in the same migration as table creation
+          - Use naming convention: idx_{table}_{column}
+          - Add composite indexes for common query patterns
+          - Use CONCURRENTLY for production (separate migration)
+        </recommendation>
+      </practice>
+
+      <practice source="web-research-2025">
+        <title>Bcrypt Password Hashing in FastAPI 2025</title>
+        <recommendation>
+          Two recommended approaches for 2025:
+
+          **Option 1: Passlib with Bcrypt (Widely Used)**
+          ```python
+          from passlib.context import CryptContext
+
+          pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+          def hash_password(password: str) -> str:
+              return pwd_context.hash(password)
+
+          def verify_password(plain: str, hashed: str) -> bool:
+              return pwd_context.verify(plain, hashed)
+          ```
+
+          **Option 2: Pwdlib with Argon2 (FastAPI 2025 Recommendation)**
+          ```python
+          from pwdlib import PasswordHash
+
+          pwd_hash = PasswordHash.recommended()
+
+          def hash_password(password: str) -> str:
+              return pwd_hash.hash(password)
+
+          def verify_password(plain: str, hashed: str) -> bool:
+              return pwd_hash.verify(password, hashed)
+          ```
+
+          Security Requirements:
+          - Never store plain text passwords
+          - Use strong algorithms (bcrypt or Argon2)
+          - Minimum 10 rounds for bcrypt
+          - Always validate input to prevent injection
+          - Send authentication data over HTTPS only
+        </recommendation>
+      </practice>
+    </latest-best-practices>
+
+    <implementation-steps>
+      <step n="1" goal="Extend existing models.py with new authentication models">
+        <action>Open src/database/models.py</action>
+        <action>Add imports: UUID, uuid4, Enum, JSONB</action>
+        <action>Create User model with all required fields</action>
+        <action>Create UserTenantRole model with composite unique constraint</action>
+        <action>Create AuthAuditLog model</action>
+        <action>Create AuditLog model with JSONB columns</action>
+        <action>Define Role enum with 5 values</action>
+      </step>
+
+      <step n="2" goal="Create Alembic migration for new tables and indexes">
+        <action>Run: alembic revision --autogenerate -m "add_auth_tables"</action>
+        <action>Review generated migration file</action>
+        <action>Add indexes manually if not auto-detected:
+          - CREATE INDEX idx_users_email ON users(email)
+          - CREATE UNIQUE INDEX idx_user_tenant_roles_composite ON user_tenant_roles(user_id, tenant_id)
+          - CREATE INDEX idx_auth_audit_log_user_created ON auth_audit_log(user_id, created_at)
+          - CREATE INDEX idx_audit_log_composite ON audit_log(user_id, tenant_id, entity_type, created_at)
+        </action>
+        <action>Test upgrade: alembic upgrade head</action>
+        <action>Test downgrade: alembic downgrade -1</action>
+        <action>Re-run upgrade: alembic upgrade head</action>
+      </step>
+
+      <step n="3" goal="Create admin user seed script">
+        <action>Create scripts/create_admin_user.py</action>
+        <action>Import models, database session, bcrypt</action>
+        <action>Read environment variables: ADMIN_EMAIL, ADMIN_PASSWORD, DEFAULT_TENANT_ID</action>
+        <action>Check if user already exists (query by email)</action>
+        <action>If not exists: create User with hashed password</action>
+        <action>Create UserTenantRole with super_admin role</action>
+        <action>Commit transaction</action>
+        <action>Log success message</action>
+      </step>
+
+      <step n="4" goal="Create user migration script (optional)">
+        <action>Create scripts/migrate_streamlit_users.py</action>
+        <action>Read K8s Ingress basic auth secrets (if exists)</action>
+        <action>For each user: create User record with temporary password</action>
+        <action>Create UserTenantRole for default tenant</action>
+        <action>Log migration to audit_log table</action>
+        <action>Send password reset email (placeholder for future implementation)</action>
+      </step>
+
+      <step n="5" goal="Write unit tests">
+        <action>Create tests/unit/test_user_model.py</action>
+        <action>Test user creation with UUID generation</action>
+        <action>Test unique email constraint</action>
+        <action>Test role assignment</action>
+        <action>Test audit log creation</action>
+        <action>Test migration forward and rollback</action>
+        <action>Target: 90%+ coverage for models</action>
+      </step>
+    </implementation-steps>
+  </implementation-guidance>
+
+  <existing-codebase-context>
+    <relevant-files>
+      <file path="src/database/models.py" relevance="critical">
+        Current models that will be extended with new authentication models.
+        Contains: Base class, existing table definitions, UUID pattern usage.
+      </file>
+
+      <file path="src/database/session.py" relevance="high">
+        Async SQLAlchemy session configuration.
+        Needed for: Understanding how to create async database operations.
+      </file>
+
+      <file path="alembic.ini" relevance="high">
+        Alembic configuration file.
+        Needed for: Running migrations, understanding migration path.
+      </file>
+
+      <file path="alembic/env.py" relevance="high">
+        Alembic environment configuration.
+        Needed for: Understanding async migration setup, target metadata.
+      </file>
+
+      <file path="src/config.py" relevance="medium">
+        Application settings using Pydantic BaseSettings.
+        Needed for: Understanding environment variable patterns, database URL.
+      </file>
+
+      <file path="pyproject.toml" relevance="medium">
+        Project dependencies.
+        Needed for: Verifying SQLAlchemy, Alembic, bcrypt versions.
+      </file>
+    </relevant-files>
+
+    <existing-patterns>
+      <pattern name="UUID Primary Keys">
+        Existing tables use UUID with gen_random_uuid():
+        ```sql
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid()
+        ```
+        New models should follow same pattern using Python-side uuid4.
+      </pattern>
+
+      <pattern name="Timestamps">
+        Existing models use:
+        ```python
+        created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+        updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+        ```
+      </pattern>
+
+      <pattern name="Foreign Keys">
+        Existing models define foreign keys as:
+        ```python
+        tenant_id: Mapped[str] = mapped_column(ForeignKey("tenant_configs.tenant_id"))
+        ```
+      </pattern>
+
+      <pattern name="Indexes">
+        Existing models create indexes as:
+        ```python
+        __table_args__ = (
+            Index('idx_table_column', 'column_name'),
+        )
+        ```
+      </pattern>
+    </existing-patterns>
+  </existing-codebase-context>
+
+  <test-strategy>
+    <test-file path="tests/unit/test_user_model.py">
+      <test name="test_create_user_with_uuid">
+        Verify User model creates with UUID primary key.
+        Assert: user.id is UUID, user.email is correct.
+      </test>
+
+      <test name="test_unique_email_constraint">
+        Attempt to create two users with same email.
+        Assert: IntegrityError raised.
+      </test>
+
+      <test name="test_assign_role_to_user">
+        Create UserTenantRole linking user to tenant.
+        Assert: role assignment successful, composite key enforced.
+      </test>
+
+      <test name="test_auth_audit_log_creation">
+        Create AuthAuditLog entry for login attempt.
+        Assert: log created with correct fields.
+      </test>
+
+      <test name="test_audit_log_jsonb_fields">
+        Create AuditLog with old_value and new_value JSONB.
+        Assert: JSON serialization works correctly.
+      </test>
+
+      <test name="test_migration_upgrade">
+        Run alembic upgrade head.
+        Assert: All 4 tables exist with indexes.
+      </test>
+
+      <test name="test_migration_downgrade">
+        Run alembic downgrade -1.
+        Assert: All 4 tables dropped.
+      </test>
+    </test-file>
+
+    <test-file path="tests/unit/test_create_admin_user.py">
+      <test name="test_admin_user_creation">
+        Run script with mock environment variables.
+        Assert: User created with super_admin role.
+      </test>
+
+      <test name="test_admin_user_idempotent">
+        Run script twice with same email.
+        Assert: No duplicate user created, no error.
+      </test>
+
+      <test name="test_password_hashing">
+        Create user with plain password.
+        Assert: password_hash != plain password, bcrypt format.
+      </test>
+    </test-file>
+
+    <coverage-target>90%+ for database models and scripts</coverage-target>
+  </test-strategy>
+
+  <dependencies>
+    <dependency name="SQLAlchemy" version="2.0+" type="required">
+      Async ORM for database operations
+    </dependency>
+
+    <dependency name="Alembic" version="latest" type="required">
+      Database migration tool
+    </dependency>
+
+    <dependency name="asyncpg" version="latest" type="required">
+      Async PostgreSQL driver
+    </dependency>
+
+    <dependency name="passlib" version="latest" type="required">
+      Password hashing with bcrypt support
+      Install: pip install passlib[bcrypt]
+    </dependency>
+
+    <dependency name="bcrypt" version="latest" type="required">
+      Bcrypt algorithm implementation (via passlib)
+    </dependency>
+
+    <dependency name="pytest" version="latest" type="test">
+      Unit testing framework
+    </dependency>
+
+    <dependency name="pytest-asyncio" version="latest" type="test">
+      Async test support
+    </dependency>
+  </dependencies>
+
+  <prerequisites>
+    <prerequisite id="PREREQ-1" status="completed">
+      Story 0: User Research & Design Preparation
+      - ADR 003 defines JWT architecture (roles fetched on-demand, not in JWT)
+    </prerequisite>
+
+    <prerequisite id="PREREQ-2" status="completed">
+      PostgreSQL 17 database running and accessible
+    </prerequisite>
+
+    <prerequisite id="PREREQ-3" status="completed">
+      Alembic configured (alembic.ini, alembic/env.py exist)
+    </prerequisite>
+
+    <prerequisite id="PREREQ-4" status="completed">
+      Existing models.py with Base class defined
+    </prerequisite>
+  </prerequisites>
+
+  <risks-and-mitigations>
+    <risk severity="high">
+      <description>Migration fails due to existing data</description>
+      <mitigation>Test migration on clean database first, then test with existing data</mitigation>
+    </risk>
+
+    <risk severity="medium">
+      <description>UUID generation performance impact</description>
+      <mitigation>Use Python-side uuid4 (no database roundtrip), benchmark if needed</mitigation>
+    </risk>
+
+    <risk severity="medium">
+      <description>Bcrypt hashing too slow for high-volume auth</description>
+      <mitigation>10 rounds is balanced, can adjust if performance issues arise</mitigation>
+    </risk>
+
+    <risk severity="low">
+      <description>Admin user script accidentally creates duplicates</description>
+      <mitigation>Script checks for existing user before creation (idempotent)</mitigation>
+    </risk>
+  </risks-and-mitigations>
+
+  <out-of-scope>
+    <item>JWT token generation and validation (Story 1B)</item>
+    <item>API endpoints for authentication (Story 1C)</item>
+    <item>Password policy validation (Story 1B)</item>
+    <item>Account lockout logic (Story 1B)</item>
+    <item>Rate limiting (Story 1C)</item>
+    <item>Frontend authentication UI (Epic 3)</item>
+  </out-of-scope>
+
+  <related-stories>
+    <story id="1B" relationship="follows">
+      Auth Service & JWT Implementation
+      - Uses database models created in this story
+      - Implements password hashing and validation
+    </story>
+
+    <story id="1C" relationship="follows">
+      API Endpoints & Middleware
+      - Uses database models and services from stories 1A and 1B
+      - Implements authentication endpoints
+    </story>
+
+    <story id="2" relationship="parallel">
+      Next.js Project Setup & Layout
+      - Can be developed in parallel (different developer)
+      - Will consume API endpoints from story 1C
+    </story>
+  </related-stories>
+
+  <definition-of-done>
+    <criterion>✅ All 4 database models created in src/database/models.py</criterion>
+    <criterion>✅ All indexes defined and created</criterion>
+    <criterion>✅ Alembic migration file created and tested (upgrade + downgrade)</criterion>
+    <criterion>✅ Admin user seed script created and tested</criterion>
+    <criterion>✅ Optional user migration script created</criterion>
+    <criterion>✅ Unit tests written with 90%+ coverage</criterion>
+    <criterion>✅ All tests pass</criterion>
+    <criterion>✅ Code reviewed by 1 team member</criterion>
+    <criterion>✅ Migration runs successfully on staging database</criterion>
+    <criterion>✅ Documentation updated (if needed)</criterion>
+  </definition-of-done>
+
+  <success-metrics>
+    <metric name="Migration Success Rate">
+      Target: 100% success on first attempt (tested locally)
+    </metric>
+
+    <metric name="Test Coverage">
+      Target: 90%+ for database models and scripts
+    </metric>
+
+    <metric name="Performance">
+      Target: User creation < 50ms, role query < 10ms
+    </metric>
+
+    <metric name="Code Quality">
+      Target: No critical linting errors, passes mypy type checks
+    </metric>
+  </success-metrics>
+</story-context>

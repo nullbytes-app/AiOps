@@ -8,7 +8,7 @@ with configurable pool size and connection timeout.
 
 from redis import asyncio as aioredis
 
-from src.config import settings
+from src.config import settings, get_settings
 import asyncio
 
 # Redis connection timeout in seconds (per tech spec NFR)
@@ -30,6 +30,9 @@ async def get_redis_client() -> aioredis.Redis:
         ConnectionError: If Redis is unavailable
         TimeoutError: If connection timeout is exceeded
     """
+    # Get settings (initializing if necessary for tests)
+    settings = get_settings()
+
     # Create async Redis client with connection pooling
     client = aioredis.from_url(
         settings.redis_url,
@@ -66,6 +69,9 @@ def get_shared_redis() -> aioredis.Redis:
     Note: This client should not be closed by callers. Lifecycle can be
     managed by the application process (e.g., on shutdown hooks in future stories).
     """
+    # Get settings (initializing if necessary for tests)
+    settings = get_settings()
+
     loop = asyncio.get_running_loop()
     key = id(loop)
     client = _clients_by_loop.get(key)

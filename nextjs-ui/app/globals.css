@@ -1,0 +1,75 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background-gradient-1: #fff5f7;
+  --background-gradient-2: #f0f9ff;
+  --background-gradient-3: #fefce8;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', system-ui, sans-serif;
+  color: #1f2937;
+  background: linear-gradient(
+    135deg,
+    var(--background-gradient-1) 0%,
+    var(--background-gradient-2) 50%,
+    var(--background-gradient-3) 100%
+  );
+  background-size: 200% 200%;
+  animation: meshGradientShift 20s ease infinite;
+  min-height: 100vh;
+}
+
+/* Liquid Glass Card Base Class */
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(255, 255, 255, 1);
+    border-radius: 24px;
+    backdrop-filter: blur(32px) saturate(180%) brightness(1.1);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+    animation: elasticBounceIn 800ms cubic-bezier(0.68, -0.6, 0.32, 1.6);
+    transition: all 450ms cubic-bezier(0.4, 0.0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    transform: perspective(1000px) rotateX(2deg) translateZ(20px) translateY(-4px);
+    box-shadow:
+      0 16px 48px rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 1);
+  }
+
+  /* Progressive Enhancement - fallback for reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .glass-card {
+      animation: none;
+    }
+
+    .glass-card:hover {
+      transform: translateY(-2px);
+    }
+
+    body {
+      animation: none;
+    }
+  }
+
+  /* Glassmorphism fallback for browsers without backdrop-filter */
+  @supports not (backdrop-filter: blur(32px)) {
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+    }
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

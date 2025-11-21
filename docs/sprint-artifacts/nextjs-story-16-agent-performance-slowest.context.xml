@@ -1,0 +1,227 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>nextjs-ui-migration-epic</epicId>
+    <storyId>nextjs-16</storyId>
+    <title>Agent Performance Dashboard - Slowest Executions List</title>
+    <status>drafted</status>
+    <generatedAt>2025-11-21</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-16-agent-performance-slowest.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>developer or admin</asA>
+    <iWant>to see a list of the slowest agent executions with drill-down details</iWant>
+    <soThat>I can identify performance bottlenecks and optimize slow operations</soThat>
+    <tasks>- Task 1: Set up component structure and API integration
+- Task 2: Implement table with sorting and filtering
+- Task 3: Add duration formatting and color coding
+- Task 4: Implement inline details expansion
+- Task 5: Add status badges and indicators
+- Task 6: Implement refresh and auto-refresh
+- Task 7: Add loading, empty, and error states
+- Task 8: Accessibility and keyboard navigation
+- Task 9: Testing and validation</tasks>
+  </story>
+
+  <acceptanceCriteria>AC1: Table displays execution details (ID, agent name, time, timestamp, status, input preview)
+AC2: Sorting and filtering (by execution time, timestamp, status filter)
+AC3: Duration color coding (normal <30s, warning 30-60s, slow >60s)
+AC4: Inline expansion shows full details (input, output, steps, tools, errors)
+AC5: Filter controls (status dropdown, URL params, refresh, auto-refresh 90s)
+AC6: Loading/empty/error states with skeleton, messages, retry
+AC7: API integration with React Query caching (staleTime 90s, refetchInterval 90s)
+AC8: Accessibility (keyboard nav, ARIA labels, screen reader support)</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Next.js UI Migration Technical Specification v2.0</title>
+        <section>Design System &amp; Component Library</section>
+        <snippet>Defines Apple Liquid Glass design system with frosted glass effects, design tokens (colors, typography, spacing), animation patterns (150ms/300ms/500ms durations), and component library using shadcn/ui. Includes responsive breakpoints and accessibility requirements (WCAG 2.1 AA).</snippet>
+      </doc>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Next.js UI Migration Technical Specification v2.0</title>
+        <section>Testing Strategy</section>
+        <snippet>Testing framework: Jest + React Testing Library for unit/integration tests, Playwright for E2E tests. Location: nextjs-ui/__tests__/ with mirrors of app structure. Coverage targets: 80% statements, 70% branches. Testing patterns include mocking React Query hooks, testing keyboard navigation, and accessibility testing with jest-axe.</snippet>
+      </doc>
+      <doc>
+        <path>docs/epics-nextjs-feature-parity-completion.md</path>
+        <title>Next.js UI Feature Parity &amp; Completion Epic</title>
+        <section>Epic 1: Analytics &amp; Monitoring Dashboards</section>
+        <snippet>Stories 1.5-1.8 cover Agent Performance analytics including metrics overview, trend charts, error analysis table, and slowest executions list. All APIs exist at /api/agents/*/metrics endpoints. RBAC: admin + developer roles. Uses React Query with 60s auto-refresh, TanStack Table for sorting/filtering, and Recharts for visualization.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>nextjs-ui/components/agent-performance/ErrorAnalysisTable.tsx</path>
+        <kind>component</kind>
+        <symbol>ErrorAnalysisTable</symbol>
+        <lines>1-350</lines>
+        <reason>Reference implementation for TanStack Table v8 with sorting, filtering, pagination, CSV export, keyboard navigation, and accessibility. Pattern to reuse for slowest executions table.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/hooks/useAgentErrorAnalysis.ts</path>
+        <kind>hook</kind>
+        <symbol>useAgentErrorAnalysis</symbol>
+        <lines>1-30</lines>
+        <reason>React Query hook pattern with staleTime 60s, refetchInterval, conditional enabled flag. Template for useSlowestExecutions hook.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/agent-performance/SeverityBadge.tsx</path>
+        <kind>component</kind>
+        <symbol>SeverityBadge</symbol>
+        <lines>1-45</lines>
+        <reason>Color-coded badge component. Pattern for ExecutionStatusBadge and DurationBadge components.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/lib/utils/performance.ts</path>
+        <kind>utility</kind>
+        <symbol>formatExecutionTime</symbol>
+        <lines>1-20</lines>
+        <reason>Formats milliseconds to seconds/minutes format. Exact function needed for duration column formatting.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/agent-performance/ErrorDetailModal.tsx</path>
+        <kind>component</kind>
+        <symbol>ErrorDetailModal</symbol>
+        <lines>1-180</lines>
+        <reason>Modal pattern for showing detailed information. Alternative to inline expansion if modal approach preferred.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/ui/SkeletonTable.tsx</path>
+        <kind>component</kind>
+        <symbol>SkeletonTable</symbol>
+        <lines>1-80</lines>
+        <reason>Loading skeleton for tables with configurable columns and rows. Use for initial loading state.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/lib/utils/csv-export.ts</path>
+        <kind>utility</kind>
+        <symbol>exportToCSV</symbol>
+        <lines>1-40</lines>
+        <reason>CSV export utility using PapaParse. Optional enhancement for slowest executions export.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/agent-performance/AgentSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>AgentSelector</symbol>
+        <lines>1-60</lines>
+        <reason>Agent selection dropdown using shadcn/ui Select. Already integrated in parent page.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/agent-performance/DateRangeSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>DateRangeSelector</symbol>
+        <lines>1-80</lines>
+        <reason>Date range selection with presets (Last 7/30 days). Already integrated in parent page, passed as props.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/app/dashboard/agent-performance/page.tsx</path>
+        <kind>page</kind>
+        <symbol>AgentPerformancePage</symbol>
+        <lines>1-120</lines>
+        <reason>Parent page component that will integrate SlowestExecutionsList. Shows layout pattern, RBAC check, and component composition.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/types/agent-performance.ts</path>
+        <kind>types</kind>
+        <symbol>AgentMetricsDTO, ErrorAnalysisDTO</symbol>
+        <lines>1-80</lines>
+        <reason>TypeScript type definitions for agent performance data. Need to add SlowestExecutionDTO interface here.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/lib/api/error-analysis.ts</path>
+        <kind>api-client</kind>
+        <symbol>getAgentErrorAnalysis</symbol>
+        <lines>1-25</lines>
+        <reason>API client pattern using apiClient.get with URLSearchParams. Template for getSlowestExecutions API function.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <node>
+        <package name="@tanstack/react-table" version="^8.0.0" usage="Table component with sorting, filtering, pagination" />
+        <package name="@tanstack/react-query" version="^5.0.0" usage="Data fetching, caching, auto-refresh" />
+        <package name="lucide-react" version="^0.400.0" usage="Icon components (ArrowUpDown, Eye, X, Clock, etc.)" />
+        <package name="date-fns" version="^3.0.0" usage="Date formatting utilities" />
+        <package name="papaparse" version="^5.4.0" usage="CSV export (optional enhancement)" />
+        <package name="next" version="14.2.15" usage="Next.js 14 App Router framework" />
+        <package name="react" version="^18.3.0" usage="React library" />
+        <package name="typescript" version="^5.0.0" usage="Type safety" />
+      </node>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <constraint>File size limit: ≤500 lines per file. If SlowestExecutionsList exceeds, split into smaller components (e.g., SlowExecutionsTable, ExecutionDetailRow).</constraint>
+    <constraint>Use TanStack Table v8 for table implementation (consistent with ErrorAnalysisTable pattern).</constraint>
+    <constraint>React Query configuration: staleTime 90s, refetchInterval 90s, retry 3 (as specified in AC7).</constraint>
+    <constraint>Duration color coding thresholds: normal &lt;30s, warning 30-60s, slow &gt;60s (AC3).</constraint>
+    <constraint>Accessibility: WCAG 2.1 AA compliance required. Include ARIA labels, keyboard navigation (Tab/Enter/Space/Escape), and screen reader support.</constraint>
+    <constraint>TypeScript strict mode enabled. All props and data types must have explicit interfaces.</constraint>
+    <constraint>Use existing utility functions: formatExecutionTime() from nextjs-ui/lib/utils/performance.ts for duration formatting.</constraint>
+    <constraint>Responsive design: 1 col mobile, 2 col tablet, 3 col desktop grid layouts using Tailwind CSS.</constraint>
+    <constraint>Use shadcn/ui components: Badge, Button, Table, Skeleton. Do not create custom implementations.</constraint>
+    <constraint>Error handling: Display user-friendly messages with retry button. Log errors to console for debugging.</constraint>
+    <constraint>URL state management: Status filter must sync with query params (?status=failed) for shareable links.</constraint>
+    <constraint>Loading states: Use SkeletonTable with 10 shimmer rows during initial load. Use spinner for pagination loading.</constraint>
+  </constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/agents/{agent_id}/slowest-executions</name>
+      <kind>REST API</kind>
+      <signature>GET /api/agents/{agent_id}/slowest-executions?start_date={ISO}&amp;end_date={ISO}&amp;limit=10&amp;offset=0&amp;status=all</signature>
+      <path>Backend API (endpoint to be created or verified)</path>
+      <description>Query parameters: start_date (ISO 8601), end_date (ISO 8601), limit (default 10, max 50), offset (default 0), status (all|success|failed). Returns array of SlowestExecutionDTO objects.</description>
+    </interface>
+    <interface>
+      <name>SlowestExecutionDTO</name>
+      <kind>TypeScript Interface</kind>
+      <signature>interface SlowestExecutionDTO { execution_id: string; agent_name: string; duration_ms: number; start_time: string; status: "success" | "failed" | "pending"; input_preview: string; output_preview: string; conversation_steps_count: number; tool_calls_count: number; error_message?: string; }</signature>
+      <path>nextjs-ui/types/agent-performance.ts</path>
+      <description>Data transfer object for slowest execution records. Add to existing agent-performance.ts types file.</description>
+    </interface>
+    <interface>
+      <name>useSlowestExecutions</name>
+      <kind>React Hook</kind>
+      <signature>function useSlowestExecutions(agentId: string, startDate: Date, endDate: Date, page: number, statusFilter: string): UseQueryResult&lt;SlowestExecutionDTO[]&gt;</signature>
+      <path>nextjs-ui/hooks/useSlowestExecutions.ts (to be created)</path>
+      <description>React Query hook for fetching slowest executions. Follow useAgentErrorAnalysis pattern with staleTime 90s, refetchInterval 90s, enabled check.</description>
+    </interface>
+    <interface>
+      <name>SlowestExecutionsList</name>
+      <kind>React Component</kind>
+      <signature>function SlowestExecutionsList({ agentId, startDate, endDate }: Props): JSX.Element</signature>
+      <path>nextjs-ui/components/agent-performance/SlowestExecutionsList.tsx (to be created)</path>
+      <description>Main component for slowest executions table with sorting, filtering, pagination, and inline expansion.</description>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>Testing framework: Jest 29 + React Testing Library for unit/component tests. Location: nextjs-ui/__tests__/ mirroring app structure. Coverage targets: 80% statements, 70% branches. Mock React Query hooks using jest.mock(). Test keyboard navigation (Tab, Enter, Space, Escape). Test accessibility with jest-axe for ARIA compliance. Use fake timers (jest.useFakeTimers) for testing auto-refresh intervals.</standards>
+    <locations>nextjs-ui/__tests__/components/agent-performance/SlowestExecutionsList.test.tsx, nextjs-ui/__tests__/hooks/useSlowestExecutions.test.tsx, nextjs-ui/__tests__/lib/utils/duration.test.ts</locations>
+    <ideas>
+      <idea ac="AC1,AC2">Test table rendering with mock data (10 executions). Verify all columns display correctly (execution_id, agent_name, execution_time, start_time, status, input_preview).</idea>
+      <idea ac="AC2">Test sorting by execution time (descending default, toggle to ascending). Test sorting by start timestamp.</idea>
+      <idea ac="AC2">Test status filter dropdown (All, Success, Failed). Verify filtered results display correctly.</idea>
+      <idea ac="AC2">Test pagination controls (next/prev buttons, page numbers). Test with 11+ executions to verify pagination works.</idea>
+      <idea ac="AC3">Test duration color coding with boundary values (29s normal, 30s warning, 60s warning, 61s slow).</idea>
+      <idea ac="AC3">Test DurationBadge appears for very slow executions (&gt;120s).</idea>
+      <idea ac="AC4">Test inline row expansion on click. Verify full input, output preview, conversation steps, tool calls, and error message display.</idea>
+      <idea ac="AC4">Test "View Full Details" button navigates to /dashboard/execution-history/{id}.</idea>
+      <idea ac="AC5">Test URL query param synchronization (?status=failed updates filter state).</idea>
+      <idea ac="AC5">Test manual refresh button triggers refetch.</idea>
+      <idea ac="AC5">Test auto-refresh with fake timers (jest.advanceTimersByTime(90000)).</idea>
+      <idea ac="AC6">Test loading state renders SkeletonTable with 10 rows.</idea>
+      <idea ac="AC6">Test empty state message when no results found.</idea>
+      <idea ac="AC6">Test error state displays error message and retry button.</idea>
+      <idea ac="AC7">Test React Query hook returns data correctly. Mock API response. Verify cache configuration (staleTime 90s, refetchInterval 90s).</idea>
+      <idea ac="AC8">Test keyboard navigation: Tab through rows, Enter to expand/collapse, Escape to collapse.</idea>
+      <idea ac="AC8">Test ARIA labels with jest-axe (no accessibility violations).</idea>
+      <idea ac="AC8">Test screen reader announcements (aria-live regions update on filter change).</idea>
+    </ideas>
+  </tests>
+</story-context>

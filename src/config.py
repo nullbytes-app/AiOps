@@ -12,7 +12,7 @@ Supports both local development (via .env file) and Kubernetes production
 import os
 from typing import Literal, Optional
 
-from pydantic import Field
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -152,6 +152,61 @@ class Settings(BaseSettings):
         description="Encryption key for sensitive fields (Fernet symmetric key)",
     )
 
+    # JWT Configuration (Story 1B)
+    jwt_secret_key: str = Field(
+        ...,
+        description="Secret key for JWT token signing (min 32 chars)",
+        min_length=32,
+    )
+    jwt_algorithm: str = Field(
+        default="HS256",
+        description="JWT signing algorithm",
+    )
+    jwt_expiration_days: int = Field(
+        default=7,
+        description="JWT access token expiration in days",
+        ge=1,
+        le=30,
+    )
+    jwt_refresh_expiration_days: int = Field(
+        default=30,
+        description="JWT refresh token expiration in days",
+        ge=1,
+        le=90,
+    )
+
+    # Password Policy Configuration (Story 1B)
+    password_min_length: int = Field(
+        default=12,
+        description="Minimum password length",
+        ge=8,
+    )
+    password_expiration_days: int = Field(
+        default=90,
+        description="Password expiration in days",
+        ge=1,
+    )
+    password_min_zxcvbn_score: int = Field(
+        default=3,
+        description="Minimum zxcvbn password strength score (0-4)",
+        ge=0,
+        le=4,
+    )
+
+    # Account Lockout Configuration (Story 1B)
+    account_lockout_threshold: int = Field(
+        default=5,
+        description="Failed login attempts before lockout",
+        ge=3,
+        le=10,
+    )
+    account_lockout_duration_minutes: int = Field(
+        default=15,
+        description="Account lockout duration in minutes",
+        ge=5,
+        le=60,
+    )
+
     # Secrets (Individual fields from Kubernetes Secrets / .env)
     postgres_password: str = Field(
         ...,
@@ -217,6 +272,12 @@ class Settings(BaseSettings):
         ...,
         description="LiteLLM master key for admin operations (virtual key management)",
         min_length=10,
+    )
+
+    # CORS Configuration (Story 1C)
+    cors_origins: list[str] = Field(
+        default=["http://localhost:3000", "http://localhost:5173"],
+        description="Allowed CORS origins for frontend applications",
     )
 
     # Tenant Configuration
@@ -316,6 +377,36 @@ class Settings(BaseSettings):
     #     le=30.0,
     # )
 
+    @field_validator("jwt_secret_key")
+    @classmethod
+    def validate_jwt_secret_length(cls, v: str) -> str:
+        """
+        Validate JWT secret key meets minimum length requirement.
+
+        SECURITY: JWT secret must be at least 32 characters (256 bits) to provide
+        adequate cryptographic strength for HS256 algorithm.
+
+        Args:
+            v: JWT secret key value
+
+        Returns:
+            str: Validated secret key
+
+        Raises:
+            ValueError: If secret key is shorter than 32 characters
+
+        Reference:
+            - OWASP JWT best practices recommend >= 256-bit keys for HMAC
+            - https://cheatsheetseries.owasp.org/cheatsheets/JSON_Web_Token_for_Java_Cheat_Sheet.html
+        """
+        if len(v) < 32:
+            raise ValueError(
+                f"JWT_SECRET_KEY must be at least 32 characters long for security. "
+                f"Current length: {len(v)}. "
+                f"Generate a secure key with: openssl rand -base64 32"
+            )
+        return v
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="AI_AGENTS_",
@@ -349,3 +440,26 @@ except Exception as e:
     else:
         # Running outside pytest - re-raise the exception
         raise
+
+
+def get_settings() -> Settings:
+    """
+    Get settings instance, initializing if necessary.
+
+    This function handles the case where settings is None during test collection
+    but environment variables have been set by pytest_configure. It will attempt
+    to initialize settings if it's None.
+
+    Returns:
+        Settings: The application settings instance
+
+    Raises:
+        RuntimeError: If settings cannot be initialized
+    """
+    global settings
+    if settings is None:
+        try:
+            settings = Settings()
+        except Exception as e:
+            raise RuntimeError(f"Failed to initialize settings: {e}")
+    return settings

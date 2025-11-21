@@ -1,0 +1,175 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - banner [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]: AI
+        - heading "AI Agents Platform" [level=1] [ref=e6]
+      - generic [ref=e8]:
+        - button "Switch to dark mode" [ref=e9] [cursor=pointer]:
+          - img [ref=e10]
+        - button "User" [ref=e13] [cursor=pointer]:
+          - img [ref=e15]
+          - generic [ref=e18]: User
+          - img [ref=e19]
+    - generic [ref=e21]:
+      - complementary [ref=e22]:
+        - navigation [ref=e23]:
+          - generic [ref=e24]:
+            - heading "Monitoring" [level=3] [ref=e25]
+            - list [ref=e26]:
+              - listitem [ref=e27]:
+                - link "Dashboard" [ref=e28] [cursor=pointer]:
+                  - /url: /dashboard
+                  - img [ref=e29]
+                  - generic [ref=e31]: Dashboard
+              - listitem [ref=e32]:
+                - link "System Health" [ref=e33] [cursor=pointer]:
+                  - /url: /dashboard/health
+                  - img [ref=e34]
+                  - generic [ref=e37]: System Health
+              - listitem [ref=e38]:
+                - link "Agent Metrics" [ref=e39] [cursor=pointer]:
+                  - /url: /dashboard/agents
+                  - img [ref=e40]
+                  - generic [ref=e43]: Agent Metrics
+              - listitem [ref=e44]:
+                - link "Ticket Processing" [ref=e45] [cursor=pointer]:
+                  - /url: /dashboard/tickets
+                  - img [ref=e46]
+                  - generic [ref=e48]: Ticket Processing
+          - generic [ref=e49]:
+            - heading "Configuration" [level=3] [ref=e50]
+            - list [ref=e51]:
+              - listitem [ref=e52]:
+                - link "Tenants" [ref=e53] [cursor=pointer]:
+                  - /url: /dashboard/tenants
+                  - img [ref=e54]
+                  - generic [ref=e56]: Tenants
+              - listitem [ref=e57]:
+                - link "Agents" [ref=e58] [cursor=pointer]:
+                  - /url: /dashboard/agents-config
+                  - img [ref=e59]
+                  - generic [ref=e62]: Agents
+              - listitem [ref=e63]:
+                - link "Prompts" [ref=e64] [cursor=pointer]:
+                  - /url: /dashboard/prompts
+                  - img [ref=e65]
+                  - generic [ref=e67]: Prompts
+              - listitem [ref=e68]:
+                - link "Tools" [ref=e69] [cursor=pointer]:
+                  - /url: /dashboard/tools
+                  - img [ref=e70]
+                  - generic [ref=e73]: Tools
+              - listitem [ref=e74]:
+                - link "Plugins" [ref=e75] [cursor=pointer]:
+                  - /url: /dashboard/plugins
+                  - img [ref=e76]
+                  - generic [ref=e80]: Plugins
+              - listitem [ref=e81]:
+                - link "MCP Servers" [ref=e82] [cursor=pointer]:
+                  - /url: /dashboard/mcp-servers
+                  - img [ref=e83]
+                  - generic [ref=e87]: MCP Servers
+              - listitem [ref=e88]:
+                - link "Workflows" [ref=e89] [cursor=pointer]:
+                  - /url: /dashboard/workflows
+                  - img [ref=e90]
+                  - generic [ref=e94]: Workflows
+          - generic [ref=e95]:
+            - heading "Operations" [level=3] [ref=e96]
+            - list [ref=e97]:
+              - listitem [ref=e98]:
+                - link "Logs" [ref=e99] [cursor=pointer]:
+                  - /url: /dashboard/logs
+                  - img [ref=e100]
+                  - generic [ref=e103]: Logs
+              - listitem [ref=e104]:
+                - link "Audit Trail" [ref=e105] [cursor=pointer]:
+                  - /url: /dashboard/audit
+                  - img [ref=e106]
+                  - generic [ref=e110]: Audit Trail
+              - listitem [ref=e111]:
+                - link "Settings" [ref=e112] [cursor=pointer]:
+                  - /url: /dashboard/settings
+                  - img [ref=e113]
+                  - generic [ref=e116]: Settings
+          - generic [ref=e117]:
+            - heading "Tools" [level=3] [ref=e118]
+            - list [ref=e119]:
+              - listitem [ref=e120]:
+                - link "API Playground" [ref=e121] [cursor=pointer]:
+                  - /url: /dashboard/playground
+                  - img [ref=e122]
+                  - generic [ref=e124]: API Playground
+              - listitem [ref=e125]:
+                - link "Testing" [ref=e126] [cursor=pointer]:
+                  - /url: /dashboard/testing
+                  - img [ref=e127]
+                  - generic [ref=e129]: Testing
+      - main [ref=e130]:
+        - generic [ref=e131]:
+          - generic [ref=e132]:
+            - generic [ref=e133]:
+              - heading "Tenants" [level=1] [ref=e134]
+              - paragraph [ref=e135]: Manage tenant organizations and their configurations
+            - button "New Tenant" [active] [ref=e136] [cursor=pointer]:
+              - img [ref=e137]
+              - text: New Tenant
+          - table [ref=e140]:
+            - rowgroup [ref=e141]:
+              - row "Name Description Agents Created Actions" [ref=e142]:
+                - cell "Name" [ref=e143]
+                - cell "Description" [ref=e144]
+                - cell "Agents" [ref=e145]
+                - cell "Created" [ref=e146]
+                - cell "Actions" [ref=e147]
+            - rowgroup [ref=e148]:
+              - row "Acme Corp Primary tenant 5 11 months ago" [ref=e149]:
+                - cell "Acme Corp" [ref=e150]:
+                  - generic [ref=e153]: Acme Corp
+                - cell "Primary tenant" [ref=e154]:
+                  - generic [ref=e155]: Primary tenant
+                - cell "5" [ref=e156]:
+                  - generic [ref=e157]:
+                    - img [ref=e158]
+                    - text: "5"
+                - cell "11 months ago" [ref=e163]:
+                  - generic [ref=e164]: 11 months ago
+                - cell [ref=e165]:
+                  - generic [ref=e166]:
+                    - button "Edit tenant" [ref=e167] [cursor=pointer]:
+                      - img [ref=e168]
+                    - button "Delete tenant" [ref=e171] [cursor=pointer]:
+                      - img [ref=e172]
+              - row "TechStart Inc Startup tenant 2 10 months ago" [ref=e175]:
+                - cell "TechStart Inc" [ref=e176]:
+                  - generic [ref=e179]: TechStart Inc
+                - cell "Startup tenant" [ref=e180]:
+                  - generic [ref=e181]: Startup tenant
+                - cell "2" [ref=e182]:
+                  - generic [ref=e183]:
+                    - img [ref=e184]
+                    - text: "2"
+                - cell "10 months ago" [ref=e189]:
+                  - generic [ref=e190]: 10 months ago
+                - cell [ref=e191]:
+                  - generic [ref=e192]:
+                    - button "Edit tenant" [ref=e193] [cursor=pointer]:
+                      - img [ref=e194]
+                    - button "Delete tenant" [ref=e197] [cursor=pointer]:
+                      - img [ref=e198]
+    - contentinfo [ref=e201]:
+      - generic [ref=e202]:
+        - generic [ref=e203]: © 2025 AI Agents Platform. All rights reserved.
+        - generic [ref=e204]:
+          - generic [ref=e205]: v1.0.0
+          - link "Documentation" [ref=e206] [cursor=pointer]:
+            - /url: /docs
+          - link "Support" [ref=e207] [cursor=pointer]:
+            - /url: /support
+  - region "Notifications alt+T"
+  - alert [ref=e208]
+```

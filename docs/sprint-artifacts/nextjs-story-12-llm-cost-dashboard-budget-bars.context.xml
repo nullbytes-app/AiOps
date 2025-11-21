@@ -1,0 +1,330 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>nextjs-ui-migration-epic</epicId>
+    <storyId>nextjs-story-12-llm-cost-dashboard-budget-bars</storyId>
+    <title>LLM Cost Dashboard - Budget Utilization Progress Bars</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-21</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/nextjs-story-12-llm-cost-dashboard-budget-bars.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>operations manager</asA>
+    <iWant>to see budget utilization for each tenant</iWant>
+    <soThat>I can prevent overspend and take action before budgets are exceeded</soThat>
+    <tasks>
+## Phase 1: Core Components (3 hours)
+1. Create BudgetProgressBar component
+2. Create utility functions (getBudgetColor, formatCurrency)
+3. Create useBudgetUtilization hook
+4. Create BudgetUtilizationRow component
+
+## Phase 2: Advanced Features (2.5 hours)
+5. Create AgentBreakdownTable component
+6. Create BudgetFilters component
+7. Create BudgetUtilizationList component
+
+## Phase 3: Integration & Polish (1.5 hours)
+8. Integrate into LLM Costs dashboard page
+9. Add sort functionality
+10. Final polish & testing (accessibility, auto-refresh, responsive design)</tasks>
+  </story>
+
+  <acceptanceCriteria>
+## Primary Criteria
+- Tenant list with name, budget, spent, progress bar, color coding (green <75%, yellow 75-90%, red >90%)
+- Alert icon (⚠️) if >100% budget exceeded
+- Click row to expand agent-level breakdown (table: Agent Name | Spend | % of Tenant Total)
+- Filter controls (All tenants, Over budget only, High utilization >75%)
+- Sorting options (Highest utilization first, Alphabetical, Budget amount)
+
+## Edge Cases
+- Tenant with no budget (NULL/$0): Progress bar 0% gray, "No budget configured"
+- Tenant with $0 spent: 0% utilization, green, empty progress bar
+- All tenants under 75%: Empty state "All tenants within budget limits. Great job!"
+
+## Performance Criteria
+- Initial load < 2 seconds for 50+ tenants
+- Pagination: 20 tenants per page
+- Page navigation instant (cached data)</acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <doc>
+        <path>docs/nextjs-ui-migration-tech-spec-v2.md</path>
+        <title>Technical Specification: Next.js UI Migration with Liquid Glass Design & RBAC</title>
+        <section>Architecture & Framework Decisions</section>
+        <snippet>Next.js 14 App Router with TanStack Query v5 for server state management, shadcn/ui components, TypeScript-first development. JWT roles-on-demand architecture, API versioning as /api/v1/*, rate limiting with slowapi (5 attempts/15min).</snippet>
+      </doc>
+      <doc>
+        <path>docs/adr/005-tanstack-query-over-swr.md</path>
+        <title>ADR 005: TanStack Query Over SWR for Data Fetching</title>
+        <section>Implementation Patterns</section>
+        <snippet>Use TanStack Query v5 for all data fetching with queryKey, queryFn, staleTime (5-55s for dashboards), refetchInterval (60s for real-time metrics), retry logic (3 attempts exponential backoff), optimistic updates for mutations. Cache management with invalidateQueries.</snippet>
+      </doc>
+      <doc>
+        <path>docs/design-system/design-system-overview.md</path>
+        <title>Apple Liquid Glass Design System</title>
+        <section>Component Patterns</section>
+        <snippet>Use shadcn/ui components (Progress, Table, Select), Tailwind CSS for styling, Lucide React icons. Color thresholds: green-600 (success), yellow-600 (warning), red-600 (destructive), gray-500 (neutral). Progress bars h-2 height, rounded-full borders.</snippet>
+      </doc>
+    </docs>
+    <code>
+      <artifact>
+        <path>nextjs-ui/hooks/useLLMCostSummary.ts</path>
+        <kind>hook</kind>
+        <symbol>useLLMCostSummary</symbol>
+        <lines>1-76</lines>
+        <reason>Existing pattern for React Query hooks with auto-refresh (60s interval), retry logic (3 attempts exponential backoff), proper TypeScript typing. Use as template for useBudgetUtilization hook.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/app/dashboard/llm-costs/page.tsx</path>
+        <kind>page</kind>
+        <symbol>LLMCostsDashboardPage</symbol>
+        <lines>1-60</lines>
+        <reason>Existing page structure pattern with 'use client' directive, useSession for auth, ErrorState and LoadingSkeleton components. Budget section will be added to this page.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/ui/progress.tsx</path>
+        <kind>component</kind>
+        <symbol>Progress</symbol>
+        <lines>N/A</lines>
+        <reason>shadcn/ui Progress component (needs installation: npx shadcn@latest add progress). Core component for budget progress bars with value prop and custom indicator colors.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/ui/table.tsx</path>
+        <kind>component</kind>
+        <symbol>Table, TableBody, TableCell, TableHead, TableHeader, TableRow</symbol>
+        <lines>N/A</lines>
+        <reason>shadcn/ui Table components for agent breakdown display. Provides consistent table styling across application.</reason>
+      </artifact>
+      <artifact>
+        <path>nextjs-ui/components/costs/DateRangeSelector.tsx</path>
+        <kind>component</kind>
+        <symbol>DateRangeSelector</symbol>
+        <lines>N/A</lines>
+        <reason>Existing component pattern for filter controls. Reference for creating BudgetFilters component with similar UX patterns.</reason>
+      </artifact>
+    </code>
+    <dependencies>
+      <npm>
+        <package name="@tanstack/react-query" version="^5.62.2">Server state management with caching, auto-refresh, mutations</package>
+        <package name="recharts" version="^3.3.0">Charts library for data visualization</package>
+        <package name="next" version="14.2.15">React framework with App Router</package>
+        <package name="next-auth" version="^4.24.13">Authentication with RBAC enforcement</package>
+        <package name="axios" version="^1.7.9">HTTP client for API requests</package>
+        <package name="lucide-react" version="^0.462.0">Icon library (AlertCircle, RefreshCw icons)</package>
+        <package name="tailwind-merge" version="^2.6.0">Utility for merging Tailwind classes</package>
+        <package name="clsx" version="^2.1.1">Conditional className utility</package>
+        <package name="zod" version="^4.1.12">TypeScript-first schema validation</package>
+        <package name="react-hook-form" version="^7.66.1">Form state management</package>
+      </npm>
+      <shadcn>
+        <component>progress</component>
+        <component>table</component>
+        <component>select</component>
+        <component>button</component>
+      </shadcn>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+- **File Size:** All files must be ≤500 lines. If components exceed this, split into focused modules.
+- **TypeScript:** Strict mode required. All props, hooks, and functions must have explicit types. No 'any' types allowed.
+- **React Query Patterns:** Use queryKey arrays for caching (e.g., ['budget-utilization', filter, sortBy, page]). staleTime for dashboards: 30s. refetchInterval: 60s. Retry: 3 attempts with exponential backoff.
+- **Component Structure:** Client components use 'use client' directive. Prefer composition over props drilling. Extract sub-components for readability.
+- **API Integration:** All endpoints versioned as /api/v1/* per ADR-004. Use axios with 5s timeout for dashboard metrics. Handle 403 Forbidden for unauthorized roles.
+- **Error Handling:** Graceful degradation. Show ErrorState with retry button on API failures. Use error boundaries for unhandled errors.
+- **Accessibility:** WCAG 2.1 AA compliance. Keyboard navigation (Tab, Enter to expand). ARIA labels for progress bars and interactive elements. Color contrast ratios ≥4.5:1.
+- **Performance:** Initial load <2s for 50+ tenants. Pagination at 20 items/page. Client-side caching to reduce API calls. Bundle size optimization (tree-shaking, code splitting).
+- **Testing:** Unit tests for all components, hooks, and utilities (≥90% coverage). Integration tests for user workflows. E2E tests for critical paths (Playwright).
+- **Design System:** Use shadcn/ui components. Tailwind CSS for styling. Lucide React icons. Follow Apple Liquid Glass design tokens (spacing, colors, typography).
+- **Security:** RBAC enforcement (admin + operator roles only). Tenant isolation (users only see their tenant data). No sensitive data in client-side logs. Audit logging for cost data access (backend).
+- **Documentation:** JSDoc comments for all exported functions/components. Include @param, @returns, @example. Document API contracts, DTO schemas, and business logic.</constraints>
+
+  <interfaces>
+    <interface>
+      <name>GET /api/v1/costs/budget-utilization</name>
+      <kind>REST API endpoint</kind>
+      <signature>
+Request:
+  GET /api/v1/costs/budget-utilization?filter={all|over_budget|high_utilization}&sort_by={utilization|name|budget}&page={number}&page_size={number}
+  Headers:
+    Authorization: Bearer {jwt_token}
+    X-Tenant-ID: {current_tenant_id}
+
+Response 200:
+{
+  "data": [
+    {
+      "tenant_id": "tenant-abc",
+      "tenant_name": "Acme Corporation",
+      "budget_amount": 5000.00,  // USD, null if not set
+      "spent_amount": 4750.50,   // USD, cumulative
+      "utilization_percentage": 95.01,  // (spent/budget) * 100
+      "agent_breakdown": [
+        {
+          "agent_id": "agent-123",
+          "agent_name": "Customer Support Agent",
+          "spent_amount": 3200.00,
+          "percentage_of_tenant": 67.37  // % of tenant's total spend
+        }
+      ],
+      "last_updated": "2025-01-21T14:30:00Z"
+    }
+  ],
+  "total_count": 23,
+  "page": 1,
+  "page_size": 20
+}
+
+Response 403 Forbidden:
+{
+  "error": "Insufficient permissions. Requires admin or operator role."
+}
+</signature>
+      <path>Backend: src/api/llm_costs.py (to be implemented)</path>
+    </interface>
+    <interface>
+      <name>BudgetUtilizationDTO</name>
+      <kind>TypeScript interface</kind>
+      <signature>
+interface BudgetUtilizationDTO {
+  tenant_id: string;
+  tenant_name: string;
+  budget_amount: number | null;  // USD, null if not set
+  spent_amount: number;           // USD, cumulative
+  utilization_percentage: number; // 0-100+, calculated: (spent/budget) * 100
+  agent_breakdown: AgentSpendDTO[];
+  last_updated: string;           // ISO 8601 timestamp
+}
+
+interface AgentSpendDTO {
+  agent_id: string;
+  agent_name: string;
+  spent_amount: number;           // USD
+  percentage_of_tenant: number;   // 0-100, % of tenant's total spend
+}
+</signature>
+      <path>Frontend: nextjs-ui/src/types/costs.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>useBudgetUtilization</name>
+      <kind>React Query hook</kind>
+      <signature>
+interface UseBudgetUtilizationOptions {
+  filter?: 'all' | 'over_budget' | 'high_utilization';
+  sortBy?: 'utilization' | 'name' | 'budget';
+  page?: number;
+  pageSize?: number;
+}
+
+function useBudgetUtilization(options: UseBudgetUtilizationOptions): UseQueryResult&lt;BudgetUtilizationResponse, Error&gt; {
+  // Returns: { data, isLoading, isError, error, refetch }
+  // Auto-refreshes every 60s (refetchInterval: 60000)
+  // Caches with queryKey: ['budget-utilization', filter, sortBy, page, pageSize]
+}
+</signature>
+      <path>Frontend: nextjs-ui/hooks/useBudgetUtilization.ts (to be created)</path>
+    </interface>
+    <interface>
+      <name>getBudgetColor</name>
+      <kind>Utility function</kind>
+      <signature>
+function getBudgetColor(utilizationPercentage: number | null): {
+  color: string;
+  variant: 'success' | 'warning' | 'destructive' | 'neutral';
+} {
+  // Returns color classes and variant based on thresholds:
+  // null/0: neutral (gray)
+  // <75%: success (green-600)
+  // 75-90%: warning (yellow-600)
+  // >90%: destructive (red-600)
+}
+</signature>
+      <path>Frontend: nextjs-ui/lib/utils/budget.ts (to be created)</path>
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+Use Jest + React Testing Library for unit/integration tests. Playwright for E2E tests.
+Test patterns:
+  - Unit tests: Component rendering, hook behavior, utility functions
+  - Integration tests: User workflows (click, filter, sort)
+  - E2E tests: Full page scenarios with mock API
+Coverage: ≥90% for new code
+Test file location: Co-located with components (*.test.tsx) or in __tests__/ directory
+</standards>
+
+    <locations>
+- nextjs-ui/components/llm-costs/*.test.tsx (component unit tests)
+- nextjs-ui/hooks/*.test.ts (hook unit tests)
+- nextjs-ui/lib/utils/*.test.ts (utility function tests)
+- nextjs-ui/app/dashboard/llm-costs/*.test.tsx (page integration tests)
+- nextjs-ui/e2e/llm-costs-budget.spec.ts (E2E Playwright tests)
+</locations>
+
+    <ideas>
+**Unit Tests:**
+- BudgetProgressBar.test.tsx: Render with 0%, 50%, 75%, 95%, 120% utilization. Verify color variants. Test "No budget configured" state.
+- useBudgetUtilization.test.ts: Mock API responses. Test filter/sort params. Verify 60s auto-refresh. Test error handling and retry logic.
+- budget.test.ts: getBudgetColor returns correct variants. formatCurrency handles null, $0, large amounts ($123,456.78).
+
+**Integration Tests:**
+- page.test.tsx: Render budget section. Click tenant row to expand. Filter dropdown changes displayed tenants. Sort dropdown reorders list. Test pagination.
+
+**E2E Tests:**
+- llm-costs-budget.spec.ts: Navigate to /dashboard/llm-costs. Verify budget section loads. Expand tenant row. Verify agent breakdown table. Filter by "Over budget only". Test mobile viewport (320px).
+
+**Edge Cases:**
+- Tenant with budget=null shows gray progress bar
+- Tenant with spent=$0 shows 0% green progress
+- All tenants <75%: Empty state for "High utilization" filter
+- API 403 error: Redirect to /dashboard with error toast
+- API 500 error: Show ErrorState with retry button
+</ideas>
+  </tests>
+
+  <research_context>
+## Latest 2025 Documentation Patterns (via Context7 MCP)
+
+### Next.js 14 App Router Best Practices:
+- Server Components by default for data fetching
+- Client Components with 'use client' for interactivity
+- Server-side data fetching with async/await in page.tsx
+- Pass data to Client Components via props
+- Use Suspense boundaries for streaming
+- fetch() API cached by default (cache: 'force-cache')
+
+### TanStack Query v5 Patterns:
+- useQuery({ queryKey, queryFn, staleTime, refetchInterval, retry })
+- Auto-refresh: refetchInterval + refetchIntervalInBackground
+- Stale time: 30-60s for dashboard metrics
+- Retry logic: Exponential backoff with retryDelay
+- Query client config: staleTime, cacheTime, retry defaults
+- Pagination: useInfiniteQuery with getNextPageParam
+
+### shadcn/ui Progress Component:
+- Installation: npx shadcn@latest add progress
+- Depends on @radix-ui/react-progress
+- Usage: &lt;Progress value={percentage} /&gt;
+- Custom colors via indicatorClassName prop
+- Cap visual progress at 100% (Math.min(utilized, 100))
+
+### shadcn/ui Table Component:
+- Installation: npx shadcn@latest add table
+- Components: Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow
+- Import from @/components/ui/table
+- Use with array.map() for data rows
+
+### Key Implementation Insights:
+1. React Query hook pattern: Separate fetchFn from useQuery hook
+2. TypeScript-first: Explicit return types for all functions
+3. Error boundaries: Wrap components in ErrorBoundary for graceful failures
+4. Loading states: Use Skeleton components during initial load
+5. Accessibility: ARIA labels, keyboard navigation, focus management
+6. Performance: Memoize expensive calculations, use React.memo for static components
+  </research_context>
+</story-context>

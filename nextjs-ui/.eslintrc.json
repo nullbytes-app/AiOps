@@ -1,0 +1,10 @@
+{
+  "extends": [
+    "next/core-web-vitals",
+    "next/typescript",
+    "plugin:storybook/recommended"
+  ],
+  "rules": {
+    "storybook/no-renderer-packages": "off"
+  }
+}

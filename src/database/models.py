@@ -708,21 +708,303 @@ class EnhancementFeedback(Base):
     )
 
 
-class AuditLog(Base):
+class User(Base):
     """
-    Audit log for system operations tracking.
+    User account model for authentication and authorization.
 
-    Stores all system operations performed through the admin UI for compliance,
-    troubleshooting, and security auditing. Each operation (pause/resume processing,
-    queue clearing, config sync) creates an audit log entry.
+    Stores user credentials, account security settings (lockout, password expiry),
+    and default tenant association. Users can have different roles across multiple
+    tenants (see UserTenantRole model).
+
+    Security features:
+    - Password hashing with bcrypt (10 rounds)
+    - Account lockout after 5 failed attempts (15 minutes)
+    - Password expiration after 90 days
+    - Password history (prevents reuse of last 5 passwords)
 
     Attributes:
         id: UUID primary key (globally unique)
-        timestamp: UTC timestamp when operation was performed
-        user: Username or identifier of user who performed operation
-        operation: Operation name (e.g., "pause_processing", "clear_queue")
-        details: JSON object with operation-specific details
-        status: Operation status ("success", "failure", "in_progress")
+        email: User email (unique, used for login)
+        password_hash: Bcrypt hashed password (never store plain text)
+        default_tenant_id: FK to tenant user belongs to by default
+        failed_login_attempts: Counter for failed logins (reset on success)
+        locked_until: Timestamp until which account is locked (nullable)
+        password_expires_at: Timestamp when password expires (nullable)
+        password_history: JSON array of last 5 password hashes
+        is_active: Account active status (False for soft-deleted accounts)
+        created_at: Account creation timestamp
+        updated_at: Last update timestamp
+    """
+
+    __tablename__ = "users"
+
+    id: UUID = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+        doc="Globally unique user ID",
+    )
+    email: str = Column(
+        String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+        doc="User email address (unique, used for login)",
+    )
+    password_hash: str = Column(
+        String(255),
+        nullable=False,
+        doc="Bcrypt hashed password (never store plain text)",
+    )
+    default_tenant_id: UUID = Column(
+        UUID(as_uuid=True),
+        nullable=True,
+        doc="Default tenant ID for this user",
+    )
+    failed_login_attempts: int = Column(
+        Integer,
+        nullable=False,
+        default=0,
+        doc="Counter for failed login attempts (reset on successful login)",
+    )
+    locked_until: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp until which account is locked (15 minutes after 5 failed attempts)",
+    )
+    password_expires_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=True,
+        doc="Timestamp when password expires (90 days after creation)",
+    )
+    password_history: list = Column(
+        JSON,
+        nullable=False,
+        default=list,
+        doc="JSON array of last 5 password hashes (prevents password reuse)",
+    )
+    is_active: bool = Column(
+        Boolean,
+        nullable=False,
+        default=True,
+        server_default="true",
+        doc="Account active status (False for soft-deleted accounts)",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Account creation timestamp (UTC)",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last update timestamp (UTC, auto-updated)",
+    )
+
+    # Indexes for efficient querying
+    __table_args__ = (
+        Index("ix_users_email", "email", unique=True),
+    )
+
+
+class RoleEnum(str, Enum):
+    """
+    RBAC roles for the AI Agents Platform.
+
+    Roles are hierarchical (super_admin > tenant_admin > operator > developer > viewer).
+    Each role has specific permissions defined in the permission matrix (see tech-spec).
+
+    Roles:
+        super_admin: Platform administrator (all permissions, all tenants)
+        tenant_admin: Tenant administrator (all permissions within tenant)
+        operator: Operations team member (can pause/resume, view executions)
+        developer: Developer (can create/edit agents, test agents)
+        viewer: Read-only access (can view dashboards, metrics, history)
+    """
+
+    SUPER_ADMIN = "super_admin"
+    TENANT_ADMIN = "tenant_admin"
+    OPERATOR = "operator"
+    DEVELOPER = "developer"
+    VIEWER = "viewer"
+
+
+class UserTenantRole(Base):
+    """
+    Many-to-many relationship between users and tenants with roles.
+
+    A user can have different roles in different tenants. For example:
+    - Alice is super_admin in Tenant A
+    - Alice is operator in Tenant B
+    - Alice is viewer in Tenant C
+
+    This model stores the (user, tenant, role) triples. The composite unique
+    constraint ensures one role per user per tenant.
+
+    CRITICAL: Roles are fetched on-demand from this table, NOT stored in JWT
+    (see ADR 003: JWT Roles Fetched On-Demand).
+
+    Attributes:
+        id: UUID primary key (globally unique)
+        user_id: FK to users table
+        tenant_id: Tenant identifier (string, matches TenantConfig.tenant_id)
+        role: Role enum (super_admin, tenant_admin, operator, developer, viewer)
+        created_at: Role assignment timestamp
+        updated_at: Last update timestamp
+    """
+
+    __tablename__ = "user_tenant_roles"
+
+    id: UUID = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+        doc="Globally unique role assignment ID",
+    )
+    user_id: UUID = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        doc="FK to users table",
+    )
+    tenant_id: str = Column(
+        String(255),
+        nullable=False,
+        doc="Tenant identifier (matches TenantConfig.tenant_id)",
+    )
+    role: str = Column(
+        String(50),
+        nullable=False,
+        doc="Role enum: super_admin, tenant_admin, operator, developer, viewer",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        doc="Role assignment timestamp (UTC)",
+    )
+    updated_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+        doc="Last update timestamp (UTC, auto-updated)",
+    )
+
+    # Composite unique constraint: one role per user per tenant
+    # Indexes for fast role lookups (CRITICAL for on-demand role fetching)
+    __table_args__ = (
+        UniqueConstraint("user_id", "tenant_id", name="uq_user_tenant"),
+        Index("ix_user_tenant_roles_lookup", "user_id", "tenant_id"),
+    )
+
+
+class AuthAuditLog(Base):
+    """
+    Audit log for authentication events.
+
+    Tracks all authentication attempts (login, logout, password reset, etc.)
+    for security monitoring, compliance, and troubleshooting. Logs both
+    successful and failed attempts.
+
+    Use cases:
+    - Detect brute force attacks (many failed logins from same IP)
+    - Compliance reporting (who logged in when)
+    - Troubleshooting login issues (why did login fail?)
+    - Account lockout tracking (when was account locked?)
+
+    Attributes:
+        id: UUID primary key (globally unique)
+        user_id: FK to users table (nullable: failed login before user found)
+        event_type: Event type (login, logout, password_reset, account_locked, etc.)
+        success: Boolean (True = success, False = failure)
+        ip_address: IP address of client
+        user_agent: User agent string (browser, OS)
+        created_at: Event timestamp (UTC)
+    """
+
+    __tablename__ = "auth_audit_log"
+
+    id: UUID = Column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        default=uuid.uuid4,
+        nullable=False,
+        doc="Globally unique audit log entry ID",
+    )
+    user_id: UUID = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="FK to users table (nullable: user not found on failed login)",
+    )
+    event_type: str = Column(
+        String(100),
+        nullable=False,
+        index=True,
+        doc="Event type: login, logout, password_reset, account_locked, etc.",
+    )
+    success: bool = Column(
+        Boolean,
+        nullable=False,
+        doc="True = success, False = failure",
+    )
+    ip_address: str = Column(
+        String(45),  # IPv6 max length
+        nullable=True,
+        doc="IP address of client (IPv4 or IPv6)",
+    )
+    user_agent: str = Column(
+        String(500),
+        nullable=True,
+        doc="User agent string (browser, OS, device)",
+    )
+    created_at: datetime = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+        index=True,
+        doc="Event timestamp (UTC)",
+    )
+
+    # Indexes for efficient querying
+    __table_args__ = (
+        Index("ix_auth_audit_log_user_created", "user_id", "created_at"),
+        Index("ix_auth_audit_log_event_type", "event_type"),
+    )
+
+
+class AuditLog(Base):
+    """
+    General audit log for CRUD operations tracking.
+
+    Stores all system CRUD operations (create, update, delete) for compliance,
+    troubleshooting, and security auditing. Tracks changes to entities with
+    old/new values (JSON diff).
+
+    Use cases:
+    - Compliance reporting (who changed what when)
+    - Troubleshooting (what changed before the issue started?)
+    - Security auditing (detect unauthorized changes)
+    - Data recovery (restore old values)
+
+    Attributes:
+        id: UUID primary key (globally unique)
+        user_id: FK to users table (who performed the action)
+        tenant_id: Tenant identifier (which tenant the entity belongs to)
+        action: Action type (create, update, delete)
+        entity_type: Entity type (agent, tenant, mcp_server, etc.)
+        entity_id: UUID of the entity that was modified
+        old_value: JSONB object with entity state before change (nullable for create)
+        new_value: JSONB object with entity state after change (nullable for delete)
+        ip_address: IP address of client
+        user_agent: User agent string (browser, OS)
+        created_at: Event timestamp (UTC)
     """
 
     __tablename__ = "audit_log"
@@ -734,42 +1016,66 @@ class AuditLog(Base):
         nullable=False,
         doc="Globally unique audit log entry ID",
     )
-    timestamp: datetime = Column(
+    user_id: UUID = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        doc="FK to users table (who performed the action)",
+    )
+    tenant_id: str = Column(
+        String(255),
+        nullable=False,
+        index=True,
+        doc="Tenant identifier (which tenant the entity belongs to)",
+    )
+    action: str = Column(
+        String(50),
+        nullable=False,
+        doc="Action type: create, update, delete",
+    )
+    entity_type: str = Column(
+        String(100),
+        nullable=False,
+        index=True,
+        doc="Entity type: agent, tenant, mcp_server, tool, etc.",
+    )
+    entity_id: UUID = Column(
+        UUID(as_uuid=True),
+        nullable=False,
+        doc="UUID of the entity that was modified",
+    )
+    old_value: dict = Column(
+        JSONB,
+        nullable=True,
+        doc="JSONB object with entity state before change (null for create)",
+    )
+    new_value: dict = Column(
+        JSONB,
+        nullable=True,
+        doc="JSONB object with entity state after change (null for delete)",
+    )
+    ip_address: str = Column(
+        String(45),  # IPv6 max length
+        nullable=True,
+        doc="IP address of client (IPv4 or IPv6)",
+    )
+    user_agent: str = Column(
+        String(500),
+        nullable=True,
+        doc="User agent string (browser, OS, device)",
+    )
+    created_at: datetime = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
         index=True,
-        doc="UTC timestamp when operation was performed",
-    )
-    user: str = Column(
-        String(255),
-        nullable=False,
-        doc="Username or identifier of user who performed operation",
-    )
-    operation: str = Column(
-        String(100),
-        nullable=False,
-        index=True,
-        doc="Operation name (e.g., 'pause_processing', 'clear_queue')",
-    )
-    details: dict = Column(
-        JSON,
-        nullable=True,
-        default=dict,
-        doc="JSON object with operation-specific details",
-    )
-    status: str = Column(
-        String(50),
-        nullable=False,
-        doc="Operation status: 'success', 'failure', or 'in_progress'",
+        doc="Event timestamp (UTC)",
     )
 
     # Indexes for efficient querying
-    # Index on timestamp DESC for "recent operations" queries
-    # Index on operation for filtering by operation type
     __table_args__ = (
-        Index("ix_audit_log_timestamp", "timestamp", postgresql_ops={"timestamp": "DESC"}),
-        Index("ix_audit_log_operation", "operation"),
+        Index("ix_audit_log_user_tenant_created", "user_id", "tenant_id", "created_at"),
+        Index("ix_audit_log_entity_type_created", "entity_type", "created_at"),
     )
 
 
@@ -828,6 +1134,13 @@ class Agent(Base):
         nullable=False,
         index=True,
         doc="Agent status: draft, active, suspended, inactive",
+    )
+    cognitive_architecture: str = Column(
+        String(50),
+        nullable=False,
+        default="react",
+        server_default="react",
+        doc="Cognitive architecture: react, single_step, plan_and_solve",
     )
     system_prompt: str = Column(
         Text,

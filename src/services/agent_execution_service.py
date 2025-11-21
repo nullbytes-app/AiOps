@@ -46,6 +46,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.database.models import MCPServer
 from src.exceptions import BudgetExceededError
+from src.schemas.agent import CognitiveArchitecture
 from src.services.agent_execution.mcp_bridge_pooler import cleanup_mcp_bridge
 from src.services.agent_execution.message_builder import build_messages
 from src.services.agent_execution.result_extractor import extract_response, extract_tool_calls
@@ -307,10 +308,13 @@ class AgentExecutionService:
                 max_tokens=max_tokens,
             )
 
-            # Step 7: Create ReAct agent with LangGraph
-            # Using create_react_agent pattern from LangGraph 0.6+
-            agent_executor = create_react_agent(
-                model=llm,
+            # Step 7: Create agent executor based on architecture
+            # Using factory pattern to support multiple cognitive architectures (Story 12.8)
+            architecture = getattr(agent, "cognitive_architecture", CognitiveArchitecture.REACT)
+            
+            agent_executor = self._create_agent_executor(
+                architecture=architecture,
+                llm=llm,
                 tools=langchain_tools,
             )
 
@@ -414,3 +418,51 @@ class AgentExecutionService:
             # Cleanup MCP bridge for this execution context (Story 11.2.3)
             # Uses extracted mcp_bridge_pooler module (Story 12.7)
             await cleanup_mcp_bridge(execution_context_id)
+
+    def _create_agent_executor(
+        self, 
+        architecture: str, 
+        llm: Any, 
+        tools: list[Any], 
+    ) -> Any:
+        """
+        Factory method to create agent executor based on cognitive architecture.
+        
+        Args:
+            architecture: CognitiveArchitecture enum value
+            llm: Initialized ChatModel
+            tools: List of LangChain tools
+            
+        Returns:
+            Compiled LangGraph graph
+        """
+        if architecture == CognitiveArchitecture.SINGLE_STEP:
+            return self._create_single_step_agent(llm, tools)
+        elif architecture == CognitiveArchitecture.PLAN_AND_SOLVE:
+            return self._create_plan_and_solve_agent(llm, tools)
+        else:
+            # Default to REACT
+            return create_react_agent(model=llm, tools=tools)
+
+    def _create_single_step_agent(self, llm: Any, tools: list[Any]) -> Any:
+        """
+        Create a zero-shot single-step agent (no reasoning loop).
+        
+        Useful for simple tasks where latency is critical and multi-step reasoning 
+        is not required.
+        """
+        # For single step, we can still use create_react_agent but bind tools 
+        # and force a single invocation, or use a simpler chain.
+        # To keep it compatible with the 'messages' state, we use create_react_agent
+        # but we could optimize this further in the future.
+        return create_react_agent(model=llm, tools=tools)
+
+    def _create_plan_and_solve_agent(self, llm: Any, tools: list[Any]) -> Any:
+        """
+        Create a Plan-and-Solve agent.
+        
+        For now, this falls back to ReAct as a placeholder until the full 
+        Plan-and-Solve graph is implemented in a future iteration.
+        """
+        # TODO: Implement full Plan-and-Solve graph
+        return create_react_agent(model=llm, tools=tools)

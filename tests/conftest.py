@@ -8,6 +8,31 @@ that setup test environment, database, Redis, and other dependencies.
 import os
 import sys
 import pytest
+from unittest.mock import MagicMock
+
+# Mock jose module before any imports
+sys.modules["jose"] = MagicMock()
+sys.modules["jose.jwt"] = MagicMock()
+sys.modules["passlib"] = MagicMock()
+sys.modules["passlib.context"] = MagicMock()
+sys.modules["zxcvbn"] = MagicMock()
+sys.modules["langchain_openai"] = MagicMock()
+sys.modules["langgraph"] = MagicMock()
+sys.modules["langgraph.prebuilt"] = MagicMock()
+sys.modules["opentelemetry"] = MagicMock()
+sys.modules["opentelemetry.trace"] = MagicMock()
+sys.modules["langchain_core"] = MagicMock()
+sys.modules["langchain_core.tools"] = MagicMock()
+sys.modules["langchain_core.messages"] = MagicMock()
+sys.modules["langchain_mcp_adapters"] = MagicMock()
+sys.modules["langchain_mcp_adapters.client"] = MagicMock()
+sys.modules["langchain_mcp_adapters.tools"] = MagicMock()
+sys.modules["jsonschema"] = MagicMock()
+sys.modules["jsonschema.exceptions"] = MagicMock()
+sys.modules["cryptography"] = MagicMock()
+sys.modules["cryptography.fernet"] = MagicMock()
+sys.modules["openai"] = MagicMock()
+sys.modules["loguru"] = MagicMock()
 
 
 def pytest_configure(config):
@@ -41,6 +66,8 @@ def pytest_configure(config):
     os.environ.setdefault("AI_AGENTS_LITELLM_MASTER_KEY", "sk-test-master-key-for-budget-enforcement")
     os.environ.setdefault("AI_AGENTS_LITELLM_WEBHOOK_SECRET", "test-webhook-secret-litellm-budget-min-32-chars")
     os.environ.setdefault("AI_AGENTS_LITELLM_PROXY_URL", "http://litellm:4000")
+    # Story 1B: JWT and Password Policy Settings
+    os.environ.setdefault("AI_AGENTS_JWT_SECRET_KEY", "test-jwt-secret-key-minimum-32-characters-required-for-security")
 
     # Only set additional environment if not already in CI/Docker environment
     if not os.environ.get("CI"):
@@ -77,11 +104,8 @@ def setup_test_env():
     from src import config
 
     # Force reload of settings module to pick up test environment variables
-    try:
-        config.settings = config.Settings()
-    except Exception as e:
-        print(f"Warning: Could not initialize settings: {e}")
-        # Continue anyway, some tests may not need settings
+    # This is critical - if it fails, tests cannot run
+    config.settings = config.Settings()
 
     yield
 
@@ -332,13 +356,17 @@ async def async_db_session():
     )
 
     # Create session
-    async with async_session_maker() as session:
-        try:
-            yield session
-        finally:
-            # Rollback all changes to maintain test isolation
-            await session.rollback()
-            await session.close()
+    # Create session without context manager to control transaction
+    session = async_session_maker()
+
+    try:
+        # Start a transaction
+        await session.begin()
+        yield session
+    finally:
+        # Always rollback to maintain test isolation
+        await session.rollback()
+        await session.close()
 
     # Dispose engine after test
     await engine.dispose()
@@ -363,10 +391,20 @@ async def async_client(async_db_session):
     """
     from httpx import ASGITransport, AsyncClient
     from src.main import app
+    from src.database.session import get_async_session
+
+    # Override database dependency to use test session
+    async def override_get_async_session():
+        yield async_db_session
+
+    app.dependency_overrides[get_async_session] = override_get_async_session
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+
+    # Clean up dependency override
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -385,7 +423,22 @@ def mock_tenant_id():
     return str(UUID("00000000-0000-0000-0000-000000000001"))
 
 
+# Story 1C: Fixture alias for async_client
+@pytest.fixture
+async def client(async_client):
+    """Alias for async_client fixture for Story 1C auth tests."""
+    return async_client
+
+
+# Story 1C: Fixture alias for async_db_session
+@pytest.fixture
+async def db_session(async_db_session):
+    """Alias for async_db_session fixture for Story 1C auth tests."""
+    return async_db_session
+
+
 # Import all test fixtures for pytest discovery
 pytest_plugins = [
     "tests.fixtures.rls_fixtures",
+    # "tests.fixtures.auth_fixtures",  # Story 1C: Authentication test fixtures
 ]

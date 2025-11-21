@@ -1,0 +1,110 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "Agent Metrics" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Monitor agent execution performance and costs
+      - button "Manually refresh data" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+        - text: Refresh
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - heading "Total Executions (24h)" [level=3] [ref=e16]
+        - generic [ref=e17]:
+          - paragraph [ref=e18]: 1,234
+          - generic "No change" [ref=e19]:
+            - img [ref=e20]
+            - generic [ref=e21]: 0.0%
+        - paragraph [ref=e22]: vs. previous 24h
+      - generic [ref=e23]:
+        - heading "Success Rate" [level=3] [ref=e24]
+        - generic [ref=e25]:
+          - paragraph [ref=e26]: 94.7%
+          - generic "Decreased by 1.3%" [ref=e27]:
+            - img [ref=e28]
+            - generic [ref=e31]: "-1.3%"
+        - paragraph [ref=e32]: vs. previous period
+      - generic [ref=e33]:
+        - heading "Avg Cost per Execution" [level=3] [ref=e34]
+        - paragraph [ref=e36]: $0.0319
+    - generic [ref=e37]:
+      - heading "Execution Timeline (Last 24 Hours)" [level=3] [ref=e38]
+      - generic [ref=e40]:
+        - list [ref=e42]:
+          - listitem [ref=e43]:
+            - img "Failed legend icon" [ref=e44]
+            - text: Failed
+          - listitem [ref=e46]:
+            - img "Successful legend icon" [ref=e47]
+            - text: Successful
+        - application "Agent execution timeline showing success and failure trends over the last 24 hours" [ref=e49]:
+          - generic [ref=e54]:
+            - generic [ref=e56]: 08:04
+            - generic [ref=e58]: 13:04
+            - generic [ref=e60]: 17:04
+            - generic [ref=e62]: 21:04
+            - generic [ref=e64]: 02:04
+            - generic [ref=e66]: 07:04
+          - generic [ref=e68]:
+            - generic [ref=e70]: "0"
+            - generic [ref=e72]: "25"
+            - generic [ref=e74]: "50"
+            - generic [ref=e76]: "75"
+            - generic [ref=e78]: "100"
+    - generic [ref=e133]:
+      - generic [ref=e134]:
+        - heading "Agent Performance" [level=3] [ref=e135]
+        - generic [ref=e136]:
+          - img [ref=e137]
+          - textbox "Search agents by name" [ref=e142]:
+            - /placeholder: Search agents...
+      - table [ref=e144]:
+        - rowgroup [ref=e145]:
+          - row "Sort by agent name Sort by total runs Sort by success rate Sort by average latency Sort by total cost" [ref=e146]:
+            - cell "Sort by agent name" [ref=e147]:
+              - button "Sort by agent name" [ref=e148] [cursor=pointer]:
+                - text: Agent Name
+                - img [ref=e149]
+            - cell "Sort by total runs" [ref=e152]:
+              - button "Sort by total runs" [ref=e153] [cursor=pointer]:
+                - text: Total Runs
+                - img [ref=e154]
+            - cell "Sort by success rate" [ref=e157]:
+              - button "Sort by success rate" [ref=e158] [cursor=pointer]:
+                - text: Success Rate
+                - img [ref=e159]
+            - cell "Sort by average latency" [ref=e162]:
+              - button "Sort by average latency" [ref=e163] [cursor=pointer]:
+                - text: Avg Latency
+                - img [ref=e164]
+            - cell "Sort by total cost" [ref=e167]:
+              - button "Sort by total cost" [ref=e168] [cursor=pointer]:
+                - text: Total Cost
+                - img [ref=e169]
+        - rowgroup [ref=e172]:
+          - row "Ticket Enhancer 523 9620.0% 245ms $12.4500" [ref=e173]:
+            - cell "Ticket Enhancer" [ref=e174]
+            - cell "523" [ref=e175]
+            - cell "9620.0%" [ref=e176]
+            - cell "245ms" [ref=e177]
+            - cell "$12.4500" [ref=e178]
+          - row "Code Reviewer 412 9280.0% 312ms $18.2300" [ref=e179]:
+            - cell "Code Reviewer" [ref=e180]
+            - cell "412" [ref=e181]
+            - cell "9280.0%" [ref=e182]
+            - cell "312ms" [ref=e183]
+            - cell "$18.2300" [ref=e184]
+          - row "Documentation Generator 299 9410.0% 189ms $8.6700" [ref=e185]:
+            - cell "Documentation Generator" [ref=e186]
+            - cell "299" [ref=e187]
+            - cell "9410.0%" [ref=e188]
+            - cell "189ms" [ref=e189]
+            - cell "$8.6700" [ref=e190]
+    - paragraph [ref=e191]: "Data auto-refreshes every 30 seconds • Last updated: 7:04:16 AM"
+  - region "Notifications alt+T"
+  - alert [ref=e192]
+  - generic [ref=e193]: "0"
+```

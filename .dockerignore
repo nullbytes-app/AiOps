@@ -30,8 +30,14 @@ htmlcov/
 
 # Documentation
 docs/
+!docs/design-system/design-tokens.json
 *.md
 !README.md
+
+# Next.js build artifacts
+nextjs-ui/.next/
+nextjs-ui/out/
+nextjs-ui/.swc/
 
 # Data directories
 data/

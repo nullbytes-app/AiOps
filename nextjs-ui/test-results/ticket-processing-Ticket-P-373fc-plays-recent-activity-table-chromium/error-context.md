@@ -1,0 +1,81 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]:
+        - heading "Ticket Processing" [level=1] [ref=e5]
+        - paragraph [ref=e6]: Monitor ticket queue depth and processing performance
+      - button "Manually refresh data" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+        - text: Refresh
+    - generic [ref=e14]:
+      - generic [ref=e15]:
+        - heading "Queue Depth" [level=3] [ref=e16]
+        - generic [ref=e17]:
+          - application [ref=e20]:
+            - generic "Queue depth at 21% capacity" [ref=e45]
+          - generic [ref=e46]:
+            - generic [ref=e47]: "42"
+            - generic [ref=e48]: Jobs in Queue
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - generic [ref=e51]:
+            - heading "Processing Rate" [level=3] [ref=e52]
+            - paragraph [ref=e53]: "87"
+            - paragraph [ref=e54]: tickets/hour
+          - 'generic "Trend: Decreasing" [ref=e55]':
+            - img [ref=e56]
+            - generic [ref=e59]: Decreasing
+        - generic [ref=e60]:
+          - paragraph [ref=e61]: Last 12 Hours
+          - application [ref=e64]
+      - generic [ref=e71]:
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - heading "Error Rate" [level=3] [ref=e74]
+            - paragraph [ref=e76]: 2.3%
+            - paragraph [ref=e77]: of 100 tickets
+          - generic [ref=e78]:
+            - img [ref=e79]
+            - generic [ref=e82]: Healthy
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - generic [ref=e85]: 0%
+            - generic [ref=e86]: Healthy (<5%)
+            - generic [ref=e87]: Warning (5-10%)
+            - generic [ref=e88]: Critical (>10%)
+          - generic "Error rate position at 2.3%" [ref=e91]
+    - generic [ref=e92]:
+      - heading "Recent Ticket Activity" [level=3] [ref=e93]
+      - table [ref=e95]:
+        - rowgroup [ref=e96]:
+          - row "Ticket ID Status Processing Time Timestamp" [ref=e97]:
+            - cell "Ticket ID" [ref=e98]
+            - cell "Status" [ref=e99]
+            - cell "Processing Time" [ref=e100]
+            - cell "Timestamp" [ref=e101]
+        - rowgroup [ref=e102]:
+          - button "View details for TKT-001" [ref=e103] [cursor=pointer]:
+            - cell "TKT-001" [ref=e104]
+            - cell "success" [ref=e105]:
+              - generic [ref=e106]: success
+            - cell "1.2s" [ref=e107]
+            - cell "less than a minute ago" [ref=e108]
+          - button "View details for TKT-002" [ref=e109] [cursor=pointer]:
+            - cell "TKT-002" [ref=e110]
+            - cell "pending" [ref=e111]:
+              - generic [ref=e112]: pending
+            - cell "0ms" [ref=e113]
+            - cell "less than a minute ago" [ref=e114]
+          - button "View details for TKT-003" [ref=e115] [cursor=pointer]:
+            - cell "TKT-003" [ref=e116]
+            - cell "success" [ref=e117]:
+              - generic [ref=e118]: success
+            - cell "892ms" [ref=e119]
+            - cell "less than a minute ago" [ref=e120]
+    - paragraph [ref=e121]: "Queue depth refreshes every 10 seconds • Activity refreshes every 15 seconds • Last updated: 7:09:25 AM"
+  - region "Notifications alt+T"
+  - alert [ref=e122]
+```

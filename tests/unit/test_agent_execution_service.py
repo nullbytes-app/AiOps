@@ -188,11 +188,11 @@ async def test_execute_agent_success_mocked(
     mock_db_session.execute = AsyncMock(return_value=mock_result)
 
     # Mock LangGraph components
-    with patch("src.services.agent_execution_service.init_chat_model") as mock_init_chat:
+    with patch("src.services.agent_execution_service.ChatOpenAI") as mock_chat_openai:
         with patch("src.services.agent_execution_service.create_react_agent") as mock_create_agent:
             # Setup LLM
             mock_llm = MagicMock()
-            mock_init_chat.return_value = mock_llm
+            mock_chat_openai.return_value = mock_llm
 
             # Setup agent executor
             mock_agent_executor = AsyncMock()

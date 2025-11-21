@@ -41,7 +41,7 @@ from src.plugins.jira.webhook_validator import (
     secure_compare,
 )
 from src.services.tenant_service import TenantService
-from src.database.connection import get_db_session
+from src.database.session import get_db_session
 from src.cache.redis_client import get_redis_client
 
 logger = logging.getLogger(__name__)
@@ -82,7 +82,9 @@ class JiraServiceManagementPlugin(TicketingToolPlugin):
         """Initialize Jira Service Management plugin (stateless design)."""
         pass
 
-    async def validate_webhook(self, payload: Dict[str, Any], signature: str) -> bool:
+    async def validate_webhook(
+        self, payload: Dict[str, Any], signature: str, raw_body: Optional[bytes] = None
+    ) -> bool:
         """
         Validate Jira webhook signature using HMAC-SHA256.
 
@@ -92,6 +94,7 @@ class JiraServiceManagementPlugin(TicketingToolPlugin):
         Args:
             payload: Jira webhook JSON payload containing issue data
             signature: X-Hub-Signature header value (format: "sha256=abc123...")
+            raw_body: Optional raw request body bytes for signature validation (preserves exact JSON format)
 
         Returns:
             True if signature is valid and tenant is active, False otherwise
@@ -129,9 +132,14 @@ class JiraServiceManagementPlugin(TicketingToolPlugin):
                 # Get webhook signing secret (decrypted by TenantService)
                 webhook_secret = tenant.webhook_signing_secret
 
-                # Convert payload back to JSON bytes for HMAC computation
-                # Use sort_keys=True for consistent ordering
-                payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
+                # Use raw body if provided (preserves exact JSON format for signature validation)
+                # Otherwise re-serialize the payload dict (backward compatibility)
+                if raw_body:
+                    payload_bytes = raw_body
+                else:
+                    # Convert payload back to JSON bytes for HMAC computation
+                    # Use sort_keys=True for consistent ordering
+                    payload_bytes = json.dumps(payload, sort_keys=True).encode("utf-8")
 
                 # Compute expected signature
                 expected_signature = compute_hmac_signature(payload_bytes, webhook_secret)

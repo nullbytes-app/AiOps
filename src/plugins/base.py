@@ -103,7 +103,9 @@ class TicketingToolPlugin(ABC):
     """
 
     @abstractmethod
-    async def validate_webhook(self, payload: Dict[str, Any], signature: str) -> bool:
+    async def validate_webhook(
+        self, payload: Dict[str, Any], signature: str, raw_body: Optional[bytes] = None
+    ) -> bool:
         """
         Validate webhook request authenticity using tool-specific signature algorithm.
 
@@ -118,6 +120,10 @@ class TicketingToolPlugin(ABC):
             signature (str): HMAC signature from webhook request header (e.g.,
                 X-ServiceDesk-Signature for ServiceDesk Plus, X-Hub-Signature for Jira).
                 Used to verify payload authenticity.
+            raw_body (Optional[bytes]): Raw request body bytes for signature validation.
+                When provided, preserves the exact JSON format used by the client to compute
+                the signature, avoiding datetime serialization issues. Defaults to None for
+                backward compatibility.
 
         Returns:
             bool: True if signature is valid and request is authentic, False otherwise.

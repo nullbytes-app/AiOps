@@ -1,0 +1,290 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>epic-4</epicId>
+    <storyId>7</storyId>
+    <title>Documentation & Training</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-20</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/7-documentation-and-training.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>a user of the new Next.js UI</asA>
+    <iWant>comprehensive documentation and training materials</iWant>
+    <soThat>I can quickly learn the new UI and find help when needed</soThat>
+    <tasks>
+### Task 1: Create Quick Start Guide (AC-1)
+- Subtask 1.1: Take screenshots of major UI areas
+- Subtask 1.2: Design 1-page PDF layout in Figma or Canva
+- Subtask 1.3: Write concise content (30 words max per section)
+- Subtask 1.4: Export as PDF, verify < 2MB
+- Subtask 1.5: Test readability on mobile/tablet
+
+### Task 2: Record Video Walkthrough (AC-2)
+- Subtask 2.1: Prepare script with timestamps
+- Subtask 2.2: Set up demo environment with realistic data
+- Subtask 2.3: Record 5-minute screen capture with Loom (1080p, 30fps)
+- Subtask 2.4: Add voiceover narration
+- Subtask 2.5: Compress video to < 50MB
+- Subtask 2.6: Upload to Loom, get shareable link
+
+### Task 3: Write Migration Guide (AC-3)
+- Subtask 3.1: Create Markdown table mapping 14 Streamlit pages to Next.js routes
+- Subtask 3.2: Document new features (5+ items)
+- Subtask 3.3: Document breaking changes (3+ items)
+- Subtask 3.4: Add side-by-side screenshots (5 key pages)
+- Subtask 3.5: Peer review with 1 team member for accuracy
+
+### Task 4: Write Changelog (AC-4)
+- Subtask 4.1: Extract "New Features" from Stories 0-6 (10+ items)
+- Subtask 4.2: Extract "Improvements" from review notes (5+ items)
+- Subtask 4.3: Document "Changes" (3+ items)
+- Subtask 4.4: List 2-3 "Known Issues"
+- Subtask 4.5: Format with emoji and Markdown bullets
+- Subtask 4.6: Validate all links work
+
+### Task 5: Generate API Documentation (AC-5)
+- Subtask 5.1: Verify FastAPI auto-generates OpenAPI spec
+- Subtask 5.2: Install Redocly CLI
+- Subtask 5.3: Generate HTML docs
+- Subtask 5.4: Verify endpoint coverage (30+ endpoints)
+- Subtask 5.5: Test hosted docs at /api/v1/docs
+- Subtask 5.6: Add note in README
+
+### Task 6: Write Runbooks (AC-6)
+- Subtask 6.1: Create docs/runbooks/login-issues.md
+- Subtask 6.2: Create docs/runbooks/performance-issues.md
+- Subtask 6.3: Create docs/runbooks/data-sync-issues.md
+- Subtask 6.4: Test each runbook
+- Subtask 6.5: Add diagnostic commands
+
+### Task 7: Schedule Live Demo (AC-7)
+- Subtask 7.1: Schedule Zoom meeting
+- Subtask 7.2: Send calendar invite
+- Subtask 7.3: Prepare demo script
+- Subtask 7.4: Enable Zoom recording
+- Subtask 7.5: Send reminder email
+
+### Task 8: Draft Pre-Launch Email (AC-8)
+- Subtask 8.1: Write email subject
+- Subtask 8.2: Draft email body
+- Subtask 8.3: Add links
+- Subtask 8.4: Include help resources
+- Subtask 8.5: Peer review email
+- Subtask 8.6: Schedule email send
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+AC-1: Quick Start Guide (1-page PDF)
+- File Created: docs/quick-start-guide.pdf exists and is < 2MB
+- Content Complete: Login instructions, Navigation overview, Tenant switcher usage, Keyboard shortcuts table, Where to get help
+- Design Quality: Clean layout with screenshots showing real UI (not Lorem ipsum)
+- Accessibility: Readable at 100% zoom on mobile/tablet (text ≥ 12pt)
+
+AC-2: Video Walkthrough (5 min, Loom)
+- File/Link Created: docs/video-walkthrough.mp4 or Loom link in docs/video-walkthrough.md
+- Content Coverage: 0:00-0:30 Intro, 0:30-1:30 Dashboard, 1:30-2:30 Creating agent, 2:30-3:30 Testing agent, 3:30-4:30 Execution history, 4:30-5:00 Tenant switcher
+- Recording Quality: 1080p resolution, 30 FPS, Clear voiceover, Compressed to < 50MB
+- Realistic Data: All UI shows real tenant names, agents, executions
+
+AC-3: Migration Guide (Streamlit → Next.js)
+- File Created: docs/migration-guide.md with Markdown formatting
+- Streamlit Page Mapping Table: All 14 Streamlit pages mapped to Next.js routes
+- New Features Section: 5+ items (tenant switcher, dark mode, command palette, keyboard shortcuts, mobile support)
+- Breaking Changes Section: 3+ items (authentication required, URL structure changed, RBAC)
+- Side-by-Side Screenshots: 5 key pages with Streamlit vs Next.js comparison
+
+AC-4: Changelog
+- File Created: docs/changelog.md with version v1.0 - January 2025
+- New Features: 10+ items (glassmorphic UI, command palette, keyboard shortcuts, dark mode, etc.)
+- Improvements: 5+ items (80% bundle reduction, real-time polling, WCAG 2.1 AA, error handling, loading states)
+- Changes: 3+ items (JWT tokens, URL structure, API versioning)
+- Known Issues: 2-3 items (Lighthouse audit pending, mobile E2E tests limited, Streamlit decommissioning pending)
+
+AC-5: API Documentation
+- File Generated: docs/api-docs.html (Redocly output)
+- Source Verified: OpenAPI 3.0 spec auto-generated at /api/v1/openapi.json
+- Endpoint Coverage: All 30+ endpoints documented with HTTP method, request/response schemas, auth requirements, examples
+- Hosted Docs Accessible: FastAPI auto-docs at /api/v1/docs (Swagger UI)
+- README Updated: Note added about API docs auto-updating
+
+AC-6: Runbooks (3 common issues)
+- Runbook 1: docs/runbooks/login-issues.md (wrong password, account locked, expired token)
+- Runbook 2: docs/runbooks/performance-issues.md (network latency, API backend slow, browser extensions)
+- Runbook 3: docs/runbooks/data-sync-issues.md (tenant context, permission issue, cache stale)
+
+AC-7: Live Demo Scheduled
+- Meeting Scheduled: 30-minute Zoom meeting 1 week before GA launch
+- Invites Sent: Calendar invite to all operations team members (20 users)
+- Agenda Prepared: 0-20 min live walkthrough, 20-30 min Q&A
+- Recording Enabled: Zoom cloud recording enabled
+- Reminder Sent: Email reminder 1 day before demo
+
+AC-8: Pre-Launch Communication
+- Email Template Created: docs/email-launch-announcement.md
+- Subject Line: "🎉 New UI Launching Next Week - Here's What You Need to Know"
+- Email Body Sections: What's changing, Why, When, How to prepare, Where to get help
+- Links Included: Quick start guide, video walkthrough, migration guide, live demo invite
+- Peer Review: Email reviewed by 1 stakeholder
+- Send Schedule: Email scheduled 1 week before GA launch
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <item path="docs/PRD.md">Product Requirements Document defining the AI Agents Platform features and requirements</item>
+      <item path="docs/architecture.md">System architecture with technology stack decisions, database schema, API contracts, and ADRs</item>
+      <item path="docs/epics-nextjs-ui-migration.md">Epic and story breakdown for migrating from Streamlit to Next.js 14 UI</item>
+      <item path="docs/nextjs-ui-migration-tech-spec-v2.md">Detailed technical specification with design system, authentication, RBAC, and implementation details</item>
+      <item path="docs/adr/001-nextjs-over-remix.md">ADR: Why Next.js 14 App Router chosen over Remix</item>
+      <item path="docs/adr/002-authjs-over-clerk.md">ADR: Why Auth.js chosen for internal tool authentication</item>
+      <item path="docs/adr/003-jwt-roles-on-demand.md">ADR: Why roles fetched on-demand, not stored in JWT (token bloat prevention)</item>
+      <item path="docs/adr/004-api-versioning-strategy.md">ADR: Why /api/v1/* versioning strategy adopted</item>
+      <item path="docs/adr/005-tanstack-query-over-swr.md">ADR: Data fetching library choice (TanStack Query)</item>
+      <item path="docs/adr/006-tailwind-over-css-in-js.md">ADR: Styling approach using Tailwind CSS</item>
+    </docs>
+    <code>
+      <streamlit-pages desc="14 existing Streamlit pages to be migrated">
+        <page path="src/admin/pages/1_Dashboard.py">Dashboard: System metrics, activity feed</page>
+        <page path="src/admin/pages/2_Tenants.py">Tenant Management: CRUD for tenant configs</page>
+        <page path="src/admin/pages/3_Plugin_Management.py">Plugin Management: Configure ticketing tool integrations</page>
+        <page path="src/admin/pages/4_History.py">Enhancement History: View past ticket enhancements</page>
+        <page path="src/admin/pages/5_Agent_Management.py">Agent Management: CRUD for AI agents</page>
+        <page path="src/admin/pages/6_LLM_Providers.py">LLM Provider Config: OpenRouter, OpenAI, etc.</page>
+        <page path="src/admin/pages/7_Operations.py">Queue Operations: Pause/resume worker queue</page>
+        <page path="src/admin/pages/8_Workers.py">Worker Monitoring: Celery worker status</page>
+        <page path="src/admin/pages/9_System_Prompt_Editor.py">Prompt Editor: Edit system prompts</page>
+        <page path="src/admin/pages/10_Add_Tool.py">Tool Upload: Import OpenAPI specs</page>
+        <page path="src/admin/pages/11_Execution_History.py">Execution History: Agent execution logs</page>
+        <page path="src/admin/pages/12_MCP_Servers.py">MCP Servers: Configure Model Context Protocol servers</page>
+        <page path="src/admin/pages/07_LLM_Costs.py">LLM Costs: Cost tracking and analytics</page>
+        <page path="src/admin/pages/08_Agent_Performance.py">Agent Performance: Metrics and trends</page>
+      </streamlit-pages>
+      <backend-api desc="FastAPI endpoints (30+ routes)">
+        <api-group category="Authentication">
+          <endpoint path="src/api/auth.py">POST /api/v1/auth/login, /register, /refresh, /logout, /forgot-password, /reset-password</endpoint>
+          <endpoint path="src/api/users.py">GET/PUT/DELETE /api/v1/users, /users/{id}/roles</endpoint>
+        </api-group>
+        <api-group category="Monitoring">
+          <endpoint path="src/api/health.py">GET /health, /health/ready (liveness/readiness probes)</endpoint>
+          <endpoint path="src/api/executions.py">GET /api/v1/executions (execution history with filters)</endpoint>
+          <endpoint path="src/api/llm_costs.py">GET /api/v1/metrics/llm-costs (cost analytics)</endpoint>
+          <endpoint path="src/api/agent_performance.py">GET /api/v1/agents/performance (performance metrics)</endpoint>
+          <endpoint path="src/api/tenant_spend.py">GET /api/v1/tenants/{id}/spend (tenant-specific costs)</endpoint>
+        </api-group>
+        <api-group category="Configuration">
+          <endpoint path="src/api/admin/tenants.py">GET/POST/PUT/DELETE /api/v1/tenants (tenant CRUD)</endpoint>
+          <endpoint path="src/api/agents.py">GET/POST/PUT/DELETE /api/v1/agents (agent CRUD)</endpoint>
+          <endpoint path="src/api/llm_providers.py">GET/POST/PUT/DELETE /api/v1/llm-providers</endpoint>
+          <endpoint path="src/api/llm_models.py">GET/POST/PUT/DELETE /api/v1/llm-models</endpoint>
+          <endpoint path="src/api/mcp_servers.py">GET/POST/PUT/DELETE /api/v1/mcp-servers</endpoint>
+        </api-group>
+        <api-group category="Operations">
+          <endpoint path="src/api/plugins.py">GET/POST/PUT/DELETE /api/v1/plugins (plugin management)</endpoint>
+          <endpoint path="src/api/prompts.py">GET/PUT /api/v1/prompts (system prompt versioning)</endpoint>
+          <endpoint path="src/api/openapi_tools.py">POST /api/v1/tools/import (OpenAPI spec upload)</endpoint>
+          <endpoint path="src/api/unified_tools.py">GET /api/v1/tools (unified tool listing)</endpoint>
+          <endpoint path="src/api/agent_testing.py">POST /api/v1/agents/{id}/test (test agent sandbox)</endpoint>
+        </api-group>
+        <api-group category="Advanced">
+          <endpoint path="src/api/fallback_chains.py">GET/POST/PUT/DELETE /api/v1/fallback-chains (LLM fallback config)</endpoint>
+          <endpoint path="src/api/byok.py">GET/POST/PUT/DELETE /api/v1/byok (Bring Your Own Key)</endpoint>
+          <endpoint path="src/api/budget.py">POST /api/v1/webhooks/budget-alert (budget enforcement)</endpoint>
+          <endpoint path="src/api/memory.py">GET/POST/PUT/DELETE /api/v1/agents/{id}/memory</endpoint>
+          <endpoint path="src/api/feedback.py">POST /api/v1/feedback (user feedback widget)</endpoint>
+        </api-group>
+      </backend-api>
+    </code>
+    <dependencies>
+      <frontend path="nextjs-ui/package.json">
+        Next.js 14.2.15, React 18, TypeScript 5.6.3, NextAuth 4.24.13, TailwindCSS 3.4.14,
+        TanStack Query 5.62.2, TanStack Table 8.21.3, Recharts 3.3.0, Zod 4.1.12,
+        React Hook Form 7.66.1, Framer Motion 11.11.17, Lucide React, HeadlessUI,
+        CodeMirror, Storybook 10.0.8, MSW 2.6.5, Playwright 1.56.1
+      </frontend>
+      <backend desc="Python dependencies for authentication and security">
+        slowapi>=0.1.9 (rate limiting),
+        python-jose[cryptography]>=3.3.0 (JWT operations),
+        passlib[bcrypt]>=1.7.4 (password hashing),
+        zxcvbn (password strength validation)
+      </backend>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <quality>
+      <constraint>All documentation must use consistent formatting (Markdown with headings, lists, code blocks)</constraint>
+      <constraint>All screenshots must show real data from actual system, not Lorem ipsum or placeholder content</constraint>
+      <constraint>Video walkthrough must be compressed to < 50MB while maintaining 1080p resolution at 30fps</constraint>
+      <constraint>Migration guide must map all 14 Streamlit pages to Next.js equivalents with notes on changes</constraint>
+      <constraint>Runbooks must be tested on clean environment to verify they resolve the documented issues</constraint>
+      <constraint>API documentation must be auto-generated from OpenAPI spec (no manual docs) to ensure accuracy</constraint>
+    </quality>
+    <technical>
+      <constraint>Use Loom for video recording (browser-based, shareable link, max 50MB)</constraint>
+      <constraint>Use Figma or Canva for quick start guide design (export as PDF, single page front/back)</constraint>
+      <constraint>Use Redocly CLI to generate HTML docs from FastAPI OpenAPI spec</constraint>
+      <constraint>Quick start guide must be readable on mobile devices (minimum 12pt font)</constraint>
+    </technical>
+    <timeline>
+      <constraint>Live demo must be scheduled 1 week before GA launch</constraint>
+      <constraint>Pre-launch email must be sent 1 week before GA launch</constraint>
+      <constraint>All documentation must be completed before Story 8 (Testing & Rollout) begins</constraint>
+    </timeline>
+  </constraints>
+
+  <interfaces>
+    <external-tools>
+      <tool name="Loom">Video screen recording platform for creating walkthrough video</tool>
+      <tool name="Figma">Design tool for creating quick start guide PDF with visual layout</tool>
+      <tool name="Canva">Alternative design tool for quick start guide if Figma not available</tool>
+      <tool name="Redocly CLI">OpenAPI documentation generator (redocly build-docs openapi.yaml)</tool>
+      <tool name="HandBrake">Video compression tool to reduce video size to < 50MB</tool>
+      <tool name="Zoom">Video conferencing for live demo session with screen sharing and recording</tool>
+    </external-tools>
+    <api-endpoints>
+      <endpoint>GET /api/v1/openapi.json - FastAPI auto-generated OpenAPI 3.0 specification</endpoint>
+      <endpoint>GET /api/v1/docs - Swagger UI for interactive API documentation</endpoint>
+      <endpoint>GET /api/v1/redoc - ReDoc alternative API documentation interface</endpoint>
+    </api-endpoints>
+    <file-formats>
+      <format>.pdf - Quick start guide (exported from Figma/Canva)</format>
+      <format>.mp4 - Video walkthrough (Loom recording, compressed with HandBrake)</format>
+      <format>.md - Migration guide, changelog, runbooks (Markdown)</format>
+      <format>.html - API documentation (Redocly generated from OpenAPI spec)</format>
+    </file-formats>
+  </interfaces>
+
+  <tests>
+    <standards>
+      <standard>Documentation Review: All docs reviewed by 1 team member for clarity and completeness</standard>
+      <standard>Screenshot Quality: All screenshots at minimum 1920x1080 resolution, real data visible</standard>
+      <standard>Video Playback: Video plays on desktop, mobile, tablet without issues</standard>
+      <standard>Runbook Validation: Each runbook tested on clean environment, issue reproduces and resolves</standard>
+      <standard>API Coverage: Verify all 30+ endpoints documented in OpenAPI spec</standard>
+      <standard>Link Validation: All internal links in docs work (no 404s)</standard>
+    </standards>
+    <locations>
+      <location>docs/quick-start-guide.pdf - Quick start guide PDF</location>
+      <location>docs/video-walkthrough.mp4 - Video walkthrough file or Loom link in .md</location>
+      <location>docs/migration-guide.md - Streamlit to Next.js migration mapping</location>
+      <location>docs/changelog.md - Version 1.0 changelog with features, improvements, changes</location>
+      <location>docs/api-docs.html - Redocly generated API documentation</location>
+      <location>docs/runbooks/login-issues.md - Troubleshooting login failures</location>
+      <location>docs/runbooks/performance-issues.md - Troubleshooting slow page loads</location>
+      <location>docs/runbooks/data-sync-issues.md - Troubleshooting missing data</location>
+      <location>docs/email-launch-announcement.md - Pre-launch email template</location>
+    </locations>
+    <ideas>
+      <idea>Test quick start guide on mobile: open PDF on iPhone/Android, verify text readable at 100% zoom</idea>
+      <idea>Test video compression: export Loom at 1080p, compress with HandBrake, verify < 50MB and clear audio/video</idea>
+      <idea>Test migration guide: give to 1 operations team member, verify they can find Streamlit → Next.js mapping</idea>
+      <idea>Test runbooks: reproduce each issue on clean environment (login failure, slow page, missing data), follow runbook steps, verify resolution</idea>
+      <idea>Test API docs: compare /api/v1/openapi.json endpoint list to generated docs, verify all endpoints documented</idea>
+      <idea>Test changelog: verify all new features from Stories 2-6 are listed, verify breaking changes documented</idea>
+      <idea>Test email template: send test email to 1 team member, verify links work, formatting correct</idea>
+      <idea>Validate links: run markdown link checker on all .md files, verify no broken links</idea>
+    </ideas>
+  </tests>
+</story-context>

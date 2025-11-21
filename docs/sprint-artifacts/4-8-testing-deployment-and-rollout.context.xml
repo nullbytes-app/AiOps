@@ -1,0 +1,451 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>4</epicId>
+    <storyId>8</storyId>
+    <title>Testing, Deployment and Production Rollout</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-20</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/4-8-testing-deployment-and-rollout.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer and operations team</asA>
+    <iWant>comprehensive testing and deployment procedures</iWant>
+    <soThat>the platform can be deployed to production safely and reliably</soThat>
+    <tasks>
+      - Create end-to-end integration test suite with pytest-asyncio
+      - Implement load testing with Locust (4 scenarios: baseline, peak, burst, endurance)
+      - Execute OWASP Top 10:2025 security testing checklist
+      - Document production deployment runbook with Kubernetes procedures
+      - Create and test rollback procedures (< 5 minute target)
+      - Develop production smoke test suite (8 automated tests)
+      - Define post-deployment monitoring checklist (24-hour validation)
+      - Validate all procedures in staging environment
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    - AC-1: End-to-End Integration Tests - Complete workflow validation with pytest, multi-tenant isolation, error handling (10+ scenarios, >80% coverage, <5 min execution)
+    - AC-2: Load Testing and Performance Validation - Locust tests for baseline (50 tickets/hr), peak (100/hr), burst (50 in 2 min), endurance (30/hr × 4hr) with performance metrics
+    - AC-3: Security Testing (OWASP Top 10:2025) - Full checklist validation including NEW A03 Supply Chain and A10 Exception Handling categories
+    - AC-4: Production Deployment Runbook - Step-by-step Kubernetes deployment with database migrations, infrastructure, services, workers, monitoring
+    - AC-5: Rollback Procedures - Documented procedures for Kubernetes rollback, database downgrade, full stack rollback with <5 min target
+    - AC-6: Production Smoke Tests - 8 automated tests validating health, readiness, metrics, webhook, database, Redis, Prometheus, Grafana
+    - AC-7: Post-Deployment Monitoring Checklist - 24-hour monitoring plan with critical (0-2hr), active (2-8hr), passive (8-24hr) monitoring periods
+    - AC-8: Staging Environment Validation - Complete test suite execution, deployment runbook validation, rollback testing in staging before production
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <!-- PRD - Non-Functional Requirements -->
+      <doc path="docs/PRD.md" title="Product Requirements Document" section="Non-Functional Requirements">
+        NFR001: Performance targets (p95 < 60s, 120s end-to-end)
+        NFR002: Scalability - Kubernetes HPA autoscaling 1-10 worker pods based on queue depth
+        NFR003: Reliability - 99% success rate with retry logic and graceful degradation
+        NFR004: Security - RLS, webhook validation, encrypted credentials, input validation
+        NFR005: Observability - Prometheus metrics, Grafana dashboards, 90-day audit logs
+      </doc>
+
+      <!-- Architecture - Deployment & Testing Patterns -->
+      <doc path="docs/architecture.md" title="Decision Architecture" section="Deployment Architecture">
+        Local: Docker Compose (postgres, redis, api, worker)
+        Production: Kubernetes 1.28+ with managed services (RDS PostgreSQL, ElastiCache Redis)
+        Deployment: Rolling updates, health checks, resource quotas
+        Web Server: Gunicorn + Uvicorn workers (production FastAPI standard)
+      </doc>
+
+      <doc path="docs/architecture.md" title="Decision Architecture" section="Error Handling Strategy">
+        Transient errors: Retry with exponential backoff (tenacity library)
+        Permanent errors: Log and fail fast
+        Degradation: Continue with partial data when optional services unavailable
+      </doc>
+
+      <doc path="docs/architecture.md" title="Decision Architecture" section="Security Architecture">
+        Webhook validation: HMAC-SHA256 signature validation
+        Row-level security: PostgreSQL RLS policies on all tenant tables
+        Encryption: K8s Secrets with etcd encryption, TLS for external APIs
+        Input validation: Pydantic models with strict typing, 10K char limits
+      </doc>
+
+      <!-- Architecture - Testing Patterns -->
+      <doc path="docs/architecture.md" title="Decision Architecture" section="Testing">
+        Framework: Pytest + pytest-asyncio for async test support
+        Test structure: tests/ mirrors src/ directory structure
+        Naming: test_<module_name>.py
+        CI/CD: GitHub Actions workflow with unit + integration tests
+      </doc>
+
+      <!-- Runbooks - Operational Procedures -->
+      <doc path="docs/runbooks/README.md" title="Runbooks Index">
+        14 operational runbooks covering: high-queue-depth, worker-failures, database-connection-issues,
+        api-timeout, enhancement-failures, tenant-onboarding, secret-rotation, webhook-troubleshooting,
+        login-issues, performance-issues, data-sync-issues
+      </doc>
+
+      <doc path="docs/runbooks/tenant-onboarding.md" title="Tenant Onboarding Runbook">
+        Documented procedure for onboarding new tenants including webhook setup, API key configuration,
+        testing validation, and rollback procedures
+      </doc>
+    </docs>
+
+    <code>
+      <!-- Kubernetes Deployment Manifests -->
+      <code path="k8s/deployment-api.yaml" kind="k8s-deployment" reason="FastAPI deployment config for production rollout">
+        Production API deployment: rolling update strategy, health probes, resource limits (250m-500m CPU, 512Mi-1Gi RAM)
+      </code>
+
+      <code path="k8s/deployment-worker.yaml" kind="k8s-deployment" reason="Celery worker deployment with HPA">
+        Worker deployment: HPA autoscaling configuration, resource limits (500m-1000m CPU, 1Gi-2Gi RAM)
+      </code>
+
+      <code path="k8s/hpa-worker.yaml" kind="k8s-hpa" reason="Horizontal Pod Autoscaler for workers">
+        Autoscaling config: 1-10 replicas based on queue depth metrics (scale-up at >50 jobs, scale-down at <10)
+      </code>
+
+      <code path="k8s/prometheus-deployment.yaml" kind="k8s-deployment" reason="Prometheus monitoring deployment">
+        Prometheus deployment for metrics collection (15-second scrape intervals)
+      </code>
+
+      <code path="k8s/prometheus-config.yaml" kind="k8s-configmap" reason="Prometheus scrape configuration">
+        Scrape targets: API service, worker pods, PostgreSQL, Redis endpoints
+      </code>
+
+      <code path="k8s/prometheus-alert-rules.yaml" kind="k8s-configmap" reason="Alerting rules for production monitoring">
+        Alert definitions: high error rate, queue backup, worker down, database unreachable
+      </code>
+
+      <code path="k8s/grafana-deployment.yaml" kind="k8s-deployment" reason="Grafana dashboard deployment">
+        Grafana deployment with persistent storage and datasource provisioning
+      </code>
+
+      <code path="k8s/grafana-dashboard.yaml" kind="k8s-configmap" reason="Main monitoring dashboard">
+        Dashboard JSON: queue depth, success rate, p95 latency, error rate by tenant
+      </code>
+
+      <!-- Application Health & Metrics -->
+      <code path="src/api/health.py" kind="api-endpoint" lines="1-50" reason="Health check endpoints for liveness/readiness probes">
+        GET /health - Basic liveness check
+        GET /health/ready - Readiness check (validates database + Redis connectivity)
+      </code>
+
+      <code path="src/monitoring/metrics.py" kind="service" reason="Prometheus metrics instrumentation">
+        Metrics defined: enhancement_requests_total, enhancement_duration_seconds, queue_depth, error_count
+        Custom metrics for monitoring p95 latency, success rate, tenant-specific metrics
+      </code>
+
+      <!-- Database & Migrations -->
+      <code path="alembic/" kind="directory" reason="Database migrations for schema evolution">
+        Migration directory with upgrade/downgrade procedures for production database changes
+      </code>
+
+      <code path="src/database/session.py" kind="service" reason="Async SQLAlchemy session management">
+        Database connection pooling (min 5, max 20 connections), async session handling
+      </code>
+
+      <!-- Configuration -->
+      <code path="src/config.py" kind="config" reason="Pydantic settings with environment variable validation">
+        Settings: database_url, redis_url, openrouter_api_key, celery_broker_url
+        Environment prefix: AI_AGENTS_*
+      </code>
+
+      <code path=".env.example" kind="template" reason="Environment variable template for deployment">
+        Template for production environment variables including database URLs, API keys, monitoring endpoints
+      </code>
+
+      <!-- Docker & Container Setup -->
+      <code path="docker-compose.yml" kind="docker-compose" reason="Local development stack definition">
+        Services: postgres (port 5432), redis (port 6379), api (port 8000), worker (celery)
+        Used for local testing before staging/production deployment
+      </code>
+
+      <code path="docker/backend.dockerfile" kind="dockerfile" reason="FastAPI application container">
+        Base image: python:3.12-slim, production ASGI server: gunicorn + uvicorn workers
+      </code>
+
+      <code path="docker/celeryworker.dockerfile" kind="dockerfile" reason="Celery worker container">
+        Celery worker with retry logic, graceful shutdown handling
+      </code>
+    </code>
+
+    <dependencies>
+      <!-- Testing Framework -->
+      <python>
+        <package name="pytest" version=">=7.4.3">Unit and integration testing framework</package>
+        <package name="pytest-asyncio" version=">=0.21.1">Async test support for FastAPI and SQLAlchemy</package>
+        <package name="pytest-cov" version=">=7.0.0">Code coverage reporting (target >80%)</package>
+        <package name="pytest-httpx" version=">=0.22.0">Mock HTTP requests in tests</package>
+        <package name="pytest-mock" version=">=3.12.0">Mocking fixtures</package>
+        <package name="respx" version=">=0.21.0">HTTP mocking for integration tests</package>
+        <package name="fakeredis" version=">=2.20.0">Redis mocking for unit tests</package>
+      </python>
+
+      <!-- Load Testing -->
+      <python>
+        <package name="locust" version="latest">Python-native load testing (recommended in AC-2 for FastAPI compatibility)</package>
+      </python>
+
+      <!-- Security Testing -->
+      <python>
+        <package name="bandit" version="latest">Python static security analysis (SAST)</package>
+        <package name="safety" version="latest">Dependency vulnerability scanning</package>
+      </python>
+
+      <!-- Container Scanning -->
+      <system>
+        <tool name="trivy" version="latest">Container image vulnerability scanner (OWASP A03:2025 Supply Chain)</tool>
+      </system>
+
+      <!-- Penetration Testing -->
+      <system>
+        <tool name="owasp-zap" version="latest">Automated security vulnerability scanner</tool>
+      </system>
+
+      <!-- Production Dependencies -->
+      <python>
+        <package name="gunicorn" version="latest">Production WSGI server for FastAPI</package>
+        <package name="uvicorn" version=">=0.24.0">ASGI server workers for async FastAPI</package>
+        <package name="kubernetes" version=">=29.0.0">K8s Python client for deployment automation</package>
+        <package name="prometheus-client" version=">=0.19.0">Metrics instrumentation</package>
+      </python>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    <!-- Testing Framework Constraints -->
+    <constraint>MUST use pytest + pytest-asyncio for all test suites (unit, integration, smoke)</constraint>
+    <constraint>Test coverage MUST exceed 80% for integration paths (AC-1 requirement)</constraint>
+    <constraint>Integration test execution time MUST be under 5 minutes (AC-1 requirement)</constraint>
+
+    <!-- Load Testing Constraints -->
+    <constraint>MUST use Locust (Python-native) for load testing to match FastAPI stack (AC-2 requirement)</constraint>
+    <constraint>Load tests MUST validate 4 scenarios: baseline (50/hr), peak (100/hr), burst (50 in 2min), endurance (30/hr × 4hr)</constraint>
+    <constraint>Performance targets: p95 < 60s for peak load, p95 < 30s for baseline (NFR001)</constraint>
+
+    <!-- Security Testing Constraints -->
+    <constraint>MUST test ALL 10 OWASP Top 10:2025 categories including NEW A03 (Supply Chain) and A10 (Exception Handling)</constraint>
+    <constraint>MUST generate Software Bill of Materials (SBOM) using pip-audit (A03:2025 requirement)</constraint>
+    <constraint>Zero critical vulnerabilities allowed before production deployment (AC-3 requirement)</constraint>
+
+    <!-- Deployment Constraints -->
+    <constraint>Deployment MUST use Kubernetes 1.28+ with rolling update strategy (zero downtime)</constraint>
+    <constraint>Database migrations MUST be tested in staging before production (AC-4 requirement)</constraint>
+    <constraint>MUST validate all K8s manifests with `kubectl apply --dry-run` before deployment</constraint>
+
+    <!-- Rollback Constraints -->
+    <constraint>Rollback time MUST be under 5 minutes to previous version (AC-5 requirement)</constraint>
+    <constraint>Database downgrade procedures MUST be tested (alembic downgrade -1)</constraint>
+
+    <!-- Monitoring Constraints -->
+    <constraint>Smoke tests MUST complete in under 2 minutes (AC-6 requirement)</constraint>
+    <constraint>Post-deployment monitoring MUST cover 24 hours with defined check intervals (AC-7)</constraint>
+    <constraint>Prometheus metrics MUST include: success rate, queue depth, p95 latency, error rate per tenant</constraint>
+
+    <!-- Staging Validation Constraints -->
+    <constraint>ALL tests MUST pass in staging before production deployment (AC-8 requirement)</constraint>
+    <constraint>Staging environment MUST mirror production configuration (K8s cluster, managed DB, managed Redis)</constraint>
+
+    <!-- Code Quality Constraints -->
+    <constraint>MUST use Black for code formatting (line-length: 100)</constraint>
+    <constraint>MUST use Ruff for linting (Python 3.12 target)</constraint>
+    <constraint>MUST use Mypy for static type checking (strict mode)</constraint>
+
+    <!-- CI/CD Constraints -->
+    <constraint>Tests MUST run in GitHub Actions CI pipeline automatically on push</constraint>
+    <constraint>Security scans (bandit, safety, trivy) MUST be part of CI/CD pipeline</constraint>
+  </constraints>
+
+  <interfaces>
+    <!-- Health Check APIs -->
+    <interface name="Health Check Endpoint" kind="REST API" signature="GET /health" path="src/api/health.py">
+      Returns: {"status": "healthy", "timestamp": "ISO8601", "version": "1.0.0"}
+      Purpose: Kubernetes liveness probe target
+    </interface>
+
+    <interface name="Readiness Check Endpoint" kind="REST API" signature="GET /health/ready" path="src/api/health.py">
+      Returns: {"status": "ready", "dependencies": {"database": "connected", "redis": "connected"}}
+      Purpose: Kubernetes readiness probe target (validates external dependencies)
+    </interface>
+
+    <!-- Metrics APIs -->
+    <interface name="Prometheus Metrics Endpoint" kind="REST API" signature="GET /metrics" path="src/monitoring/metrics.py">
+      Returns: Prometheus text format metrics
+      Metrics exposed: enhancement_requests_total, enhancement_duration_seconds, queue_depth, error_count
+      Purpose: Scraped by Prometheus every 15 seconds
+    </interface>
+
+    <!-- Kubernetes APIs -->
+    <interface name="Kubernetes Deployment API" kind="REST API" signature="kubectl apply -f k8s/" path="k8s/*.yaml">
+      Applies all K8s manifests: deployments, services, configmaps, secrets, HPA, ingress
+      Rolling update strategy with maxSurge=1, maxUnavailable=0
+    </interface>
+
+    <interface name="Kubernetes HPA API" kind="REST API" signature="kubectl autoscale deployment" path="k8s/hpa-worker.yaml">
+      Autoscaling metrics: custom metric (queue_depth) from Prometheus adapter
+      Scale range: 1-10 replicas, target: queue_depth < 50 jobs
+    </interface>
+
+    <!-- Database APIs -->
+    <interface name="Alembic Migration API" kind="Python CLI" signature="alembic upgrade head" path="alembic/">
+      Applies database migrations in order (upgrade)
+      Rollback support: alembic downgrade -1 (one version back)
+    </interface>
+
+    <interface name="PostgreSQL Connection" kind="Database Connection" signature="postgresql+asyncpg://..." path="src/database/session.py">
+      Connection pool: min 5, max 20 connections per service
+      SSL mode: require (production), disable (local dev)
+      Row-level security: tenant_id filtering via app.current_tenant_id session variable
+    </interface>
+
+    <!-- Message Queue APIs -->
+    <interface name="Redis Queue API" kind="Redis Protocol" signature="redis-py client" path="src/cache/redis_client.py">
+      Queue key: enhancement:queue
+      Message format: JSON with ticket_id, tenant_id, description, priority, timestamp
+      Connection pool: 10 connections per service
+    </interface>
+
+    <!-- External Tool APIs (for testing) -->
+    <interface name="ServiceDesk Plus Webhook" kind="POST Webhook" signature="POST /webhook/servicedesk" path="src/api/webhooks.py">
+      Headers: X-ServiceDesk-Signature (HMAC-SHA256)
+      Payload: {event, ticket_id, tenant_id, description, priority, created_at}
+      Validation: Signature verification, payload schema validation (Pydantic)
+    </interface>
+
+    <!-- Monitoring Tool APIs -->
+    <interface name="Prometheus Query API" kind="REST API" signature="http://prometheus:9090/api/v1/query" path="k8s/prometheus-deployment.yaml">
+      Query metrics: enhancement_duration_seconds, queue_depth, error_rate
+      Purpose: Grafana datasource, smoke tests validation
+    </interface>
+
+    <interface name="Grafana API" kind="REST API" signature="http://grafana:3000/api/health" path="k8s/grafana-deployment.yaml">
+      Health check: Returns 200 OK if Grafana is operational
+      Purpose: Smoke test validation (AC-6)
+    </interface>
+  </interfaces>
+
+  <tests>
+    <standards>
+      Testing follows pytest framework with async support (pytest-asyncio). Test pyramid:
+      - Base layer: ~50 unit tests (30 sec execution, fast feedback)
+      - Middle layer: ~15 integration tests (5 min execution, comprehensive validation)
+      - Top layer: ~5 E2E/smoke tests (2 min execution, production validation)
+
+      All tests use fixtures for isolation (test_tenant, mock_servicedesk, mock_openai, test_db).
+      Integration tests use HTTPX mocking (pytest-httpx) for external API calls.
+      Security tests follow OWASP Top 10:2025 checklist with automated tools (bandit, safety, trivy, OWASP ZAP).
+      Load tests use Locust with Python test scenarios (baseline, peak, burst, endurance profiles).
+      CI/CD integration: GitHub Actions runs unit + integration tests on every push; load tests run on staging branch only.
+
+      Test data isolation: Each test creates isolated tenant configs and test tickets, cleaned up after test completion.
+      Code coverage target: 80% minimum for integration paths, measured via pytest-cov with HTML reports.
+    </standards>
+
+    <locations>
+      tests/ - Root test directory mirroring src/ structure
+      tests/unit/ - Fast, isolated unit tests (no database, use mocks)
+      tests/integration/ - Slow, database-dependent tests (real DB via fixtures)
+      tests/load/ - Locust load testing scripts (baseline_load.py, peak_load.py, burst_load.py, endurance_test.py)
+      tests/smoke/ - Production smoke tests (production_smoke_tests.sh - 8 automated checks)
+      tests/security/ - Security testing scripts (owasp_checklist.md, run_security_scan.sh)
+      tests/conftest.py - Shared pytest fixtures (async_session, test_db, mock_redis, mock_openai)
+      tests/fixtures/ - Test data factories and mock servers
+      pytest.ini - Pytest configuration (asyncio_mode=auto, markers for unit/integration/smoke)
+    </locations>
+
+    <ideas>
+      <!-- AC-1: Integration Tests -->
+      <test id="AC-1-T1" ac="AC-1" type="integration">
+        Test happy path enhancement: Valid webhook → Queue → Enhancement → Ticket Update
+        Validates: End-to-end workflow completes successfully, enhancement content posted to ticket
+      </test>
+
+      <test id="AC-1-T2" ac="AC-1" type="integration">
+        Test multi-tenant isolation: Tenant A and Tenant B tickets processed simultaneously
+        Validates: No cross-tenant data leakage, RLS policies enforce isolation
+      </test>
+
+      <test id="AC-1-T3" ac="AC-1" type="integration">
+        Test graceful degradation: Knowledge base timeout scenario
+        Validates: Enhancement completes with partial context, disclaimer added
+      </test>
+
+      <test id="AC-1-T4" ac="AC-1" type="integration">
+        Test error handling and retry logic: Transient API failure
+        Validates: Exponential backoff retry (max 3 attempts), eventual success
+      </test>
+
+      <!-- AC-2: Load Tests -->
+      <test id="AC-2-T1" ac="AC-2" type="load">
+        Baseline load test: 50 tickets/hour sustained for 30 minutes
+        Validates: p95 < 30s, 100% success rate, no memory leaks
+      </test>
+
+      <test id="AC-2-T2" ac="AC-2" type="load">
+        Peak load test: 100 tickets/hour sustained for 15 minutes
+        Validates: p95 < 60s, >99% success rate, queue handles load
+      </test>
+
+      <test id="AC-2-T3" ac="AC-2" type="load">
+        Burst load test: 50 tickets in 2 minutes, then 20/hour for 10 minutes
+        Validates: Queue recovers within 10 minutes, p95 < 90s, no failures
+      </test>
+
+      <test id="AC-2-T4" ac="AC-2" type="load">
+        Endurance test: 30 tickets/hour for 4 hours
+        Validates: No memory leaks, consistent latency, stable success rate
+      </test>
+
+      <!-- AC-3: Security Tests -->
+      <test id="AC-3-T1" ac="AC-3" type="security">
+        Test RLS bypass attempts (A01:2025 Broken Access Control)
+        Validates: Cross-tenant queries return 0 rows, RLS policies prevent leakage
+      </test>
+
+      <test id="AC-3-T2" ac="AC-3" type="security">
+        Test webhook signature validation (A01:2025 Broken Access Control)
+        Validates: Invalid signatures rejected with 401, replay attacks prevented
+      </test>
+
+      <test id="AC-3-T3" ac="AC-3" type="security">
+        Generate SBOM and scan dependencies (A03:2025 Supply Chain)
+        Validates: All dependencies scanned, no critical vulnerabilities, SBOM generated
+      </test>
+
+      <test id="AC-3-T4" ac="AC-3" type="security">
+        Test SQL injection via ticket description (A05:2025 Injection)
+        Validates: Pydantic validation rejects malicious input, SQLAlchemy ORM prevents injection
+      </test>
+
+      <test id="AC-3-T5" ac="AC-3" type="security">
+        Test error handling doesn't expose stack traces (A10:2025 Exception Handling)
+        Validates: Error messages redacted, logs contain details but API responses don't leak info
+      </test>
+
+      <!-- AC-6: Smoke Tests -->
+      <test id="AC-6-T1" ac="AC-6" type="smoke">
+        Test health endpoint returns 200 OK
+        Validates: Basic liveness check passes
+      </test>
+
+      <test id="AC-6-T2" ac="AC-6" type="smoke">
+        Test readiness endpoint validates dependencies
+        Validates: Database and Redis connections verified
+      </test>
+
+      <test id="AC-6-T3" ac="AC-6" type="smoke">
+        Test Prometheus metrics endpoint
+        Validates: Metrics scraped successfully, enhancement_requests_total counter exists
+      </test>
+
+      <test id="AC-6-T4" ac="AC-6" type="smoke">
+        Test webhook endpoint responds (dry run)
+        Validates: Endpoint reachable, returns 401 for invalid signature (expected)
+      </test>
+
+      <test id="AC-6-T5" ac="AC-6" type="smoke">
+        Test Grafana dashboard accessibility
+        Validates: Grafana health check passes, dashboards loaded
+      </test>
+    </ideas>
+  </tests>
+</story-context>

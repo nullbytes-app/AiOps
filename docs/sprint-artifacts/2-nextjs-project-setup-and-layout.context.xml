@@ -1,0 +1,999 @@
+<story-context id=".bmad/bmm/workflows/4-implementation/story-context/template" v="1.0">
+  <metadata>
+    <epicId>3</epicId>
+    <storyId>2</storyId>
+    <title>Next.js Project Setup & Layout</title>
+    <status>drafted</status>
+    <generatedAt>2025-01-18</generatedAt>
+    <generator>BMAD Story Context Workflow</generator>
+    <sourceStoryPath>docs/sprint-artifacts/2-nextjs-project-setup-and-layout.md</sourceStoryPath>
+  </metadata>
+
+  <story>
+    <asA>DevOps engineer managing the AI Agents Platform</asA>
+    <iWant>a complete Next.js 14 project with App Router, authentication, Tailwind CSS, and UI component library set up</iWant>
+    <soThat>the development team can start building authenticated dashboard pages with consistent design and ready-to-use components</soThat>
+    <tasks>
+      - Initialize Next.js 14.2.15 project with App Router and TypeScript 5.6.3
+      - Configure Tailwind CSS 3.4+ with design tokens from design-system/design-tokens.json
+      - Set up Auth.js (NextAuth v5) with JWT and credentials provider
+      - Create RootLayout with Header, Sidebar, and Footer components
+      - Implement Tenant Switcher component in header
+      - Build 10+ UI primitive components (GlassCard, Button, Input, Modal, etc.)
+      - Implement animated background (NeuralNetwork.tsx with particle system)
+      - Set up Storybook 8+ for component development
+      - Configure MSW (Mock Service Worker) for API mocking
+      - Implement authentication middleware for route protection
+    </tasks>
+  </story>
+
+  <acceptanceCriteria>
+    1. **Project Initialization**
+       - Next.js 14.2.15 installed with App Router enabled
+       - TypeScript 5.6.3 configured with strict mode
+       - Project structure matches: /app, /components, /lib, /services, /types
+
+    2. **Tailwind CSS Configuration**
+       - Tailwind CSS 3.4+ installed and configured
+       - Design tokens imported from docs/design-system/design-tokens.json
+       - Custom glass card utilities defined in globals.css
+       - Responsive breakpoints configured (mobile, tablet, desktop, wide)
+
+    3. **Auth.js (NextAuth v5) Setup**
+       - Auth.js installed and configured in /lib/auth.ts
+       - Credentials provider configured to call FastAPI /api/auth/token endpoint
+       - JWT session strategy with 7-day expiry
+       - Session callbacks fetch user role from /api/users/me/role
+       - httpOnly cookies for security
+
+    4. **Dashboard Layout (app/dashboard/layout.tsx)**
+       - RootLayout with Header, Sidebar, Footer
+       - Header contains logo, tenant switcher, user profile dropdown
+       - Sidebar with collapsible navigation (14 pages)
+       - Footer with version info and links
+       - Responsive: sidebar collapses to hamburger on mobile
+
+    5. **Tenant Switcher Component**
+       - Dropdown in header showing current tenant
+       - Fetches user's tenants from /api/users/me/tenants
+       - Switches tenant context on selection
+       - Updates session with new tenant_id and role
+       - Persists selection in cookie
+
+    6. **Navigation Component**
+       - Sidebar navigation with icons and labels
+       - Active state highlighting
+       - Grouped sections: Overview, Agents, Operations, Admin
+       - Role-based visibility (hide admin if not admin role)
+
+    7. **UI Primitive Components (10+ components)**
+       - GlassCard: backdrop-blur, transparency, shadow
+       - Button: 5 variants (primary, secondary, ghost, danger, disabled)
+       - Input: text, textarea, with error states
+       - Modal: overlay, close button, backdrop click to close
+       - Toast: success, error, info notifications
+       - Badge: status indicators
+       - Skeleton: loading states
+       - Dropdown: menu with keyboard navigation
+       - Tabs: horizontal tabs for page sections
+       - Tooltip: hover tooltips
+
+    8. **Animated Background (NeuralNetwork.tsx)**
+       - Canvas-based particle system
+       - 50-100 particles with node connections
+       - Smooth animation (60fps)
+       - Configurable colors (cyan, purple from design tokens)
+       - Performance optimized (no janky scrolling)
+
+    9. **Storybook Setup**
+       - Storybook 8+ installed and configured
+       - Stories for all UI primitives
+       - Addon-a11y for accessibility testing
+       - Addon-controls for prop manipulation
+       - Runs on localhost:6006
+
+    10. **MSW (Mock Service Worker) Configuration**
+        - MSW installed for API mocking
+        - Handlers for auth endpoints (/api/auth/*, /api/users/*)
+        - Mock data for tenants, user profile, roles
+        - Works in both dev mode and Storybook
+
+    11. **Authentication Middleware**
+        - Middleware.ts protects /dashboard/* routes
+        - Redirects unauthenticated users to /auth/login
+        - Checks JWT validity
+        - Allows public routes: /, /auth/*
+
+    12. **Testing**
+        - Unit tests for UI components (Vitest + React Testing Library)
+        - Integration tests for auth flow
+        - Storybook interaction tests for key components
+        - 80%+ code coverage for new code
+  </acceptanceCriteria>
+
+  <artifacts>
+    <docs>
+      <artifact type="prd" priority="reference">
+        <location>docs/nextjs-ui-migration-tech-spec-v2.md</location>
+        <description>Technical specification for Next.js UI migration with detailed acceptance criteria</description>
+      </artifact>
+      <artifact type="epic" priority="critical">
+        <location>docs/epics-nextjs-ui-migration.md</location>
+        <description>Complete epic breakdown for Next.js UI migration - Epic 3: Next.js UI Core</description>
+        <relevantSections>
+          - Epic 3 Story 2: NextJS Project Setup &amp; Layout (lines 380-460)
+          - Prerequisites: Story 1C (auth APIs), Story 0 (design system)
+        </relevantSections>
+      </artifact>
+      <artifact type="architecture" priority="critical">
+        <location>docs/architecture.md</location>
+        <description>System architecture with technology stack and ADRs</description>
+        <relevantSections>
+          - Technology Stack (FastAPI, PostgreSQL, Redis, LangGraph)
+          - ADR-003: OpenRouter API Gateway with GPT-4o-mini
+          - ADR-009: Streamlit for Admin UI (being replaced by Next.js)
+          - ADR-010: Plugin Architecture
+          - Row-Level Security implementation
+          - Project structure conventions
+        </relevantSections>
+      </artifact>
+      <artifact type="design-system" priority="critical">
+        <location>docs/design-system/design-system-overview.md</location>
+        <description>Liquid Glass design system with glassmorphism, color palette, typography, animations</description>
+        <relevantTokens>
+          - Glass morphism: bg rgba(255,255,255,0.75), backdrop-blur 32px
+          - Accent colors: blue #3b82f6, purple #8b5cf6, green #10b981
+          - Typography: Inter font, 6 sizes (H1-small)
+          - Spacing: 7 levels (xs 4px - 3xl 64px)
+          - Border radius: glass card 24px
+          - Animations: elasticBounceIn 800ms, ambientSway 6s infinite
+        </relevantTokens>
+      </artifact>
+      <artifact type="design-tokens" priority="critical">
+        <location>docs/design-system/design-tokens.json</location>
+        <description>W3C Design Tokens standard JSON for Tailwind config import</description>
+        <usage>Import directly into tailwind.config.ts to extend theme</usage>
+      </artifact>
+      <artifact type="adr" priority="high">
+        <location>docs/adr/001-nextjs-over-remix.md</location>
+        <description>ADR 001: Rationale for choosing Next.js 14 App Router over Remix</description>
+        <keyDecisions>
+          - React Server Components (RSC) for 40-60% smaller bundle
+          - App Router for file-based routing and layouts
+          - Next.js 14.2.15 with TypeScript 5.6.3
+          - Target: 90+ Lighthouse score, &lt;2s initial load
+        </keyDecisions>
+      </artifact>
+      <artifact type="adr" priority="critical">
+        <location>docs/adr/002-authjs-over-clerk.md</location>
+        <description>ADR 002: Auth.js (NextAuth v5) selection for zero-cost internal tool auth</description>
+        <keyDecisions>
+          - Auth.js v5 with JWT session strategy
+          - Credentials provider calling FastAPI /api/auth/token
+          - 7-day access token expiry
+          - httpOnly cookies for XSS protection
+          - No pre-built UI (custom login form)
+        </keyDecisions>
+      </artifact>
+      <artifact type="adr" priority="critical">
+        <location>docs/adr/003-jwt-roles-on-demand.md</location>
+        <description>ADR 003: JWT roles fetched on-demand (NOT stored in token) for security and scalability</description>
+        <criticalDecision>
+          - JWT contains only: user_id, email, default_tenant_id
+          - Role fetched via GET /api/users/me/role?tenant_id=xxx on each request
+          - Prevents token bloat (users could have 50+ tenant roles)
+          - Enables immediate role changes (no 7-day JWT expiry delay)
+          - Composite index on (user_id, tenant_id) for 1-5ms queries
+        </criticalDecision>
+      </artifact>
+      <artifact type="adr" priority="high">
+        <location>docs/adr/004-api-versioning-strategy.md</location>
+        <description>ADR 004: URL-based API versioning with /api/v1/* prefix for new endpoints</description>
+        <keyDecisions>
+          - New endpoints: /api/v1/* (versioned)
+          - Existing: unversioned (Streamlit compatibility during migration)
+          - FastAPI router structure: src/api/v1/__init__.py
+        </keyDecisions>
+      </artifact>
+      <artifact type="adr" priority="critical">
+        <location>docs/adr/005-tanstack-query-over-swr.md</location>
+        <description>ADR 005: TanStack Query v5 for data fetching over SWR</description>
+        <keyDecisions>
+          - TanStack Query v5 for server state management
+          - Features: polling (5s intervals), optimistic updates, pagination, prefetching
+          - 0KB runtime vs styled-components 13KB
+          - React Query DevTools for debugging
+          - Default staleTime: 5min, cacheTime: 10min
+        </keyDecisions>
+      </artifact>
+      <artifact type="adr" priority="critical">
+        <location>docs/adr/006-tailwind-over-css-in-js.md</location>
+        <description>ADR 006: Tailwind CSS over CSS-in-JS for zero runtime overhead</description>
+        <keyDecisions>
+          - Tailwind CSS 3.4+ with design token integration
+          - 0KB runtime JavaScript (vs 13KB styled-components)
+          - Build-time PurgeCSS (12KB gzipped production bundle)
+          - Dark mode: class-based with 'dark:' prefix
+          - Custom @layer components for .glass-card, .glass-button
+          - Arbitrary values for complex styles (backdrop-blur-[32px])
+        </keyDecisions>
+      </artifact>
+    </docs>
+    <code>
+      <artifact type="backend-api" priority="critical">
+        <location>src/api/auth.py</location>
+        <description>Authentication endpoints for user registration and JWT token management</description>
+        <endpoints>
+          - POST /api/auth/register - User registration with email/password
+          - POST /api/auth/token - OAuth2 password flow login (returns access_token, refresh_token)
+          - POST /api/auth/refresh - Token refresh
+          - POST /api/auth/logout - Token revocation
+        </endpoints>
+        <schemas>
+          - RegisterRequest: email, password, default_tenant_id
+          - TokenResponse: access_token, refresh_token, token_type, expires_in
+          - UserResponse: id, email, default_tenant_id, created_at, is_active
+        </schemas>
+        <integration>Next.js Credentials provider will call POST /api/auth/token in authorize() callback</integration>
+      </artifact>
+      <artifact type="backend-api" priority="critical">
+        <location>src/api/users.py</location>
+        <description>User management endpoints for profile and role retrieval</description>
+        <endpoints>
+          - GET /api/users/me - Get current user profile with all tenant roles
+          - GET /api/users/me/role?tenant_id=xxx - Get user's role for specific tenant
+          - PUT /api/users/me/password - Change password
+        </endpoints>
+        <schemas>
+          - UserDetailResponse: id, email, default_tenant_id, roles[], created_at, last_login_at, is_active
+          - RoleAssignment: tenant_id, role (enum: super_admin, tenant_admin, operator, developer, viewer)
+        </schemas>
+        <integration>
+          - Auth.js session callback calls GET /api/users/me/role?tenant_id=xxx
+          - Tenant switcher calls same endpoint when user changes tenant
+        </integration>
+      </artifact>
+      <artifact type="database-model" priority="critical">
+        <location>src/database/models.py</location>
+        <description>User and authentication models with security features</description>
+        <models>
+          **User (lines 710-810):**
+          - id: UUID (primary key)
+          - email: String (unique, indexed)
+          - password_hash: String (bcrypt 10 rounds)
+          - default_tenant_id: UUID (FK to tenant)
+          - failed_login_attempts: Integer (lockout after 5)
+          - locked_until: DateTime (15 min lockout)
+          - password_expires_at: DateTime (90 days)
+          - password_history: JSON (last 5 hashes)
+          - is_active: Boolean (soft delete)
+          - created_at, updated_at: DateTime (auto)
+
+          **UserTenantRole:**
+          - user_id, tenant_id: UUID (composite unique key)
+          - role: Enum (super_admin, tenant_admin, operator, developer, viewer)
+          - Index: (user_id, tenant_id) for fast role lookups
+
+          **AuthAuditLog:**
+          - Tracks login attempts, failures, lockouts
+        </models>
+      </artifact>
+      <artifact type="service-layer" priority="high">
+        <location>src/services/auth_service.py</location>
+        <description>Authentication business logic (password hashing, JWT generation)</description>
+        <functions>
+          - authenticate_user(email, password) -&gt; User | None
+          - create_access_token(user_id, email, tenant_id) -&gt; str
+          - create_refresh_token(user_id) -&gt; str
+          - verify_token(token) -&gt; dict | None
+          - revoke_token(token) -&gt; bool
+          - hash_password(password) -&gt; str
+          - verify_password(plain, hashed) -&gt; bool
+        </functions>
+      </artifact>
+      <artifact type="service-layer" priority="high">
+        <location>src/services/user_service.py</location>
+        <description>User management business logic (profile, roles)</description>
+        <functions>
+          - get_user_by_email(email) -&gt; User | None
+          - get_user_roles(user_id) -&gt; List[RoleAssignment]
+          - get_user_role_for_tenant(user_id, tenant_id) -&gt; str | None
+          - update_user_profile(user_id, data) -&gt; User
+        </functions>
+      </artifact>
+    </code>
+    <dependencies>
+      <frontend>
+        <framework name="Next.js" version="14.2.15" critical="true">
+          <source>Latest docs from /vercel/next.js/v14.3.0-canary.87</source>
+          <features>
+            - App Router with React Server Components
+            - File-based routing with nested layouts
+            - Server-side rendering (SSR) and static generation (SSG)
+            - API routes (though we use FastAPI backend)
+            - Automatic code splitting and lazy loading
+            - Built-in image optimization (next/image)
+            - Font optimization (next/font)
+          </features>
+          <setup>
+            ```bash
+            npx create-next-app@latest ai-agents-ui --typescript --eslint --tailwind --app --src-dir --import-alias "@/*"
+            ```
+          </setup>
+          <projectStructure>
+            - /app - App Router pages and layouts
+            - /components - Shared React components
+            - /lib - Utility functions, hooks, auth config
+            - /services - API client functions
+            - /types - TypeScript type definitions
+          </projectStructure>
+        </framework>
+        <library name="React" version="18.3.1" critical="true">
+          <description>React 18 with Server Components, Suspense, and concurrent features</description>
+        </library>
+        <library name="TypeScript" version="5.6.3" critical="true">
+          <config>Strict mode enabled, target ES2022</config>
+        </library>
+        <library name="Auth.js (NextAuth v5)" version="5.x" critical="true">
+          <source>Latest docs from /nextauthjs/next-auth</source>
+          <features>
+            - JWT session strategy (required for credentials provider)
+            - Credentials provider for email/password
+            - Session callbacks for dynamic role fetching
+            - Middleware for route protection
+            - httpOnly cookies for security
+          </features>
+          <configuration>
+            ```typescript
+            // /lib/auth.ts
+            import NextAuth from "next-auth"
+            import CredentialsProvider from "next-auth/providers/credentials"
+
+            export const { handlers, auth, signIn, signOut } = NextAuth({
+              providers: [
+                CredentialsProvider({
+                  credentials: {
+                    email: { label: "Email", type: "email" },
+                    password: { label: "Password", type: "password" }
+                  },
+                  async authorize(credentials) {
+                    // Call FastAPI POST /api/auth/token
+                    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/token`, {
+                      method: "POST",
+                      body: new URLSearchParams({
+                        username: credentials.email,
+                        password: credentials.password
+                      })
+                    })
+                    if (!res.ok) return null
+                    const data = await res.json()
+                    return {
+                      id: data.user_id,
+                      email: data.email,
+                      defaultTenantId: data.default_tenant_id,
+                      accessToken: data.access_token
+                    }
+                  }
+                })
+              ],
+              callbacks: {
+                async jwt({ token, user }) {
+                  if (user) {
+                    token.accessToken = user.accessToken
+                    token.userId = user.id
+                    token.defaultTenantId = user.defaultTenantId
+                  }
+                  return token
+                },
+                async session({ session, token }) {
+                  // Fetch role from FastAPI
+                  const tenantId = session.selectedTenantId || token.defaultTenantId
+                  const res = await fetch(
+                    `${process.env.API_URL}/api/users/me/role?tenant_id=${tenantId}`,
+                    { headers: { Authorization: `Bearer ${token.accessToken}` } }
+                  )
+                  const data = await res.json()
+                  session.user.id = token.userId
+                  session.user.tenantId = tenantId
+                  session.user.role = data.role
+                  session.accessToken = token.accessToken
+                  return session
+                }
+              },
+              session: { strategy: "jwt", maxAge: 7 * 24 * 60 * 60 },
+              pages: { signIn: "/auth/login" }
+            })
+            ```
+          </configuration>
+        </library>
+        <library name="TanStack Query (React Query)" version="5.x" critical="true">
+          <source>Latest docs from /websites/tanstack_query_v5</source>
+          <features>
+            - Server state caching and synchronization
+            - Automatic background refetching
+            - Polling for real-time dashboard updates
+            - Optimistic updates for CRUD operations
+            - Pagination and infinite scroll
+            - Prefetching for faster navigation
+            - React Query DevTools for debugging
+          </features>
+          <setup>
+            ```bash
+            npm install @tanstack/react-query @tanstack/react-query-devtools
+            ```
+          </setup>
+          <configuration>
+            ```typescript
+            // /app/providers.tsx
+            'use client'
+            import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+            import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
+
+            const queryClient = new QueryClient({
+              defaultOptions: {
+                queries: {
+                  staleTime: 5 * 60 * 1000,  // 5 minutes
+                  cacheTime: 10 * 60 * 1000,  // 10 minutes
+                  retry: 3,
+                  refetchOnWindowFocus: true
+                }
+              }
+            })
+
+            export function Providers({ children }) {
+              return (
+                &lt;QueryClientProvider client={queryClient}&gt;
+                  {children}
+                  &lt;ReactQueryDevtools initialIsOpen={false} /&gt;
+                &lt;/QueryClientProvider&gt;
+              )
+            }
+            ```
+          </configuration>
+          <usage>
+            ```typescript
+            // Example: Polling dashboard metrics every 5s
+            const { data: metrics } = useQuery({
+              queryKey: ['metrics', 'summary'],
+              queryFn: () => apiClient.get('/metrics/summary'),
+              refetchInterval: 5000
+            })
+            ```
+          </usage>
+        </library>
+        <library name="Tailwind CSS" version="3.4+" critical="true">
+          <source>Latest docs from /websites/v3_tailwindcss</source>
+          <features>
+            - Utility-first CSS framework
+            - Design token integration
+            - Zero runtime overhead (build-time only)
+            - PurgeCSS for production (12KB gzipped)
+            - Dark mode support (class-based)
+            - Responsive design utilities
+            - Custom @layer components
+          </features>
+          <configuration>
+            ```typescript
+            // tailwind.config.ts
+            import type { Config } from 'tailwindcss'
+            import designTokens from './docs/design-system/design-tokens.json'
+
+            const config: Config = {
+              content: ['./app/**/*.{js,ts,jsx,tsx}', './components/**/*.{js,ts,jsx,tsx}'],
+              darkMode: 'class',
+              theme: {
+                extend: {
+                  colors: {
+                    glass: {
+                      bg: 'rgba(255, 255, 255, 0.75)',
+                      border: 'rgba(255, 255, 255, 1)',
+                      shadow: 'rgba(0, 0, 0, 0.08)'
+                    },
+                    accent: {
+                      blue: designTokens.colors.accent.blue.value,
+                      purple: designTokens.colors.accent.purple.value,
+                      green: designTokens.colors.accent.green.value,
+                      orange: designTokens.colors.accent.orange.value
+                    }
+                  },
+                  spacing: {
+                    xs: '0.25rem', sm: '0.5rem', md: '1rem',
+                    lg: '1.5rem', xl: '2rem', '2xl': '3rem', '3xl': '4rem'
+                  },
+                  borderRadius: { glass: '24px' },
+                  backdropBlur: { glass: '32px' }
+                }
+              }
+            }
+            export default config
+            ```
+          </configuration>
+          <customComponents>
+            ```css
+            /* globals.css */
+            @layer components {
+              .glass-card {
+                @apply bg-white/75 backdrop-blur-[32px] backdrop-saturate-[180%]
+                       backdrop-brightness-110 border-2 border-white
+                       rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.08)];
+              }
+            }
+            ```
+          </customComponents>
+        </library>
+        <library name="Zustand" version="4.x" priority="high">
+          <description>Lightweight client state management for UI state (sidebar open/close, selected tenant)</description>
+        </library>
+        <library name="Headless UI" version="2.x" priority="high">
+          <description>Unstyled, accessible UI components (Dropdown, Modal, Tabs) for Tailwind CSS</description>
+        </library>
+        <library name="Lucide React" version="latest" priority="medium">
+          <description>Icon library with 1000+ icons for navigation and UI</description>
+        </library>
+        <library name="Framer Motion" version="11.x" priority="medium">
+          <description>Animation library for component entrance animations and transitions</description>
+        </library>
+        <library name="React Hook Form" version="7.x" priority="high">
+          <description>Form validation with minimal re-renders</description>
+        </library>
+        <library name="Zod" version="3.x" priority="high">
+          <description>TypeScript-first schema validation for forms and API responses</description>
+        </library>
+        <library name="Sonner" version="latest" priority="medium">
+          <description>Toast notification library with glassmorphism styling</description>
+        </library>
+      </frontend>
+      <testing>
+        <library name="Storybook" version="8.x" critical="true">
+          <description>Component development and documentation environment</description>
+          <addons>
+            - @storybook/addon-a11y (accessibility testing)
+            - @storybook/addon-controls (prop manipulation)
+            - @storybook/addon-interactions (interaction testing)
+          </addons>
+        </library>
+        <library name="MSW (Mock Service Worker)" version="2.x" critical="true">
+          <description>API mocking for development and testing</description>
+          <handlers>
+            - /api/auth/* (login, refresh, logout)
+            - /api/users/me (user profile)
+            - /api/users/me/role (role for tenant)
+            - /api/users/me/tenants (tenant list)
+          </handlers>
+        </library>
+        <library name="Vitest" version="latest" priority="high">
+          <description>Fast unit test runner compatible with Vite</description>
+        </library>
+        <library name="React Testing Library" version="latest" priority="high">
+          <description>Component testing with user-centric queries</description>
+        </library>
+        <library name="Playwright" version="latest" priority="medium">
+          <description>E2E testing for critical auth flows</description>
+        </library>
+      </testing>
+    </dependencies>
+  </artifacts>
+
+  <constraints>
+    **Technical Constraints:**
+    1. **Framework Versions** (ADR-001):
+       - Next.js 14.2.15 (not 15.x - stability over bleeding edge)
+       - React 18.3.1 with Server Components
+       - TypeScript 5.6.3 in strict mode
+
+    2. **Backend Integration** (Architecture):
+       - FastAPI backend at ${NEXT_PUBLIC_API_URL}
+       - Existing auth endpoints: /api/auth/token, /api/users/me/role
+       - PostgreSQL 17 with Row-Level Security (RLS)
+       - Redis 7.x for session caching (future enhancement)
+
+    3. **Authentication** (ADR-002, ADR-003):
+       - Auth.js (NextAuth v5) only - NO Clerk, Auth0
+       - JWT session strategy (NOT database sessions)
+       - Credentials provider calling FastAPI endpoints
+       - Roles fetched on-demand (NOT stored in JWT)
+       - 7-day access token expiry
+       - httpOnly cookies (XSS protection)
+
+    4. **Data Fetching** (ADR-005):
+       - TanStack Query v5 only - NO SWR, RTK Query
+       - Server Components for initial data load
+       - Client Components with useQuery for interactivity
+       - 5-minute staleTime, 10-minute cacheTime
+       - Polling for dashboard metrics (5s intervals)
+
+    5. **Styling** (ADR-006):
+       - Tailwind CSS only - NO styled-components, Emotion
+       - Design tokens from design-tokens.json
+       - Zero runtime JavaScript overhead
+       - Glassmorphism: backdrop-blur-[32px], bg-white/75
+       - Custom @layer components for repeated patterns
+
+    6. **Performance Targets** (ADR-001):
+       - Lighthouse score: 90+ (Performance, Accessibility, Best Practices)
+       - Initial page load: &lt; 2 seconds
+       - Client bundle size: &lt; 300KB gzipped
+       - RSC bundle reduction: 40-60% smaller than SPA
+
+    7. **Security** (ADR-002, ADR-003):
+       - HTTPS only in production
+       - CSRF protection (Auth.js automatic)
+       - XSS prevention (httpOnly cookies)
+       - Rate limiting on FastAPI backend (5 attempts per 15 min)
+       - No sensitive data in JWT payload
+
+    8. **Accessibility**:
+       - WCAG 2.1 AA compliance
+       - Keyboard navigation for all interactive elements
+       - ARIA labels for icons and interactive components
+       - Focus states (2px purple outline)
+       - Color contrast ratios: 4.5:1 minimum
+
+    9. **Browser Support**:
+       - Chrome 90+ (primary)
+       - Firefox 88+
+       - Safari 14+
+       - Edge 90+
+       - No IE11 support
+
+    10. **Deployment** (Current: Render.com):
+        - Docker containerization
+        - Environment variables: NEXT_PUBLIC_API_URL, NEXTAUTH_SECRET, NEXTAUTH_URL
+        - Static file serving via CDN (future)
+        - No Vercel-specific features (Edge runtime, ISR)
+  </constraints>
+
+  <interfaces>
+    **Backend API Interfaces (FastAPI):**
+
+    1. **Authentication Endpoints:**
+       ```
+       POST /api/auth/token
+       Content-Type: application/x-www-form-urlencoded
+       Body: username={email}&amp;password={password}
+       Response: { access_token, refresh_token, token_type: "bearer", expires_in: 604800 }
+
+       POST /api/auth/register
+       Body: { email, password, default_tenant_id }
+       Response: { id, email, default_tenant_id, created_at, is_active }
+
+       POST /api/auth/refresh
+       Body: { refresh_token }
+       Response: { access_token, expires_in }
+
+       POST /api/auth/logout
+       Headers: Authorization: Bearer {token}
+       Response: 204 No Content
+       ```
+
+    2. **User Profile Endpoints:**
+       ```
+       GET /api/users/me
+       Headers: Authorization: Bearer {token}
+       Response: {
+         id, email, default_tenant_id,
+         roles: [{ tenant_id, role }],
+         created_at, last_login_at, is_active
+       }
+
+       GET /api/users/me/role?tenant_id={uuid}
+       Headers: Authorization: Bearer {token}
+       Response: { role: "tenant_admin", tenant_id }
+       Error 404: User has no role in this tenant
+
+       GET /api/users/me/tenants
+       Headers: Authorization: Bearer {token}
+       Response: [{ id, name, role }]
+
+       PUT /api/users/me/password
+       Headers: Authorization: Bearer {token}
+       Body: { current_password, new_password }
+       Response: 200 OK
+       ```
+
+    **Database Schema Interfaces:**
+
+    1. **User Model:**
+       ```typescript
+       interface User {
+         id: string // UUID
+         email: string // unique
+         password_hash: string // bcrypt
+         default_tenant_id: string // UUID
+         failed_login_attempts: number
+         locked_until: Date | null
+         password_expires_at: Date | null
+         password_history: string[] // last 5 hashes
+         is_active: boolean
+         created_at: Date
+         updated_at: Date
+       }
+       ```
+
+    2. **UserTenantRole Model:**
+       ```typescript
+       interface UserTenantRole {
+         user_id: string // UUID, FK to users
+         tenant_id: string // UUID, FK to tenants
+         role: "super_admin" | "tenant_admin" | "operator" | "developer" | "viewer"
+         created_at: Date
+         updated_at: Date
+       }
+       // Composite unique key: (user_id, tenant_id)
+       // Index: (user_id, tenant_id) for fast lookups
+       ```
+
+    **Next.js Auth.js Interfaces:**
+
+    1. **Session Type Extension:**
+       ```typescript
+       // /types/next-auth.d.ts
+       import { DefaultSession } from "next-auth"
+
+       declare module "next-auth" {
+         interface Session {
+           user: {
+             id: string
+             email: string
+             tenantId: string
+             role: string
+           } &amp; DefaultSession["user"]
+           accessToken: string
+         }
+
+         interface User {
+           id: string
+           email: string
+           defaultTenantId: string
+           accessToken: string
+         }
+       }
+
+       declare module "next-auth/jwt" {
+         interface JWT {
+           userId: string
+           defaultTenantId: string
+           accessToken: string
+         }
+       }
+       ```
+
+    2. **API Client Interface:**
+       ```typescript
+       // /lib/api-client.ts
+       const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+
+       export const apiClient = {
+         async get&lt;T&gt;(endpoint: string, token?: string): Promise&lt;T&gt; {
+           const headers: Record&lt;string, string&gt; = { 'Content-Type': 'application/json' }
+           if (token) headers['Authorization'] = `Bearer ${token}`
+           const res = await fetch(`${API_BASE_URL}${endpoint}`, { headers })
+           if (!res.ok) throw new Error(`API error: ${res.status}`)
+           return res.json()
+         },
+
+         async post&lt;T&gt;(endpoint: string, data: any, token?: string): Promise&lt;T&gt; {
+           const headers: Record&lt;string, string&gt; = { 'Content-Type': 'application/json' }
+           if (token) headers['Authorization'] = `Bearer ${token}`
+           const res = await fetch(`${API_BASE_URL}${endpoint}`, {
+             method: 'POST',
+             headers,
+             body: JSON.stringify(data)
+           })
+           if (!res.ok) throw new Error(`API error: ${res.status}`)
+           return res.json()
+         }
+       }
+       ```
+
+    **Component Prop Interfaces:**
+
+    1. **GlassCard Component:**
+       ```typescript
+       interface GlassCardProps {
+         children: React.ReactNode
+         className?: string
+         variant?: 'default' | 'glow' | 'hover'
+         onClick?: () =&gt; void
+       }
+       ```
+
+    2. **Button Component:**
+       ```typescript
+       interface ButtonProps {
+         children: React.ReactNode
+         variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'disabled'
+         size?: 'sm' | 'md' | 'lg'
+         onClick?: () =&gt; void
+         disabled?: boolean
+         loading?: boolean
+         className?: string
+       }
+       ```
+
+    3. **Tenant Switcher:**
+       ```typescript
+       interface TenantSwitcherProps {
+         currentTenant: { id: string; name: string; role: string }
+         tenants: Array&lt;{ id: string; name: string; role: string }&gt;
+         onSwitch: (tenantId: string) =&gt; Promise&lt;void&gt;
+       }
+       ```
+  </interfaces>
+
+  <tests>
+    <standards>
+      **Testing Philosophy:**
+      - Test user behavior, not implementation details
+      - 80%+ code coverage for new components and services
+      - Integration tests over unit tests for critical flows
+      - Visual regression testing via Storybook
+      - Accessibility testing on all interactive components
+
+      **Testing Stack:**
+      1. **Unit Tests:** Vitest + React Testing Library
+      2. **Integration Tests:** Vitest with MSW for API mocking
+      3. **E2E Tests:** Playwright for critical auth flows
+      4. **Visual Testing:** Storybook with interaction tests
+      5. **Accessibility:** @storybook/addon-a11y + axe-core
+
+      **Test Patterns:**
+      - Arrange-Act-Assert (AAA) pattern
+      - Given-When-Then for integration tests
+      - Page Object Model for E2E tests
+      - MSW handlers for predictable API responses
+
+      **Coverage Targets:**
+      - Components: 85%+ (UI primitives, layouts)
+      - Services: 90%+ (API client, auth helpers)
+      - Integration: Critical paths only (auth flow, tenant switching)
+      - E2E: Happy path + 2-3 error scenarios per feature
+    </standards>
+    <locations>
+      ```
+      /tests
+      ├── unit/
+      │   ├── components/
+      │   │   ├── GlassCard.test.tsx
+      │   │   ├── Button.test.tsx
+      │   │   ├── Input.test.tsx
+      │   │   └── TenantSwitcher.test.tsx
+      │   ├── lib/
+      │   │   ├── api-client.test.ts
+      │   │   └── auth.test.ts
+      │   └── services/
+      │       └── auth-service.test.ts
+      ├── integration/
+      │   ├── auth-flow.test.tsx (login → dashboard → logout)
+      │   ├── tenant-switching.test.tsx (switch tenant → fetch new role)
+      │   └── protected-routes.test.tsx (unauthenticated → redirect)
+      ├── e2e/
+      │   ├── login.spec.ts (Playwright)
+      │   ├── dashboard-navigation.spec.ts
+      │   └── tenant-switcher.spec.ts
+      ├── mocks/
+      │   ├── handlers.ts (MSW handlers)
+      │   └── data.ts (mock users, tenants, roles)
+      └── setup.ts (test configuration)
+
+      /components
+      └── **/__stories__/
+          ├── GlassCard.stories.tsx
+          ├── Button.stories.tsx
+          └── TenantSwitcher.stories.tsx
+      ```
+    </locations>
+    <ideas>
+      **Component Testing Ideas:**
+      1. **GlassCard:**
+         - Renders children correctly
+         - Applies variant classes (default, glow, hover)
+         - Handles onClick events
+         - Applies custom className
+         - Snapshot test for visual regression
+
+      2. **Button:**
+         - Renders all 5 variants (primary, secondary, ghost, danger, disabled)
+         - Shows loading spinner when loading=true
+         - Disabled state prevents onClick
+         - Keyboard accessible (Enter, Space trigger onClick)
+         - ARIA attributes correct
+
+      3. **Input:**
+         - Controlled input updates on change
+         - Shows error state with message
+         - Label associates with input (htmlFor)
+         - Required attribute works
+         - Placeholder text displays
+
+      4. **Modal:**
+         - Opens and closes correctly
+         - Backdrop click closes modal
+         - Escape key closes modal
+         - Focus trap prevents tabbing outside
+         - ARIA role="dialog" and aria-labelledby
+
+      5. **TenantSwitcher:**
+         - Displays current tenant name
+         - Dropdown shows all available tenants
+         - Clicking tenant calls onSwitch with tenant_id
+         - Loading state during switch
+         - Error handling for failed switch
+
+      **Integration Testing Ideas:**
+      1. **Auth Flow:**
+         - Navigate to /dashboard → redirects to /auth/login (unauthenticated)
+         - Submit login form → calls POST /api/auth/token
+         - Successful login → redirects to /dashboard
+         - Session cookie set with JWT
+         - Dashboard shows user email in header
+         - Logout → clears session → redirects to /
+
+      2. **Tenant Switching:**
+         - User has roles in 3 tenants (tenant_admin, operator, viewer)
+         - Default tenant shows "tenant_admin" badge
+         - Click tenant switcher → dropdown shows 3 tenants
+         - Select tenant #2 → calls GET /api/users/me/role?tenant_id=xxx
+         - Session updates with new tenant_id and role
+         - UI re-renders with new role permissions
+         - Admin menu hides for viewer role
+
+      3. **Protected Routes:**
+         - Unauthenticated user visits /dashboard → 302 redirect to /auth/login
+         - Authenticated user visits /dashboard → 200 OK
+         - Expired token → 401 response → redirect to /auth/login
+         - User with viewer role tries /admin → 403 Forbidden
+
+      **E2E Testing Ideas (Playwright):**
+      1. **Full Auth Flow:**
+         - Open https://localhost:3000
+         - Click "Sign In" button
+         - Enter email + password
+         - Click "Login"
+         - Wait for dashboard to load
+         - Assert: URL is /dashboard
+         - Assert: User email visible in header
+         - Assert: 4 metric cards displayed
+
+      2. **Dashboard Navigation:**
+         - Login as tenant_admin
+         - Click "Agents" in sidebar
+         - Wait for agents page to load
+         - Assert: URL is /dashboard/agents
+         - Assert: Agent table visible
+         - Click "Create Agent" button
+         - Assert: Modal opens
+
+      3. **Tenant Switcher:**
+         - Login with user that has 3 tenants
+         - Click tenant dropdown in header
+         - Assert: 3 tenants listed
+         - Click "Tenant B"
+         - Wait for role fetch
+         - Assert: Badge changes to "operator"
+         - Assert: Admin menu hidden (operator != admin)
+
+      **Accessibility Testing Ideas:**
+      1. Run axe-core on every Storybook story
+      2. Keyboard navigation test: Tab through entire dashboard
+      3. Screen reader test: VoiceOver on macOS reads all labels
+      4. Focus states visible (2px purple outline)
+      5. Color contrast analyzer on all text elements
+      6. ARIA landmarks (nav, main, footer) present
+
+      **Performance Testing Ideas:**
+      1. Lighthouse audit: target 90+ score
+      2. Bundle size analysis: webpack-bundle-analyzer
+      3. Core Web Vitals: LCP &lt; 2.5s, FID &lt; 100ms, CLS &lt; 0.1
+      4. React Profiler: measure component render times
+      5. TanStack Query DevTools: verify no unnecessary refetches
+
+      **Visual Regression Testing Ideas:**
+      1. Storybook snapshot tests for all components
+      2. Percy or Chromatic for pixel-perfect diff
+      3. Test glassmorphism rendering across browsers
+      4. Test responsive breakpoints (mobile, tablet, desktop, wide)
+      5. Dark mode toggle (when implemented)
+    </ideas>
+  </tests>
+</story-context>
